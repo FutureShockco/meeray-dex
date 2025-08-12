@@ -3,8 +3,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useApiService } from '../composables/useApiService';
 import PoolVolumeChart from '../components/PoolVolumeChart.vue';
-import { useCoinPricesStore } from '../stores/coinPrices';
-import { useTokenListStore } from '../stores/tokenList';
+import { useCoinPricesStore } from '../stores/useCoinPrices';
+import { useTokenListStore } from '../stores/useTokenList';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import BigNumber from 'bignumber.js';
 

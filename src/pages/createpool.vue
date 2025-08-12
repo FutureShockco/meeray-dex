@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import AppButton from '../components/AppButton.vue';
-import { useTokenListStore } from '../stores/tokenList';
+import { useTokenListStore } from '../stores/useTokenList';
 import CreateTokenModal from '../components/CreateTokenModal.vue';
 import AppTokenSelect from '../components/AppTokenSelect.vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';

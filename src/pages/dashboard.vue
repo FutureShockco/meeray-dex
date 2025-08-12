@@ -8,8 +8,8 @@ import DepositModal from '../components/DepositModal.vue';
 import BigNumber from 'bignumber.js';
 const auth = useAuthStore();
 const meeray = useMeerayAccountStore();
-import { useCoinPricesStore } from '../stores/coinPrices';
-import { useTokenListStore } from '../stores/tokenList';
+import { useCoinPricesStore } from '../stores/useCoinPrices';
+import { useTokenListStore } from '../stores/useTokenList';
 import { useApiService } from '../composables/useApiService';
 
 const api = useApiService();

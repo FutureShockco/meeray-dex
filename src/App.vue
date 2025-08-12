@@ -1,3 +1,22 @@
+<script setup>
+import { onMounted } from 'vue';
+import { useSteemPriceHistoryStore } from './stores/useSteemPriceHistory';
+import { useCoinPricesStore } from './stores/useCoinPrices';
+import { useTokenListStore } from './stores/useTokenList';
+
+const steemPriceHistory = useSteemPriceHistoryStore();
+const coinPrices = useCoinPricesStore();
+const tokenListStore = useTokenListStore();
+
+onMounted(() => {
+  steemPriceHistory.fetchPriceHistory();
+  coinPrices.fetchPrices();
+  if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
+  //useWsService();
+
+});
+</script>
+
 
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-950 dark:text-white">
@@ -6,7 +25,7 @@
         <span class="font-extrabold text-2xl tracking-tight text-primary-400">MeeRayDEX</span>
       </template>
     </AppNavbar>
-    <router-view class="container mx-auto mt-16"/>
+    <router-view class="container mx-auto mt-16" />
 
     <footer class="bg-gray-100 border-t mt-auto">
       <div class="container mx-auto px-4 py-6">

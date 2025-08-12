@@ -1,8 +1,8 @@
 import numeral from 'numeral';
 import moment from 'moment';
 import BigNumber from 'bignumber.js';
-import { useCoinPricesStore } from '../stores/coinPrices';
-import { useTokenListStore } from '../stores/tokenList';
+import { useCoinPricesStore } from '../stores/useCoinPrices';
+import { useTokenListStore } from '../stores/useTokenList';
 
 import type { App } from 'vue';
 

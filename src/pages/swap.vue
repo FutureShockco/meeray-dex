@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
-import { useTokenListStore } from '../stores/tokenList';
+import { useTokenListStore } from '../stores/useTokenList';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useApiService } from '../composables/useApiService';
 import AppButton from '../components/AppButton.vue';

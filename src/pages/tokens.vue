@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
 import { computed, onMounted } from 'vue';
-import { useTokenListStore } from '../stores/tokenList';
+import { useTokenListStore } from '../stores/useTokenList';
 
 const route = useRoute();
 const tokensStore = useTokenListStore()

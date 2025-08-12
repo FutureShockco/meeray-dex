@@ -3,8 +3,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useApiService } from '../composables/useApiService';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
-import { useCoinPricesStore } from '../stores/coinPrices';
-import { useTokenListStore } from '../stores/tokenList';
+import { useCoinPricesStore } from '../stores/useCoinPrices';
+import { useTokenListStore } from '../stores/useTokenList';
 import BigNumber from 'bignumber.js';
 
 const api = useApiService();

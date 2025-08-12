@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 import { useApiService } from '../composables/useApiService';
-import { useCoinPricesStore } from '../stores/coinPrices';
+import { useCoinPricesStore } from '../stores/useCoinPrices';
 import type { LiquidityPool } from '../types/pool';
 /**
  * Returns a computed ref with the USD price of a token using its pools with STEEM, SBD, USDT, USDC, BTC, ETH, BNB, or defaults to 1 USD.

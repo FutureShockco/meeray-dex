@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useTokenListStore } from '../stores/tokenList';
+import { useTokenListStore } from '../stores/useTokenList';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import TransferModal from '../components/TransferModal.vue';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
-import { useCoinPricesStore } from '../stores/coinPrices';
+import { useCoinPricesStore } from '../stores/useCoinPrices';
 import BigNumber from 'bignumber.js';
 
 const mainTabs = [

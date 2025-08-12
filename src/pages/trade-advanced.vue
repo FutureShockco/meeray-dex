@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useApiService } from '../composables/useApiService';
-import { useTokenListStore } from '../stores/tokenList';
+import { useTokenListStore } from '../stores/useTokenList';
 import BigNumber from 'bignumber.js';
 
 const route = useRoute();
@@ -497,7 +497,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+  <div class="min-h-screen">
     <div class="max-w-7xl mx-auto px-4 py-8">
       <!-- Header -->
       <div class="mb-8">
