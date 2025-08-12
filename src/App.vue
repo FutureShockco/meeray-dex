@@ -1,9 +1,9 @@
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-950 dark:text-white">
+  <div class="min-h-screen bg-white dark:bg-gray-950 dark:text-white mt-16">
     <AppNavbar>
       <template #logo>
-        <span class="font-extrabold text-2xl tracking-tight text-primary-400">MeerayDex</span>
+        <span class="font-extrabold text-2xl tracking-tight text-primary-400">MeeRayDEX</span>
       </template>
     </AppNavbar>
     <router-view class="container mx-auto pt-16"/>
