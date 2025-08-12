@@ -1,12 +1,12 @@
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-950 dark:text-white mt-16">
+  <div class="min-h-screen bg-white dark:bg-gray-950 dark:text-white">
     <AppNavbar>
       <template #logo>
         <span class="font-extrabold text-2xl tracking-tight text-primary-400">MeeRayDEX</span>
       </template>
     </AppNavbar>
-    <router-view class="container mx-auto pt-16"/>
+    <router-view class="container mx-auto mt-16"/>
 
     <footer class="bg-gray-100 border-t mt-auto">
       <div class="container mx-auto px-4 py-6">
