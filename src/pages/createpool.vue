@@ -6,7 +6,7 @@ import { useTokenListStore } from '../stores/tokenList';
 import CreateTokenModal from '../components/CreateTokenModal.vue';
 import AppTokenSelect from '../components/AppTokenSelect.vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
-import { useApiService, type PoolDetails } from '../composables/useApiService';
+import { useApiService, type Pool } from '../composables/useApiService';
 import BigNumber from 'bignumber.js';
 import { generatePoolId } from '../utils/idUtils';
 import { useRoute } from 'vue-router';
@@ -29,7 +29,7 @@ const createTokenError = ref('');
 const addLiquidityLoading = ref(false);
 const addLiquidityError = ref('');
 const addLiquiditySuccess = ref(false);
-const poolDetails = ref<PoolDetails | null>(null);
+const poolDetails = ref<Pool | null>(null);
 const poolAlreadyExists = ref(false);
 const poolCheckLoading = ref(false);
 const poolCheckError = ref('');
@@ -324,9 +324,15 @@ function getTokenBalance(symbol: string): number | undefined {
   if (!meeray.account) return undefined;
   let raw: string | number | bigint | undefined;
 
-  raw = meeray.account.balances[symbol];
 
   if (raw === undefined) return undefined;
+
+  // If balance is an object, extract the amount or rawAmount property
+  if (typeof raw === 'object' && raw !== null) {
+    if (raw && typeof raw === 'object' && 'amount' in raw) raw = (raw as { amount: string | number | bigint }).amount;
+    else if (raw && typeof raw === 'object' && 'rawAmount' in raw) raw = (raw as { rawAmount: string | number | bigint }).rawAmount;
+    else return undefined;
+  }
 
   // Find token precision
   const token = tokensStore.tokens.find(t => t.symbol === symbol);

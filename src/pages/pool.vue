@@ -5,7 +5,6 @@ import { useApiService } from '../composables/useApiService';
 import PoolVolumeChart from '../components/PoolVolumeChart.vue';
 import { useCoinPricesStore } from '../stores/coinPrices';
 import { useTokenListStore } from '../stores/tokenList';
-import { router-link } from '#components';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import BigNumber from 'bignumber.js';
 

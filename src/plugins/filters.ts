@@ -13,7 +13,7 @@ export default {
     app.config.globalProperties.$numeral = numeral;
     app.config.globalProperties.$moment = moment;
 
-    app.config.globalProperties.$formatNumber = (value: string | number, symbol: string, format: string = '0,0.00') => {
+    app.config.globalProperties.$formatNumber = (value: string | number, symbol?: string, format: string = '0,0.00') => {
       if (symbol && tokenListStore.tokens.length > 0) {
         const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
         if (token && typeof token.precision === 'number') {
@@ -68,9 +68,9 @@ export default {
       }
     };
 
-    app.config.globalProperties.$formatRawNumber = (value: string | number, symbol: string) => {
+    app.config.globalProperties.$formatRawNumber = (value: string | number, symbol: string, format: string = '0,0.00') => {
       const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
-      if (!token || typeof token.precision !== 'number') return value;
+      if (!token || typeof token.precision !== 'number') return numeral(value).format(format);
       try {
         const human = new BigNumber(value)
           .dividedBy(new BigNumber(10).pow(token.precision));
@@ -78,7 +78,7 @@ export default {
         return human.toFixed(decimalPlaces);
       } catch (e) {
         console.warn('format error:', e);
-        return value;
+        return numeral(value).format(format);
       }
     };
 

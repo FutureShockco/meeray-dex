@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import TradeChart from './TradeChart.vue';
-import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
+import { useTokenUsdPrice } from '../../composables/useTokenUsdPrice';
 const tabs = ['Chart', 'Info', 'Trading Analysis', 'Support', 'Depth'];
 const activeTab = ref('Chart');
 </script> 

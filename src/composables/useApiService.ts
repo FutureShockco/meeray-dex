@@ -88,7 +88,18 @@ export interface NFTDelegation { /* ... */ }
 export interface NFTMarketListing { /* ... */ }
 export interface UserLiquidityPosition { /* ... */ }
 export interface TradeRoute { /* ... */ }
-export interface Token { /* ... */ }
+export interface Token { 
+  symbol: string;
+  name: string;
+  precision: number;
+  issuer: string;
+  description?: string;
+  logo?: string;
+  totalSupply?: string; // in smallest units
+  rawTotalSupply?: string; // in smallest units
+  createdAt?: string; // ISO date string
+  updatedAt?: string; // ISO date string
+ }
 
 
 // Use globalThis.$fetch if available (Nuxt 3), otherwise fallback to fetch

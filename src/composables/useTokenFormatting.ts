@@ -3,7 +3,7 @@ import { useApiService } from './useApiService'
 export interface TokenInfo {
   symbol: string
   precision: number
-  issuer?: string
+  issuer: string
 }
 
 // Default precisions for common tokens
@@ -83,7 +83,8 @@ export function useTokenFormatting() {
     if (DEFAULT_PRECISIONS[symbol]) {
       const tokenInfo: TokenInfo = {
         symbol,
-        precision: DEFAULT_PRECISIONS[symbol]
+        precision: DEFAULT_PRECISIONS[symbol],
+        issuer: '' // Default issuer
       }
       tokenCache.set(symbol, tokenInfo)
       console.log(`[getTokenPrecision] Using default precision: ${symbol} -> ${tokenInfo.precision}`)

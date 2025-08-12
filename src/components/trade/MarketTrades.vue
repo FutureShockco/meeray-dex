@@ -26,7 +26,7 @@
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useAppStore } from '../stores/appStore';
+import { useAppStore } from '../../stores/appStore';
 
 const appStore = useAppStore();
 const trades = computed(() => appStore.trades);

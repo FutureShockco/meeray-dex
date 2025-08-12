@@ -31,8 +31,8 @@
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useAppStore } from '../stores/appStore';
-import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
+import { useAppStore } from '../../stores/appStore';
+import { useTokenUsdPrice } from '../../composables/useTokenUsdPrice';
 const appStore = useAppStore();
 const candles = computed(() => appStore.candles);
 const priceLine = '30,110 60,120 90,90 120,130 150,100 180,120 210,80 240,110 270,100 300,120 330,80 360,110,390,100 420,120 450,80 480,110 510,100 540,120 570,80 600,110';

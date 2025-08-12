@@ -25,8 +25,8 @@
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
-import { useAppStore } from '../stores/appStore';
+import { useTokenUsdPrice } from '../../composables/useTokenUsdPrice';
+import { useAppStore } from '../../stores/appStore';
 
 const appStore = useAppStore();
 const asks = computed(() => appStore.orderBook.asks);
