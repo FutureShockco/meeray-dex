@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import { useTokenListStore } from '../stores/useTokenList';
+
+const tokensStore = useTokenListStore();
+
+const hotCoins = computed(() => tokensStore.tokens.slice(0, 3));
+
 const appDescription = 'Discover, trade, and earn with the next generation decentralized exchange on Steem.';
 
 const stats = [
-  { label: 'Tokens', value: '120+' },
+  { label: 'Tokens', value: tokensStore.tokens.length || 0 },
   { label: 'Users', value: '8,500+' },
   { label: 'Volume (24h)', value: '$3.2M' },
   { label: 'Pools', value: '42' },

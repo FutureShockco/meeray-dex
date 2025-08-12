@@ -7,11 +7,13 @@ import { useApiService } from '../composables/useApiService';
 import AppButton from '../components/AppButton.vue';
 import AppTokenSelect from '../components/AppTokenSelect.vue';
 import { useRoute } from 'vue-router';
+import { useAppStore } from '../stores/appStore';
 
 const auth = useAuthStore();
 const tokensStore = useTokenListStore();
 const meeray = useMeerayAccountStore();
 const api = useApiService();
+const appStore = useAppStore();
 
 const fromToken = ref('');
 const toToken = ref('');
@@ -27,39 +29,93 @@ const swapSuccess = ref(false);
 const slippage = ref(1); // percent, default 1
 const routeData = ref<any>(null);
 const selectedRouteIndex = ref(0);
+let previewTimer: ReturnType<typeof setTimeout> | null = null;
+let previewRequestId = 0;
 
 const tokenOptions = computed(() => tokensStore.tokens);
 
-const canPreview = computed(() => fromToken.value && toToken.value && fromToken.value !== toToken.value && amountIn.value && !isNaN(Number(amountIn.value)));
+const canPreview = computed(() => {
+  const normalized = String(amountIn.value || '')
+    .replace(/,/g, '.')
+    .trim();
+  return (
+    !!fromToken.value &&
+    !!toToken.value &&
+    fromToken.value !== toToken.value &&
+    !!normalized &&
+    !isNaN(Number(normalized)) &&
+    Number(normalized) > 0
+  );
+});
 const canSwap = computed(() => canPreview.value && minAmountOut.value && !swapLoading.value && !previewLoading.value);
 
-watch([fromToken, toToken, amountIn], async () => {
+function queuePreview() {
+  console.debug('[swap] queuePreview triggered', {
+    from: fromToken.value,
+    to: toToken.value,
+    amountIn: amountIn.value,
+  });
+  // reset preview state immediately
   previewError.value = '';
   previewOut.value = '';
   previewPath.value = [];
   routeData.value = null;
   selectedRouteIndex.value = 0;
-  if (!canPreview.value) return;
-  previewLoading.value = true;
-  try {
-    const res = await api.autoSwapRoute(fromToken.value, toToken.value, amountIn.value, slippage.value);
-    routeData.value = res;
-    
-    // Set default values from best route
-    if (res.bestRoute) {
-      previewOut.value = res.bestRoute.finalAmountOutFormatted;
-      previewPath.value = res.bestRoute.hops.map((hop: any) => hop.tokenIn);
-      if (res.bestRoute.hops.length > 0) {
-        previewPath.value.push(res.bestRoute.hops[res.bestRoute.hops.length - 1].tokenOut);
-      }
-      minAmountOut.value = res.bestRoute.minFinalAmountOutFormatted;
+
+  // debounce API calls while the user is typing
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    if (!canPreview.value) {
+      console.debug('[swap] canPreview=false, skipping preview');
+      return;
     }
-  } catch (e: any) {
-    previewError.value = e?.message || 'Failed to preview swap.';
-  } finally {
-    previewLoading.value = false;
-  }
-}, { immediate: false });
+    const normalizedAmount = String(amountIn.value || '').replace(/,/g, '.').trim();
+    if (!normalizedAmount || isNaN(Number(normalizedAmount)) || Number(normalizedAmount) <= 0) {
+      console.debug('[swap] invalid normalizedAmount, skipping', normalizedAmount);
+      return;
+    }
+
+    previewLoading.value = true;
+    const requestId = ++previewRequestId;
+    console.debug('[swap] fetching route', {
+      requestId,
+      from: fromToken.value,
+      to: toToken.value,
+      amount: normalizedAmount,
+      slippage: slippage.value,
+    });
+    try {
+      const res = await api.autoSwapRoute(
+        fromToken.value,
+        toToken.value,
+        normalizedAmount,
+        slippage.value
+      );
+      // Ignore stale responses
+      if (requestId !== previewRequestId) return;
+      routeData.value = res;
+
+      // Set default values from best route
+      if (res.bestRoute) {
+        previewOut.value = res.bestRoute.finalAmountOutFormatted;
+        previewPath.value = res.bestRoute.hops.map((hop: any) => hop.tokenIn);
+        if (res.bestRoute.hops.length > 0) {
+          previewPath.value.push(res.bestRoute.hops[res.bestRoute.hops.length - 1].tokenOut);
+        }
+        minAmountOut.value = res.bestRoute.minFinalAmountOutFormatted;
+      }
+    } catch (e: any) {
+      if (requestId !== previewRequestId) return;
+      previewError.value = e?.message || 'Failed to preview swap.';
+    } finally {
+      if (requestId === previewRequestId) previewLoading.value = false;
+    }
+  }, 300);
+}
+
+watch(() => fromToken.value, queuePreview, { flush: 'pre' });
+watch(() => toToken.value, queuePreview, { flush: 'pre' });
+watch(() => amountIn.value, queuePreview, { flush: 'pre' });
 
 watch([selectedRouteIndex, routeData], () => {
   if (routeData.value && routeData.value.allRoutes && routeData.value.allRoutes[selectedRouteIndex.value]) {
@@ -130,6 +186,13 @@ function getBalance(symbol: string) {
 
 const route = useRoute();
 onMounted(() => {
+  // Ensure tokens are loaded before interacting
+  if (!tokensStore.tokens.length && !tokensStore.loading) {
+    appStore.setAppLoading(true);
+    tokensStore.fetchTokens().finally(() => {
+      appStore.setAppLoading(false);
+    });
+  }
   // Handle path parameter (for multi-hop routes)
   const qPath = route.query.path;
   if (qPath) {
@@ -281,7 +344,7 @@ function switchTokens() {
         </div>
         <div class="flex items-center gap-2 mt-2">
           <label class="block text-gray-700 dark:text-gray-300 font-medium">Amount to receive</label>
-          <input v-model="minAmountOut" type="number" min="0" step="any" class="w-32 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
+          <input readonly v-model="minAmountOut" type="number" min="0" step="any" class="w-32 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
         </div>
         <AppButton :disabled="!canSwap" @click="handleSwap" variant="primary" size="lg" class="mt-4 w-full">
           <span v-if="swapLoading">Swapping...</span>

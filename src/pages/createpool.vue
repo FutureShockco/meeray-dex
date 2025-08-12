@@ -351,7 +351,7 @@ function getTokenBalance(symbol: string): number | undefined {
 
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-950 py-10 px-2 flex justify-center">
-    <div class="w-full max-w-5xl flex gap-8">
+    <div class="w-full max-w-5xl flex gap-8 mt-16">
       <!-- Stepper -->
       <div class="w-64 flex flex-col gap-6">
         <div class="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6">

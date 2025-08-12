@@ -20,6 +20,7 @@ interface State {
   orderBook: { asks: OrderBookEntry[]; bids: OrderBookEntry[] };
   trades: TradeEntry[];
   candles: CandleEntry[];
+  isAppLoading: boolean;
 }
 
 export const useAppStore = defineStore('appStore', {
@@ -27,8 +28,12 @@ export const useAppStore = defineStore('appStore', {
     orderBook: { asks: [], bids: [] },
     trades: [],
     candles: [],
+    isAppLoading: false,
   }),
   actions: {
+    setAppLoading(val: boolean) {
+      this.isAppLoading = val;
+    },
     /**
      * Handle a WebSocket event from the backend.
      * @param data The event object (should contain tx, ts, etc)

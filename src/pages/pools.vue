@@ -121,7 +121,7 @@ function getPoolApr(pool: any) {
 </script>
 
 <template>
-  <div class="min-h-screen py-8 px-2 md:px-0 bg-white dark:bg-gray-950">
+  <div class="min-h-screen bg-white dark:bg-gray-950 py-10 px-2">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Main Content -->
       <div class="lg:col-span-2 flex flex-col gap-8">

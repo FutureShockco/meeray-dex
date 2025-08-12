@@ -7,7 +7,7 @@ const farms = [
     pair: 'STEEM/USDT',
     earn: 'ECH',
     apy: 325.6,
-    liquidity: 7269241,
+    liquidity: 0,
     explorer: '#',
   },
   {
@@ -15,7 +15,7 @@ const farms = [
     pair: 'STEEM/ECH',
     earn: 'ECH',
     apy: 27.66,
-    liquidity: 23030463,
+    liquidity: 0,
     explorer: '#',
   },
   {
@@ -23,7 +23,7 @@ const farms = [
     pair: 'STEEM/SBD',
     earn: 'ECH',
     apy: 26.4,
-    liquidity: 2978174,
+    liquidity: 0,
     explorer: '#',
   },
   {
@@ -31,7 +31,7 @@ const farms = [
     pair: 'SBD/ECH',
     earn: 'ECH',
     apy: 41.88,
-    liquidity: 3762317,
+    liquidity: 0,
     explorer: '#',
   },
   {
@@ -39,7 +39,7 @@ const farms = [
     pair: 'STEEM/BTC',
     earn: 'ECH',
     apy: 24.5,
-    liquidity: 6422108,
+    liquidity: 0,
     explorer: '#',
   },
   {
@@ -47,7 +47,7 @@ const farms = [
     pair: 'ECH/BTC',
     earn: 'ECH',
     apy: 11.83,
-    liquidity: 6643181,
+    liquidity: 0,
     explorer: '#',
   },
 ];
