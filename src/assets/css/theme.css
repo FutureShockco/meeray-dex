@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+:root {
+  /* Main Colors */
+  --nft-bg-dark: #0a0a0f;
+  --nft-bg-panel: #151530;
+  --nft-neon-primary: #00ffea;
+  --nft-neon-secondary: #ff00c8;
+  --nft-purple: #6a0dad;
+  --nft-dark-purple: #2a0a50;
+  --nft-blue: #0026ff;
+  --nft-accent: #00ff88;
+  --nft-red: #ff3860;
+  --nft-yellow: #ffdd00;
+}
