@@ -50,8 +50,7 @@ const UserFarmIcon = {
 const menuItems = [
   { label: 'Buy Crypto', href: '/' },
   { label: 'Markets', href: 'markets' },
-  { label: 'Trade', href: 'trade-advanced' },
-  { label: 'Swap', href: 'swap' },
+  { label: 'Trade', href: 'trade-hub' },
   { label: 'Pools', href: 'pools' },
   {
     label: 'Farms', dropdown: true, children: [

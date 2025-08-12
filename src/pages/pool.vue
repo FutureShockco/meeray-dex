@@ -220,7 +220,7 @@ function getPoolPairId(): string {
         </div>
         <!-- Volume Chart -->
         <div
-          class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 mb-4 h-49 flex items-center justify-center">
+          class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 mt-16 pb-5 mb-4 h-49 flex items-center justify-center">
           <PoolVolumeChart :poolId="poolId" />
         </div>
         <!-- Transactions Table -->

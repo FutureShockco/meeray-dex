@@ -3,11 +3,10 @@ module.exports = {
   darkMode: ['class', '.dark-theme'],
   content: [
     './components/**/*.{js,vue,ts}',
-    './layouts/**/*.vue',
-    './pages/**/*.vue',
     './plugins/**/*.{js,ts}',
-    './nuxt.config.{js,ts}',
-    './app.vue',
+    './src/**/*.{js,ts,jsx,tsx,vue}',
+    './src/assets/css/steemauth.css',
+    './src/assets/css/tailwind.css',
   ],
   theme: {
     extend: {
