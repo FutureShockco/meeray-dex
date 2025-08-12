@@ -39,14 +39,6 @@ const topVolume = [
   { symbol: 'XRP', price: '$2.16', change: -5.51, icon: '/icons/xrp.svg' },
 ];
 
-const marketTokens = [
-  { symbol: 'BTC', name: 'Bitcoin', price: '$94,030.30', change: -0.89, volume: '$30.17B', cap: '$1,866.32B', icon: '/icons/btc.svg' },
-  { symbol: 'ETH', name: 'Ethereum', price: '$1,765.81', change: -2.86, volume: '$13.37B', cap: '$213.17B', icon: '/icons/eth.svg' },
-  { symbol: 'USDT', name: 'TetherUS', price: '$0.99990001', change: -0.01, volume: '$61.63B', cap: '$148.44B', icon: '/icons/usdt.svg' },
-  { symbol: 'XRP', name: 'XRP', price: '$2.16', change: -5.51, volume: '$3.60B', cap: '$126.37B', icon: '/icons/xrp.svg' },
-  { symbol: 'BNB', name: 'BNB', price: '$597.22', change: -0.81, volume: '$1.57B', cap: '$84.18B', icon: '/icons/bnb.svg' },
-  { symbol: 'SOL', name: 'Solana', price: '$142.33', change: -3.92, volume: '$3.02B', cap: '$73.70B', icon: '/icons/sol.svg' },
-];
 
 const tokensStore = useTokenListStore();
 const auth = useAuthStore();
@@ -112,7 +104,7 @@ function getMarketCap(token: any) {
   
   // First priority: Use CoinGecko market cap if available
   if (coingeckoCap !== undefined && coingeckoCap !== null) {
-    return `$${Number(coingeckoCap).toLocaleString(undefined, { maximumFractionDigits: precision })}`;
+    return `$${Number(coingeckoCap).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   }
   
   // Second priority: Calculate from price × supply using pool-based price
@@ -135,10 +127,13 @@ function getMarketCap(token: any) {
         priceSource = 'Pool-based';
       }
       
-      return `$${cap.toLocaleString(undefined, { maximumFractionDigits: precision })}`;
+      return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
     }
   }
-  
+  if(price && token.currentSupply && token.currentSupply > 0){
+    const cap = Number(price) * Number(token.currentSupply);
+    return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  }
   return '--';
 }
 
@@ -169,6 +164,20 @@ function getTokenChangeClass(token: any) {
   return '';
 }
 
+
+function getTokenIcon(token: any) {
+  if(token.symbol === 'ECH') return '/icons/ech.svg';
+  if(token.symbol === 'STEEM') return '/icons/steem.svg';
+  if(token.symbol === 'SBD') return '/icons/sbd.svg';
+  if(token.symbol === 'USDT') return '/icons/usdt.svg';
+  if(token.symbol === 'USDC') return '/icons/usdc.svg';
+  if(token.symbol === 'BTC') return '/icons/btc.svg';
+  if(token.symbol === 'ETH') return '/icons/eth.svg';
+  if(token.symbol === 'BNB') return '/icons/bnb.svg';
+  return false;
+}
+
+
 onMounted(() => {
   if (!tokensStore.tokens.length) tokensStore.fetchTokens();
 });
@@ -197,7 +206,7 @@ onMounted(() => {
             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ coin.price }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(coin.symbol) }}</div>
           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -210,7 +219,7 @@ onMounted(() => {
         <div v-for="token in tokensStore.newTokens.slice(0, 3)" :key="token.symbol"
           class="flex items-center justify-between py-1">
           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ token.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ token.price }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(token.symbol) }}</div>
           <div :class="token.change < 0 ? 'text-red-500' : 'text-green-500'">{{ token.change }}%</div>
         </div>
       </div>
@@ -222,7 +231,7 @@ onMounted(() => {
         </div>
         <div v-for="coin in topGainers" :key="coin.symbol" class="flex items-center justify-between py-1">
           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ coin.price }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(coin.symbol) }}</div>
           <div :class="coin.change < 0 ? 'text-green-500' : 'text-red-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -237,7 +246,7 @@ onMounted(() => {
             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ coin.price }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(coin.symbol) }}</div>
           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -281,7 +290,8 @@ onMounted(() => {
 
             <td class="px-4 py-2 flex items-center space-x-2">
               <router-link :to="`/tokens?symbol=${token.symbol}`" class="flex">
-                <img :src="token.logoUrl || '/icons/token.png'" :alt="token.symbol" class="w-5 h-5 mr-1" />
+                <img v-if="typeof getTokenIcon(token) === 'string'" :src="getTokenIcon(token)" :alt="token.symbol" class="w-5 h-5 mr-1" />
+                <img v-else :src="token.logoUrl" :alt="token.symbol" class="w-5 h-5" />
                 <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ token.symbol }}</span>
                 <span class="text-gray-500 dark:text-gray-400">{{ token.name }}</span>
               </router-link>
@@ -296,18 +306,6 @@ onMounted(() => {
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.issuer || 'native' }}</td>
             <td class="px-4 py-2 flex space-x-2">
-              <button class="p-1 rounded hover:bg-primary-400 hover:text-white transition-colors" title="View">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M8 12h8m-4-4v8" />
-                </svg>
-              </button>
-              <button class="p-1 rounded hover:bg-primary-400 hover:text-white transition-colors" title="Trade">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path
-                    d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 5.66l-.71-.71M4.05 4.93l-.71-.71" />
-                </svg>
-              </button>
               <button v-if="token.issuer && auth.state.username && token.issuer === auth.state.username"
                 class="p-1 rounded hover:bg-green-500 hover:text-white transition-colors border border-green-500"
                 title="Mint" @click="openMintModal(token.symbol)">
@@ -315,6 +313,7 @@ onMounted(() => {
                   <path d="M12 4v16m8-8H4" />
                 </svg>
               </button>
+            
             </td>
           </tr>
 
