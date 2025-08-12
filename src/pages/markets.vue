@@ -290,8 +290,7 @@ onMounted(() => {
 
             <td class="px-4 py-2 flex items-center space-x-2">
               <router-link :to="`/tokens?symbol=${token.symbol}`" class="flex">
-                <img v-if="typeof getTokenIcon(token) === 'string'" :src="getTokenIcon(token)" :alt="token.symbol" class="w-5 h-5 mr-1" />
-                <img v-else :src="token.logoUrl" :alt="token.symbol" class="w-5 h-5" />
+                <img  :src="getTokenIcon(token) || token.logoUrl" :alt="token.symbol" class="w-5 h-5 mr-2" />
                 <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ token.symbol }}</span>
                 <span class="text-gray-500 dark:text-gray-400">{{ token.name }}</span>
               </router-link>
