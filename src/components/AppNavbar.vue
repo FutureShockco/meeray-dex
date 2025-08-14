@@ -48,7 +48,6 @@ const UserFarmIcon = {
 };
 
 const menuItems = [
-  { label: 'Buy Crypto', href: '/' },
   { label: 'Markets', href: 'markets' },
   { label: 'Trade', href: 'trade-hub' },
   { label: 'Pools', href: 'pools' },

@@ -71,9 +71,9 @@ const tvlUsd = computed(() => {
   if (!pool.value) return '--';
   const reserve0 = Number(pool.value.tokenA_reserve) || 0;
   const reserve1 = Number(pool.value.tokenB_reserve) || 0;
-  const price0 = price0Composable.value?.usdPrice.value ?? 0;
-  const price1 = price1Composable.value?.usdPrice.value ?? 0;
-  const tvl = price0 * reserve0 + price1 * reserve1;
+  const price0 = price0Composable.value || 0;
+  const price1 = price1Composable.value || 0;
+  const tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
   return tvl > 0 ? '$' + tvl.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '--';
 });
 const token0Balance = computed(() => pool.value && pool.value.tokenA_reserve !== undefined ? pool.value.tokenA_reserve : '--');

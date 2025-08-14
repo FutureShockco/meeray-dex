@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between px-2 py-1 border-b border-gray-200 dark:border-gray-800">
       <div class="flex items-center gap-2">
         <span class="text-base font-bold text-gray-900 dark:text-white">STEEM/USDT</span>
-        <span class="text-sm font-mono text-primary-400">{{useTokenUsdPrice('STEEM').usdPrice.value}}</span>
+        <span class="text-sm font-mono text-primary-400">{{useTokenUsdPrice('STEEM').value}}</span>
         <span class="text-xs font-semibold text-green-400">+0.32%</span>
       </div>
       <div class="flex items-center gap-1">
@@ -20,8 +20,8 @@
           <line v-for="i in 12" :key="'v'+i" :x1="i*50" :x2="i*50" y1="0" y2="220" />
         </g>
         <g>
-          <rect v-for="(c, i) in candles.value" :key="i" :x="candleSpacing.value * (i + 1) - candleWidth.value / 2" :y="c.y" :width="candleWidth.value" :height="c.h" :fill="c.up ? '#16a34a' : '#ef4444'" rx="1" />
-          <line v-for="(c, i) in candles.value" :key="'w'+i" :x1="candleSpacing.value * (i + 1)" :x2="candleSpacing.value * (i + 1)" :y1="c.w1" :y2="c.w2" :stroke="c.up ? '#16a34a' : '#ef4444'" stroke-width="2" />
+          <rect v-for="(c, i) in candles" :key="i" :x="candleSpacing * (i + 1) - candleWidth / 2" :y="c.y" :width="candleWidth" :height="c.h" :fill="c.up ? '#16a34a' : '#ef4444'" rx="1" />
+          <line v-for="(c, i) in candles" :key="'w'+i" :x1="candleSpacing * (i + 1)" :x2="candleSpacing * (i + 1)" :y1="c.w1" :y2="c.w2" :stroke="c.up ? '#16a34a' : '#ef4444'" stroke-width="2" />
         </g>
         <text x="300" y="110" text-anchor="middle" :fill="isDark ? '#374151' : '#e5e7eb'" font-size="36" font-weight="bold" opacity="0.10">STEEM/USDT</text>
         <polyline :points="priceLine" fill="none" stroke="#60a5fa" stroke-width="2" />

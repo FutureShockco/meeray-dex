@@ -3,6 +3,7 @@ import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
 
+import './assets/css/tailwind.css';
 import './assets/css/steemauth.css';
 
 import filters from './plugins/filters';

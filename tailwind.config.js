@@ -2,11 +2,8 @@
 module.exports = {
   darkMode: ['class', '.dark-theme'],
   content: [
-    './components/**/*.{js,vue,ts}',
-    './plugins/**/*.{js,ts}',
-    './src/**/*.{js,ts,jsx,tsx,vue}',
-    './src/assets/css/steemauth.css',
-    './src/assets/css/tailwind.css',
+    "./index.html",
+    "./src/**/*.{vue,js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -28,4 +25,4 @@ module.exports = {
     },
   },
   plugins: [],
-}; 
+} 

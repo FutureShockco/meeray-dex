@@ -42,9 +42,20 @@ export const useCoinPricesStore = defineStore('coinPrices', {
         this.changes = {};
         this.marketCaps = {};
         for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
+          if(symbol === 'STEEM') {
+            this.prices['TESTS'] = data[id]?.[FIAT] ?? null;
+            this.changes['TESTS'] = data[id]?.[`${FIAT}_24h_change`] ?? null;
+            this.marketCaps['TESTS'] = data[id]?.[`${FIAT}_market_cap`] ?? null;
+          }
+          if(symbol === 'SBD') {
+            this.prices['TBD'] = data[id]?.[FIAT] ?? null;
+            this.changes['TBD'] = data[id]?.[`${FIAT}_24h_change`] ?? null;
+            this.marketCaps['TBD'] = data[id]?.[`${FIAT}_market_cap`] ?? null;
+          }
           this.prices[symbol] = data[id]?.[FIAT] ?? null;
           this.changes[symbol] = data[id]?.[`${FIAT}_24h_change`] ?? null;
           this.marketCaps[symbol] = data[id]?.[`${FIAT}_market_cap`] ?? null;
+
         }
       } catch (e: any) {
         this.error = e.message || 'Unknown error';

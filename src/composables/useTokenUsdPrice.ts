@@ -1,7 +1,6 @@
 import { ref, computed } from 'vue';
-import { useApiService } from '../composables/useApiService';
+import { useApiService, type Pool } from '../composables/useApiService';
 import { useCoinPricesStore } from '../stores/useCoinPrices';
-import type { LiquidityPool } from '../types/pool';
 /**
  * Returns a computed ref with the USD price of a token using its pools with STEEM, SBD, USDT, USDC, BTC, ETH, BNB, or defaults to 1 USD.
  * @param symbol The token symbol (string)
@@ -9,32 +8,32 @@ import type { LiquidityPool } from '../types/pool';
 export function useTokenUsdPrice(symbol: string) {
   const api = useApiService();
   const coinPrices = useCoinPricesStore();
-  const price = ref<number|null>(null);
+  const usdPrice = ref<number|null>(0);
   const loading = ref(false);
   const error = ref('');
 
   // Order of reference tokens to try
-  const referenceTokens = ['STEEM', 'SBD', 'USDT', 'USDC', 'BTC', 'ETH', 'BNB'];
+  const referenceTokens = ['STEEM', 'SBD', 'USDT', 'USDC', 'BTC', 'ETH', 'BNB', 'TESTS', 'TBD'];
 
   async function fetchPrice() {
     loading.value = true;
     error.value = '';
-    price.value = null;
+    usdPrice.value = null;
     try {
       // If symbol is a reference token, use CoinGecko price directly
       if (referenceTokens.includes(symbol)) {
         const refUsd = coinPrices.prices[symbol];
         if (refUsd) {
-          price.value = refUsd;
+          usdPrice.value = refUsd;
         } else {
           error.value = `No USD price for ${symbol}`;
-          price.value = null;
+          usdPrice.value = 0;
         }
         loading.value = false;
         return;
       }
       const poolsResult = await api.getPoolsList({ limit: 1000 });
-      const pools = poolsResult.data as LiquidityPool[];
+      const pools = poolsResult.data as Pool[];
       let found = false;
       for (const refToken of referenceTokens) {
         const pool = pools.find((p) =>
@@ -52,14 +51,14 @@ export function useTokenUsdPrice(symbol: string) {
           if (!refUsd) {
             continue;
           }
-          price.value = priceInRef * refUsd;
+          usdPrice.value = priceInRef * refUsd;
           found = true;
           break;
         }
       }
       if (!found) {
         // No pool found, default to 1 USD
-        price.value = 1;
+        usdPrice.value = 1;
         error.value = 'No pool found for token, defaulting to 1 USD';
       }
     } catch (e: any) {
@@ -73,7 +72,7 @@ export function useTokenUsdPrice(symbol: string) {
   fetchPrice();
 
   // Expose a computed ref for reactivity
-  const usdPrice = computed(() => price.value);
+  const price = computed(() => usdPrice.value);
 
-  return { usdPrice, loading, error, refresh: fetchPrice };
+  return price;
 } 

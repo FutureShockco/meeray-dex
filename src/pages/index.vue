@@ -1,32 +1,43 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useTokenListStore } from '../stores/useTokenList';
-
+import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
+import { createTokenHelpers } from '../utils/tokenHelpers';
 const tokensStore = useTokenListStore();
 
-const hotCoins = computed(() => tokensStore.tokens.slice(0, 3));
+// Create token helper functions
+const tokenHelpers = createTokenHelpers();
 
+const hotCoins = computed(() => tokensStore.tokens.slice(0, 3));
+const newTokens = computed(() => tokensStore.newTokens.slice(0, 3));
+const tokenList = computed(() => tokensStore.tokens);
 const appDescription = 'Discover, trade, and earn with the next generation decentralized exchange on Steem.';
 
-const stats = [
-  { label: 'Tokens', value: tokensStore.tokens.length || 0 },
-  { label: 'Users', value: '8,500+' },
-  { label: 'Volume (24h)', value: '$3.2M' },
-  { label: 'Pools', value: '42' },
-];
+const tokenUsdPriceMap = computed(() => {
+  const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
+  for (const token of tokensStore.tokens) {
+    if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
+  }
+  return map;
+});
 
-const hotList = [
-  { symbol: 'BTC', price: '$67,000', change: '+2.1%' },
-  { symbol: 'STEEM', price: '$0.23', change: '+1.2%' },
-  { symbol: 'SBD', price: '$2.80', change: '-0.5%' },
-];
-const newTokens = [
-  { symbol: 'OZTK', price: '$0.12', change: '+10.2%' },
-  { symbol: 'HYPE', price: '$0.03', change: '+5.8%' },
-];
-const topGainers = [
-  { symbol: 'MOON', price: '$0.45', change: '+22.5%' },
-  { symbol: 'SUN', price: '$1.10', change: '+18.3%' },
-];
+const stats = computed(() => [
+  { label: 'Tokens', value: tokenList.value.length || 0 },
+  { label: 'Users', value: '2' },
+  { label: 'Volume (24h)', value: 'NA' },
+  { label: 'Pools', value: 'NA' },
+]);
+
+
+const topGainers = computed(() => {
+
+  const t = tokensStore.tokens.filter(t => tokenHelpers.getTokenChange(t) !== null && tokenHelpers.getTokenChange(t).startsWith('+')).sort((a, b) => {
+    return Number(tokenHelpers.getTokenChange(b)) - Number(tokenHelpers.getTokenChange(a));
+  }).slice(0, 3);
+
+  return t;
+});
+
 
 const features = [
   { title: 'Trade Instantly', description: 'Swap tokens with low fees and deep liquidity.', icon: '🔄' },
@@ -60,16 +71,21 @@ const faqs = [
         </h1>
         <p class="text-xl text-gray-600 dark:text-gray-300 mb-8">{{ appDescription }}</p>
         <div class="flex justify-center space-x-4">
-          <button class="bg-primary-500 text-white hover:bg-primary-600 px-6 py-2 rounded font-semibold shadow transition">Get Started</button>
-          <button class="border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white px-6 py-2 rounded font-semibold shadow transition bg-transparent">Learn More</button>
+          <button
+            class="bg-primary-500 text-white hover:bg-primary-600 px-6 py-2 rounded font-semibold shadow transition">Get
+            Started</button>
+          <button
+            class="border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white px-6 py-2 rounded font-semibold shadow transition bg-transparent">Learn
+            More</button>
         </div>
       </div>
     </section>
 
     <!-- Stats Section -->
-    <section class="py-8">
-      <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-        <div v-for="stat in stats" :key="stat.label" class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+    <section v-if="tokenList">
+      <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div v-for="stat in stats" :key="stat.label"
+          class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
           <div class="text-2xl font-bold text-primary-500 mb-1">{{ stat.value }}</div>
           <div class="text-gray-700 dark:text-gray-200 text-sm">{{ stat.label }}</div>
         </div>
@@ -84,30 +100,50 @@ const faqs = [
           <div class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
             <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">Hot List</h3>
             <ul>
-              <li v-for="item in hotList" :key="item.symbol" class="flex justify-between py-1">
-                <span class="font-mono text-gray-900 dark:text-white">{{ item.symbol }}</span>
-                <span class="text-gray-700 dark:text-gray-200">{{ item.price }}</span>
-                <span :class="item.change.startsWith('+') ? 'text-green-500' : 'text-red-500'">{{ item.change }}</span>
+              <li v-for="item in hotCoins" :key="item.symbol" class="py-2 flex justify-between space-x-2">
+                <div class="flex items-center space-x-2">
+                  <img :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol" class="w-5 h-5 mr-2" />
+                  <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ item.name }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-700 dark:text-gray-200">{{ tokenHelpers.getTokenPrice(item, tokenUsdPriceMap)
+                  }}</span>
+                  <span v-if="item.change" :class="item.change ? 'text-green-500' : 'text-red-500'">{{
+                    item.change }}</span>
+                </div>
               </li>
             </ul>
           </div>
           <div class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
             <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">New Tokens</h3>
             <ul>
-              <li v-for="item in newTokens" :key="item.symbol" class="flex justify-between py-1">
-                <span class="font-mono text-gray-900 dark:text-white">{{ item.symbol }}</span>
-                <span class="text-gray-700 dark:text-gray-200">{{ item.price }}</span>
-                <span :class="item.change.startsWith('+') ? 'text-green-500' : 'text-red-500'">{{ item.change }}</span>
+              <li v-for="item in newTokens" :key="item.symbol" class="py-2 flex justify-between space-x-2">
+                <div class="flex items-center space-x-2">
+                  <img :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol" class="w-5 h-5 mr-2" />
+                  <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ item.name }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-700 dark:text-gray-200">{{ tokenHelpers.getTokenPrice(item, tokenUsdPriceMap)
+                  }}</span>
+                  <span v-if="item.change" :class="item.change ? 'text-green-500' : 'text-red-500'">{{
+                    item.change }}</span>
+                </div>
               </li>
             </ul>
           </div>
           <div class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
             <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">Top Gainers</h3>
             <ul>
-              <li v-for="item in topGainers" :key="item.symbol" class="flex justify-between py-1">
-                <span class="font-mono text-gray-900 dark:text-white">{{ item.symbol }}</span>
-                <span class="text-gray-700 dark:text-gray-200">{{ item.price }}</span>
-                <span :class="item.change.startsWith('+') ? 'text-green-500' : 'text-red-500'">{{ item.change }}</span>
+              <li v-for="item in topGainers" :key="item.symbol" class="py-2 flex justify-between space-x-2">
+                <div class="flex items-center space-x-2">
+                  <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-700 dark:text-gray-200">{{ item.price }}</span>
+                  <span :class="tokenHelpers.getTokenChangeClass(item)">{{ tokenHelpers.getTokenChange(item) }}</span>
+                </div>
               </li>
             </ul>
           </div>
@@ -120,7 +156,8 @@ const faqs = [
       <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">Explore MeeRayDEX Features</h2>
         <div class="grid md:grid-cols-4 gap-8">
-          <div v-for="feature in features" :key="feature.title" class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-center">
+          <div v-for="feature in features" :key="feature.title"
+            class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-center">
             <div class="text-4xl mb-4 text-primary-500">{{ feature.icon }}</div>
             <h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-white">{{ feature.title }}</h3>
             <p class="text-gray-700 dark:text-gray-200 text-sm">{{ feature.description }}</p>
@@ -134,7 +171,8 @@ const faqs = [
       <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">How It Works</h2>
         <div class="grid md:grid-cols-4 gap-8">
-          <div v-for="item in howItWorks" :key="item.title" class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-center">
+          <div v-for="item in howItWorks" :key="item.title"
+            class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-center">
             <div class="text-3xl mb-3 text-primary-500">{{ item.icon }}</div>
             <h4 class="text-lg font-bold mb-1 text-gray-900 dark:text-white">{{ item.title }}</h4>
             <p class="text-gray-700 dark:text-gray-200 text-sm">{{ item.desc }}</p>
@@ -144,12 +182,20 @@ const faqs = [
     </section>
 
     <!-- FAQ Section -->
-    <section class="py-12 bg-primary-50 dark:bg-primary-900">
-      <div class="max-w-3xl mx-auto">
-        <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">FAQ</h2>
-        <div>
-          <div v-for="(faq, i) in faqs" :key="faq.q" class="mb-4">
-            <details class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 p-4">
+    <section class="max-w-6xl mx-auto py-12 bg-primary-50 dark:bg-primary-900">
+      <div>
+        <h2 class="font-bold text-center mb-10 text-gray-900 dark:text-white">FAQ</h2>
+        <div class="grid md:grid-cols-2 gap-8">
+          <div v-for="(faq, i) in faqs.slice(0, 2)" :key="faq.q" class="mb-4">
+            <details
+              class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 p-4">
+              <summary class="text-lg font-bold cursor-pointer text-gray-900 dark:text-white">{{ faq.q }}</summary>
+              <div class="text-gray-700 dark:text-gray-200 mt-2">{{ faq.a }}</div>
+            </details>
+          </div>
+          <div v-for="(faq, i) in faqs.slice(2, 4)" :key="faq.q" class="mb-4">
+            <details
+              class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 p-4">
               <summary class="text-lg font-bold cursor-pointer text-gray-900 dark:text-white">{{ faq.q }}</summary>
               <div class="text-gray-700 dark:text-gray-200 mt-2">{{ faq.a }}</div>
             </details>
@@ -160,5 +206,4 @@ const faqs = [
   </div>
 </template>
 
-<style scoped>
-</style> 
+<style scoped></style>

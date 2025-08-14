@@ -44,7 +44,7 @@ const marketStats = ref<any>({});
 const loading = ref(false);
 const error = ref('');
 const orderLoading = ref(false);
-const selectedTab = ref<'orderbook' | 'trades' | 'orders'>('orderbook');
+
 const tradeStatus = ref(''); // New: Track trade status messages
 
 // Trading pair computed
@@ -497,8 +497,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen">
-    <div class="max-w-7xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-center bg-white dark:bg-gray-950 px-2 pb-8">
+    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-8">
 
       <!-- Error Message -->
       <div v-if="error"
@@ -519,25 +519,23 @@ onUnmounted(() => {
       </div>
 
       <!-- Trading Interface -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div v-else class="grid grid-cols-1 lg:grid-cols-1 gap-6">
 
         <!-- Left Column: Trading Form -->
         <div class="lg:col-span-1">
           <!-- Pair Selection -->
-          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Trading Pair</h3>
-            <!-- Debug info -->
-            <div class="text-xs text-gray-500 mb-2">
-              Debug: {{ tradingPairs.length }} pairs loaded, selected: {{ selectedPair }}
-            </div>
-            <select v-model="selectedPair"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-              <option value="">Select pair...</option>
-              <option v-for="pair in tradingPairs" :key="pair._id" :value="pair._id">
-                {{ pair.baseAssetSymbol }}/{{ pair.quoteAssetSymbol }}
-              </option>
-            </select>
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Trade Tokens</h3>
+          <!-- Debug info -->
+          <div class="text-xs text-gray-500 mb-2">
+            Debug: {{ tradingPairs.length }} pairs loaded, selected: {{ selectedPair }}
           </div>
+          <select v-model="selectedPair"
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <option value="">Select pair...</option>
+            <option v-for="pair in tradingPairs" :key="pair._id" :value="pair._id">
+              {{ pair.baseAssetSymbol }}/{{ pair.quoteAssetSymbol }}
+            </option>
+          </select>
 
           <!-- Market Stats -->
           <div v-if="currentPair"
@@ -561,264 +559,114 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Trading Form -->
-          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Trades route through both AMM pools and orderbook for best execution
-            </p>
+          <!-- Order Side Tabs -->
+          <div class="flex my-4">
+            <button @click="orderSide = 'BUY'"
+              :class="['flex-1 py-2 px-4 text-sm font-medium rounded-l-lg border',
+                orderSide === 'BUY'
+                  ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400'
+                  : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300']">
+              Buy {{ baseToken }}
+            </button>
+            <button @click="orderSide = 'SELL'"
+              :class="['flex-1 py-2 px-4 text-sm font-medium rounded-r-lg border-t border-r border-b',
+                orderSide === 'SELL'
+                  ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400'
+                  : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300']">
+              Sell {{ baseToken }}
+            </button>
+          </div>
 
-            <!-- Order Side Tabs -->
-            <div class="flex mb-4">
-              <button @click="orderSide = 'BUY'"
-                :class="['flex-1 py-2 px-4 text-sm font-medium rounded-l-lg border',
-                  orderSide === 'BUY'
-                    ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400'
-                    : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300']">
-                Buy {{ baseToken }}
-              </button>
-              <button @click="orderSide = 'SELL'"
-                :class="['flex-1 py-2 px-4 text-sm font-medium rounded-r-lg border-t border-r border-b',
-                  orderSide === 'SELL'
-                    ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400'
-                    : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300']">
-                Sell {{ baseToken }}
-              </button>
-            </div>
-
-            <!-- Order Type -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trade Type</label>
-              <select v-model="orderType"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                <option value="LIMIT">Limit Trade (target price)</option>
-                <option value="MARKET">Market Trade (immediate)</option>
-              </select>
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                <span v-if="orderType === 'MARKET'">
-                  Executes immediately at best available price across all liquidity sources
-                </span>
-                <span v-else>
-                  Tries to achieve target price via optimal routing. May create orderbook order if no immediate match
-                  found
-                </span>
-              </p>
-            </div>
-
-            <!-- Price (for LIMIT orders) -->
-            <div v-if="orderType === 'LIMIT'" class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Target Price ({{ quoteToken }})
-              </label>
-              <input v-model="price" type="number" step="0.00000001" placeholder="0.00000000"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                System will find best route to achieve this price or better
-              </p>
-            </div>
-
-            <!-- Quantity -->
-            <div class="mb-4">
-              <div class="flex justify-between items-center mb-2">
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Quantity ({{ baseToken }})
-                </label>
-                <button @click="setMaxQuantity" class="text-xs text-primary-500 hover:text-primary-600">
-                  Max
-                </button>
-              </div>
-              <input v-model="quantity" type="number" step="0.00000001" placeholder="0.00000000"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-            </div>
-
-            <!-- Balances -->
-            <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-              <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Balances:</div>
-              <div class="flex justify-between text-sm">
-                <span>{{ baseToken }}:</span>
-                <span class="text-gray-900 dark:text-white">{{ baseBalance }}</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span>{{ quoteToken }}:</span>
-                <span class="text-gray-900 dark:text-white">{{ quoteBalance }}</span>
-              </div>
-            </div>
-
-            <!-- Order Summary -->
-            <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Order Summary:</div>
-              <div class="flex justify-between text-sm">
-                <span>Total Value:</span>
-                <span class="text-gray-900 dark:text-white">{{ orderValue }} {{ quoteToken }}</span>
-              </div>
-            </div>
-
-            <!-- Place Order Button -->
-            <button @click="placeOrder" :disabled="!isValidOrder || orderLoading" :class="[
-              'w-full py-3 px-4 rounded-lg font-medium transition-colors',
-              orderSide === 'BUY'
-                ? 'bg-green-500 hover:bg-green-600 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white',
-              (!isValidOrder || orderLoading) && 'opacity-50 cursor-not-allowed'
-            ]">
-              <span v-if="orderLoading">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
+          <!-- Order Type -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trade Type</label>
+            <select v-model="orderType"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+              <option value="LIMIT">Limit Trade (target price)</option>
+              <option value="MARKET">Market Trade (immediate)</option>
+            </select>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <span v-if="orderType === 'MARKET'">
+                Executes immediately at best available price across all liquidity sources
               </span>
               <span v-else>
-                {{ orderType === 'MARKET' ? 'Execute' : 'Place' }} {{ orderSide }} Trade
+                Tries to achieve target price via optimal routing. May create orderbook order if no immediate match
+                found
               </span>
-            </button>
+            </p>
+          </div>
 
-            <!-- Login Prompt -->
-            <div v-if="!auth.state?.username" class="mt-4 text-center text-sm text-gray-500">
-              Please login to execute trades
+          <!-- Price (for LIMIT orders) -->
+          <div v-if="orderType === 'LIMIT'" class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Target Price ({{ quoteToken }})
+            </label>
+            <input v-model="price" type="number" step="0.00000001" placeholder="0.00000000"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              System will find best route to achieve this price or better
+            </p>
+          </div>
+
+          <!-- Quantity -->
+          <div class="mb-4">
+            <div class="flex justify-between items-center mb-2">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Quantity ({{ baseToken }})
+              </label>
+              <button @click="setMaxQuantity" class="text-xs text-primary-500 hover:text-primary-600">
+                Max
+              </button>
             </div>
+            <input v-model="quantity" type="number" step="0.00000001" placeholder="0.00000000"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+          </div>
+
+          <!-- Balances -->
+          <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Available Balances:</div>
+            <div class="flex justify-between text-sm">
+              <span>{{ baseToken }}:</span>
+              <span class="text-gray-900 dark:text-white">{{ baseBalance }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span>{{ quoteToken }}:</span>
+              <span class="text-gray-900 dark:text-white">{{ quoteBalance }}</span>
+            </div>
+          </div>
+
+          <!-- Order Summary -->
+          <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Order Summary:</div>
+            <div class="flex justify-between text-sm">
+              <span>Total Value:</span>
+              <span class="text-gray-900 dark:text-white">{{ orderValue }} {{ quoteToken }}</span>
+            </div>
+          </div>
+
+          <!-- Place Order Button -->
+          <button @click="placeOrder" :disabled="!isValidOrder || orderLoading" :class="[
+            'w-full py-3 px-4 rounded-lg font-medium transition-colors',
+            orderSide === 'BUY'
+              ? 'bg-green-500 hover:bg-green-600 text-white'
+              : 'bg-red-500 hover:bg-red-600 text-white',
+            (!isValidOrder || orderLoading) && 'opacity-50 cursor-not-allowed'
+          ]">
+            <span v-if="orderLoading">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
+            </span>
+            <span v-else>
+              {{ orderType === 'MARKET' ? 'Execute' : 'Place' }} {{ orderSide }} Trade
+            </span>
+          </button>
+
+          <!-- Login Prompt -->
+          <div v-if="!auth.state?.username" class="mt-4 text-center text-sm text-gray-500">
+            Please login to execute trades
           </div>
         </div>
 
-        <!-- Middle Column: Order Book and Chart -->
-        <div class="lg:col-span-2">
-          <!-- Chart Placeholder -->
-          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Price Chart</h3>
-            <div class="h-64 flex items-center justify-center text-gray-500">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-            </div>
-          </div>
 
-          <!-- Market Data Tabs -->
-          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div class="border-b border-gray-200 dark:border-gray-700">
-              <nav class="flex space-x-8 px-4">
-                <button @click="selectedTab = 'orderbook'"
-                  :class="['py-4 px-1 border-b-2 font-medium text-sm',
-                    selectedTab === 'orderbook'
-                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
-                  Order Book
-                </button>
-                <button @click="selectedTab = 'trades'"
-                  :class="['py-4 px-1 border-b-2 font-medium text-sm',
-                    selectedTab === 'trades'
-                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
-                  Recent Trades
-                </button>
-                <button @click="selectedTab = 'orders'"
-                  :class="['py-4 px-1 border-b-2 font-medium text-sm',
-                    selectedTab === 'orders'
-                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
-                  My Open Orders
-                </button>
-              </nav>
-            </div>
-
-            <div class="p-4">
-              <!-- Order Book -->
-              <div v-if="selectedTab === 'orderbook'" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <!-- Asks (Sell Orders) -->
-                  <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Asks ({{ quoteToken }})
-                    </h4>
-                    <div class="space-y-1">
-                      <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>Price</span>
-                        <span>Quantity</span>
-                        <span>Total</span>
-                      </div>
-                      <div v-for="ask in orderBook.asks.slice(0, 10)" :key="ask.price"
-                        @click="setPriceFromOrderBook(ask.price)"
-                        class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
-                        <span class="text-red-600">{{ $formatNumber(ask.price) }}</span>
-                        <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }}</span>
-                        <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(ask.price * ask.quantity)
-                          }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Bids (Buy Orders) -->
-                  <div>
-                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Bids ({{ quoteToken }})
-                    </h4>
-                    <div class="space-y-1">
-                      <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>Price</span>
-                        <span>Quantity</span>
-                        <span>Total</span>
-                      </div>
-                      <div v-for="bid in orderBook.bids.slice(0, 10)" :key="bid.price"
-                        @click="setPriceFromOrderBook(bid.price)"
-                        class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/20 p-1 rounded">
-                        <span class="text-green-600">{{ $formatNumber(bid.price) }}</span>
-                        <span class="text-gray-900 dark:text-white">{{ $formatNumber(bid.quantity) }}</span>
-                        <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(bid.price * bid.quantity)
-                          }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Recent Trades -->
-              <div v-if="selectedTab === 'trades'">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Recent Trades</h4>
-                <div class="space-y-1">
-                  <div class="grid grid-cols-4 gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span>Price</span>
-                    <span>Quantity</span>
-                    <span>Time</span>
-                    <span>Side</span>
-                  </div>
-                  <div v-for="trade in recentTrades" :key="trade._id" class="grid grid-cols-4 gap-2 text-xs p-1">
-                    <span :class="trade.isMakerBuyer ? 'text-green-600' : 'text-red-600'">
-                      {{ $formatNumber(trade.price) }}
-                    </span>
-                    <span class="text-gray-900 dark:text-white">{{ $formatNumber(trade.quantity) }}</span>
-                    <span class="text-gray-600 dark:text-gray-400">{{ $formatDate(trade.timestamp, 'HH:mm:ss') }}</span>
-                    <span :class="trade.isMakerBuyer ? 'text-green-600' : 'text-red-600'">
-                      {{ trade.isMakerBuyer ? 'Buy' : 'Sell' }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- My Orders -->
-              <div v-if="selectedTab === 'orders'">
-                <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">My Open Orders</h4>
-                <div v-if="userOrders.length === 0" class="text-center py-8 text-gray-500">
-                  No open orders
-                </div>
-                <div v-else class="space-y-2">
-                  <div class="grid grid-cols-6 gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span>Pair</span>
-                    <span>Side</span>
-                    <span>Type</span>
-                    <span>Price</span>
-                    <span>Quantity</span>
-                    <span>Action</span>
-                  </div>
-                  <div v-for="order in userOrders" :key="order._id"
-                    class="grid grid-cols-6 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
-                    <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
-                      }}</span>
-                    <span :class="order.side === 'BUY' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
-                    <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
-                    <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price) : 'Market'
-                      }}</span>
-                    <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }}</span>
-                    <button @click="cancelOrder(order._id)" class="text-red-600 hover:text-red-700 text-xs">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- Right Column: Additional Info -->
         <div class="lg:col-span-1">
@@ -856,12 +704,12 @@ onUnmounted(() => {
               <div class="flex justify-between">
                 <span class="text-gray-500">Total Bids:</span>
                 <span class="text-green-600">{{orderBook.bids.reduce((sum, b) => sum + b.quantity, 0).toFixed(4)
-                  }}</span>
+                }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500">Total Asks:</span>
                 <span class="text-red-600">{{orderBook.asks.reduce((sum, a) => sum + a.quantity, 0).toFixed(4)
-                  }}</span>
+                }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500">Spread:</span>

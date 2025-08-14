@@ -10,7 +10,7 @@ const coinPrices = useCoinPricesStore();
 const tokenListStore = useTokenListStore();
 const appStore = useAppStore();
 
-const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading);
+const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length);
 
 onMounted(() => {
   steemPriceHistory.fetchPriceHistory();

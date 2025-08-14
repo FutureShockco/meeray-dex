@@ -14,7 +14,7 @@ const getButtonClasses = (
   size: string = 'md',
   disabled: boolean = false
 ) => {
-  const baseClasses = 'rounded font-medium transition-colors duration-200';
+  const baseClasses = 'btn btn-primary rounded font-medium transition-colors duration-200';
   
   const variantClasses = {
     primary: 'bg-primary-600 text-white hover:bg-primary-700',

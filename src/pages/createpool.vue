@@ -529,7 +529,7 @@ function getTokenBalance(symbol: string): number | undefined {
             </div>
             <div v-if="addLiquidityError" class="text-red-500 text-sm mt-2">{{ addLiquidityError }}</div>
             <div v-if="addLiquiditySuccess" class="text-green-600 dark:text-green-400 text-sm mt-4 font-semibold">
-              Liquidity added! <a :href="`/pool?poolId=${poolDetails?.poolId || `${tokens[0]}_${tokens[1]}_${feeTier}`}`"
+              Liquidity added! <a :href="`/pool?poolId=${poolDetails?.id || `${tokens[0]}_${tokens[1]}_${feeTier}`}`"
                 class="underline hover:text-primary-500">View Pool</a>
             </div>
           </template>

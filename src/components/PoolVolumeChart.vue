@@ -128,8 +128,8 @@ const chartOptions = computed(() => ({
       },
       caretSize: 6,
       cornerRadius: 8,
-      titleFont: { weight: 'bold', size: 14 },
-      bodyFont: { weight: 'bold', size: 16 },
+      titleFont: { weight: 'bold' as const, size: 14 },
+      bodyFont: { weight: 'bold' as const, size: 16 },
     },
   },
   scales: {
@@ -137,14 +137,14 @@ const chartOptions = computed(() => ({
       grid: { display: false },
       ticks: {
         color: isDark.value ? '#fff' : '#18181b',
-        font: { weight: 'bold', size: 13 },
+        font: { weight: 'bold' as const, size: 13 },
       },
     },
     y: {
       grid: { display: false },
       ticks: {
         color: isDark.value ? '#fff' : '#18181b',
-        font: { weight: 'bold', size: 13 },
+        font: { weight: 'bold' as const, size: 13 },
         callback: (v: any) => `$${(v / 1_000_000).toFixed(1)}M`,
         maxTicksLimit: 6,
       },

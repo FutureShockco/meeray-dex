@@ -106,7 +106,7 @@ export function useTokenFormatting() {
       return precision
     } catch (error) {
       console.warn(`Failed to get precision for token ${symbol}, using default 8`)
-      const defaultInfo: TokenInfo = { symbol, precision: 8 }
+      const defaultInfo: TokenInfo = { symbol, precision: 8, issuer: '' }
       tokenCache.set(symbol, defaultInfo)
       return 8
     }

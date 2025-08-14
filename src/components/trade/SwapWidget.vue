@@ -227,8 +227,8 @@ function switchTokens() {
 </script>
 
 <template>
-  <div class="flex items-center justify-center bg-white dark:bg-gray-950 px-2 py-8">
-    <div class="w-full max-w-md mx-auto rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-8">
+  <div class="flex items-center justify-center bg-white dark:bg-gray-950 px-2 pb-8">
+    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Swap Tokens</h2>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">

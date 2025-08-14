@@ -14,7 +14,7 @@
       </div>
       <div
         class="my-2 border-t border-b border-gray-200 dark:border-gray-700 py-2 text-center text-primary-400 font-bold text-lg bg-gray-100 dark:bg-gray-950">
-        {{ useTokenUsdPrice('STEEM').usdPrice.value }}</div>
+        {{ useTokenUsdPrice('STEEM').value }}</div>
       <div v-for="(order, i) in bids" :key="'bid-' + i" class="flex justify-between text-xs text-green-400 py-0.5">
         <span>{{ order.price }}</span>
         <span>{{ order.amount }}</span>

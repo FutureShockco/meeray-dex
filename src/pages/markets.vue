@@ -4,8 +4,8 @@ import { useTokenListStore } from '../stores/useTokenList';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import TransferModal from '../components/TransferModal.vue';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
-import { useCoinPricesStore } from '../stores/useCoinPrices';
 import BigNumber from 'bignumber.js';
+import { createTokenHelpers } from '../utils/tokenHelpers';
 
 const mainTabs = [
   { label: 'Markets Overview' },
@@ -44,7 +44,7 @@ const tokensStore = useTokenListStore();
 const auth = useAuthStore();
 const showMintModal = ref(false);
 const mintSymbol = ref('');
-const coinPricesStore = useCoinPricesStore();
+
 
 // Map of token symbol to composable result (so each token price is only fetched once)
 const tokenUsdPriceMap = computed(() => {
@@ -54,6 +54,9 @@ const tokenUsdPriceMap = computed(() => {
   }
   return map;
 });
+
+// Create token helper functions
+const tokenHelpers = createTokenHelpers();
 
 function openMintModal(symbol: string) {
   mintSymbol.value = symbol;
@@ -92,90 +95,13 @@ async function handleMint(payload: any) {
   }
 }
 
-function getTokenPrecision(token: any) {
-  return typeof token.precision === 'number' ? token.precision : 0;
-}
-
-function getMarketCap(token: any) {
-  const coingeckoCap = coinPricesStore.marketCaps[token.symbol];
-  const price = tokenUsdPriceMap.value[token.symbol]?.usdPrice.value;
-  const supply = token.supply || token.totalSupply || token.circulatingSupply;
-  const precision = getTokenPrecision(token);
-  
-  // First priority: Use CoinGecko market cap if available
-  if (coingeckoCap !== undefined && coingeckoCap !== null) {
-    return `$${Number(coingeckoCap).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-  }
-  
-  // Second priority: Calculate from price × supply using pool-based price
-  if (price !== undefined && price !== null && supply !== undefined && supply !== null) {
-    const cap = Number(price) * Number(supply);
-    if (isFinite(cap)) {
-      // Determine price source
-      const referenceTokens = ['STEEM', 'SBD', 'USDT', 'USDC', 'BTC', 'ETH', 'BNB'];
-      const isReferenceToken = referenceTokens.includes(token.symbol);
-      const hasPoolError = tokenUsdPriceMap.value[token.symbol]?.error?.value;
-      
-      let priceSource = 'Unknown';
-      if (isReferenceToken) {
-        priceSource = 'CoinGecko';
-      } else if (hasPoolError && hasPoolError.includes('defaulting to 1 USD')) {
-        priceSource = 'Default (1 USD)';
-      } else if (price === 1 && hasPoolError) {
-        priceSource = 'Default (1 USD)';
-      } else {
-        priceSource = 'Pool-based';
-      }
-      
-      return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-    }
-  }
-  if(price && token.currentSupply && token.currentSupply > 0){
-    const cap = Number(price) * Number(token.currentSupply);
-    return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-  }
-  return '--';
-}
-
-function getTokenPrice(token: any) {
-  const price = tokenUsdPriceMap.value[token.symbol]?.usdPrice.value;
-  const precision = getTokenPrecision(token);
-  if (price !== undefined && price !== null) {
-    return '$' + Number(price).toLocaleString(undefined, { maximumFractionDigits: precision });
-  }
-  return '--';
-}
-
-function getTokenChange(token: any) {
-  const change = coinPricesStore.changes[token.symbol];
-  if (change !== undefined && change !== null) {
-    const val = Number(change).toFixed(2);
-    return (change > 0 ? '+' : '') + val + '%';
-  }
-  return '--';
-}
-
-function getTokenChangeClass(token: any) {
-  const change = coinPricesStore.changes?.[token.symbol];
-  if (typeof change === 'number') {
-    if (change > 0) return 'text-green-500';
-    if (change < 0) return 'text-red-500';
-  }
-  return '';
-}
 
 
-function getTokenIcon(token: any) {
-  if(token.symbol === 'ECH') return '/icons/ech.svg';
-  if(token.symbol === 'STEEM') return '/icons/steem.svg';
-  if(token.symbol === 'SBD') return '/icons/sbd.svg';
-  if(token.symbol === 'USDT') return '/icons/usdt.svg';
-  if(token.symbol === 'USDC') return '/icons/usdc.svg';
-  if(token.symbol === 'BTC') return '/icons/btc.svg';
-  if(token.symbol === 'ETH') return '/icons/eth.svg';
-  if(token.symbol === 'BNB') return '/icons/bnb.svg';
-  return false;
-}
+
+
+
+
+
 
 
 onMounted(() => {
@@ -201,14 +127,14 @@ onMounted(() => {
           <span class="font-semibold text-gray-900 dark:text-white">Hot Coins</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="coin in hotCoins" :key="coin.symbol" class="flex items-center justify-between py-1">
-          <div class="flex items-center space-x-2">
-            <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
-            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
-          </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(coin.symbol) }}</div>
-          <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
-        </div>
+                 <div v-for="coin in hotCoins" :key="coin.symbol" class="flex items-center justify-between py-1">
+           <div class="flex items-center space-x-2">
+             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
+             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
+           </div>
+           <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}</div>
+           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
+         </div>
       </div>
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
@@ -216,12 +142,12 @@ onMounted(() => {
           <span class="font-semibold text-gray-900 dark:text-white">New Listing</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="token in tokensStore.newTokens.slice(0, 3)" :key="token.symbol"
-          class="flex items-center justify-between py-1">
-          <span class="font-medium text-sm text-gray-900 dark:text-white">{{ token.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(token.symbol) }}</div>
-          <div :class="token.change < 0 ? 'text-red-500' : 'text-green-500'">{{ token.change }}%</div>
-        </div>
+                 <div v-for="token in tokensStore.newTokens.slice(0, 3)" :key="token.symbol"
+           class="flex items-center justify-between py-1">
+           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ token.symbol }}</span>
+           <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap) }}</div>
+           <div :class="token.change < 0 ? 'text-red-500' : 'text-green-500'">{{ token.change }}%</div>
+         </div>
       </div>
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
@@ -231,7 +157,7 @@ onMounted(() => {
         </div>
         <div v-for="coin in topGainers" :key="coin.symbol" class="flex items-center justify-between py-1">
           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(coin.symbol) }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}</div>
           <div :class="coin.change < 0 ? 'text-green-500' : 'text-red-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -246,7 +172,7 @@ onMounted(() => {
             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ getTokenPrice(coin.symbol) }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}</div>
           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -290,18 +216,18 @@ onMounted(() => {
 
             <td class="px-4 py-2 flex items-center space-x-2">
               <router-link :to="`/tokens?symbol=${token.symbol}`" class="flex">
-                <img  :src="getTokenIcon(token) || token.logoUrl" :alt="token.symbol" class="w-5 h-5 mr-2" />
+                <img  :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" :alt="token.symbol" class="w-5 h-5 mr-2" />
                 <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ token.symbol }}</span>
                 <span class="text-gray-500 dark:text-gray-400">{{ token.name }}</span>
               </router-link>
             </td>
-            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ getTokenPrice(token) }}</td>
-            <td class="px-4 py-2" :class="getTokenChangeClass(token)">
-              {{ getTokenChange(token) }}
+            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap) }}</td>
+            <td class="px-4 py-2" :class="tokenHelpers.getTokenChangeClass(token)">
+              {{ tokenHelpers.getTokenChange(token) }}
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.volume }}</td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">
-              <span >{{ getMarketCap(token) }}</span>
+              <span >{{ tokenHelpers.getMarketCap(token, tokenUsdPriceMap) }}</span>
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.issuer || 'native' }}</td>
             <td class="px-4 py-2 flex space-x-2">
