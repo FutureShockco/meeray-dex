@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
+    "start": "vue-tsc -b && vite build && node start.js",
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview"
