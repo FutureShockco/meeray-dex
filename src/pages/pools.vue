@@ -72,8 +72,8 @@ const tokenUsdPriceMap = computed(() => {
 });
 
 function getTvlUsd(pool: any) {
-  const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol] || 0;
-  const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol] || 0;
+  const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
+  const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
   const reserve0 = Number(pool.tokenA_reserve) || 0;
   const reserve1 = Number(pool.tokenB_reserve) || 0;
   const tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
