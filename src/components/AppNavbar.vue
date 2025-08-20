@@ -49,7 +49,7 @@ const UserFarmIcon = {
 
 const menuItems = [
   { label: 'Markets', href: 'markets' },
-  { label: 'Trade', href: 'trade-hub' },
+  { label: 'Swap', href: 'swap' },
   { label: 'Pools', href: 'pools' },
   {
     label: 'Farms', dropdown: true, children: [

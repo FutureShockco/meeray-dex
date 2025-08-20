@@ -259,12 +259,12 @@ const placeOrder = async () => {
     }
 
     const tokenIn = orderSide.value === 'BUY'
-      ? currentPairData.quoteAssetSymbol
-      : currentPairData.baseAssetSymbol;
+      ? tokenList.getTokenIdentifier(currentPairData.quoteAssetSymbol)
+      : tokenList.getTokenIdentifier(currentPairData.baseAssetSymbol);
 
     const tokenOut = orderSide.value === 'BUY'
-      ? currentPairData.baseAssetSymbol
-      : currentPairData.quoteAssetSymbol;
+      ? tokenList.getTokenIdentifier(currentPairData.baseAssetSymbol)
+      : tokenList.getTokenIdentifier(currentPairData.quoteAssetSymbol);
 
     // Get token precisions
     const baseTokenPrecision = tokenList.getTokenPrecision(currentPairData.baseAssetSymbol);

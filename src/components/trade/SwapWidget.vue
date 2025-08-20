@@ -9,6 +9,17 @@ import AppTokenSelect from '../AppTokenSelect.vue';
 import { useRoute } from 'vue-router';
 import { useAppStore } from '../../stores/appStore';
 
+// Props for initial token values
+interface Props {
+  initialTokenIn?: string;
+  initialTokenOut?: string;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  initialTokenIn: '',
+  initialTokenOut: ''
+});
+
 const auth = useAuthStore();
 const tokensStore = useTokenListStore();
 const meeray = useMeerayAccountStore();
@@ -33,6 +44,16 @@ let previewTimer: ReturnType<typeof setTimeout> | null = null;
 let previewRequestId = 0;
 
 const tokenOptions = computed(() => tokensStore.tokens);
+
+// Initialize tokens from props if available
+onMounted(() => {
+  if (props.initialTokenIn && !fromToken.value) {
+    fromToken.value = props.initialTokenIn;
+  }
+  if (props.initialTokenOut && !toToken.value) {
+    toToken.value = props.initialTokenOut;
+  }
+});
 
 const canPreview = computed(() => {
   const normalized = String(amountIn.value || '')
@@ -149,8 +170,8 @@ async function handleSwap() {
     // Construct hops array from the selected route
     const hops = selectedRoute.hops.map((hop: any) => ({
       poolId: hop.poolId,
-      tokenIn_symbol: hop.tokenIn,
-      tokenOut_symbol: hop.tokenOut,
+      tokenIn_symbol: tokensStore.getTokenIdentifier(hop.tokenIn),
+      tokenOut_symbol: tokensStore.getTokenIdentifier(hop.tokenOut),
       amountIn: hop.amountIn,
       minAmountOut: hop.minAmountOut
     }));
@@ -162,8 +183,8 @@ async function handleSwap() {
       json: JSON.stringify({
         contract: 'pool_swap',
         payload: {
-          tokenIn_symbol: fromToken.value,
-          tokenOut_symbol: toToken.value,
+          tokenIn_symbol: tokensStore.getTokenIdentifier(fromToken.value),
+          tokenOut_symbol: tokensStore.getTokenIdentifier(toToken.value),
           amountIn: selectedRoute.finalAmountIn,
           minAmountOut: selectedRoute.minFinalAmountOut,
           slippagePercent: slippage.value,

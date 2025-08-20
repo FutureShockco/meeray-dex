@@ -26,9 +26,10 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SwapWidget: typeof import('./components/trade/SwapWidget.vue')['default']
     TopMovers: typeof import('./components/trade/TopMovers.vue')['default']
-    TradeAdvancedWidget: typeof import('./components/trade/TradeAdvancedWidget.vue')['default']
+    TradeAdvancedWidget: typeof import('./components/trade/TradeWidget.vue')['default']
     TradeChart: typeof import('./components/trade/TradeChart.vue')['default']
     TradeTabs: typeof import('./components/trade/TradeTabs.vue')['default']
+    TradeWidget: typeof import('./components/trade/TradeWidget.vue')['default']
     TransferModal: typeof import('./components/TransferModal.vue')['default']
   }
 }

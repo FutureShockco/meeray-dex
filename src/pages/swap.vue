@@ -1,358 +1,316 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
-import { useTokenListStore } from '../stores/useTokenList';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useApiService } from '../composables/useApiService';
-import AppButton from '../components/AppButton.vue';
-import AppTokenSelect from '../components/AppTokenSelect.vue';
-import { useRoute } from 'vue-router';
-import { useAppStore } from '../stores/appStore';
+import { useTokenListStore } from '../stores/useTokenList';
+import BigNumber from 'bignumber.js';
 
-const auth = useAuthStore();
-const tokensStore = useTokenListStore();
+const route = useRoute();
+
+// Store instances
 const meeray = useMeerayAccountStore();
 const api = useApiService();
-const appStore = useAppStore();
+const tokenList = useTokenListStore();
 
-const fromToken = ref('');
-const toToken = ref('');
-const amountIn = ref('');
-const minAmountOut = ref('');
-const previewOut = ref('');
-const previewPath = ref<string[]>([]);
-const previewLoading = ref(false);
-const previewError = ref('');
-const swapLoading = ref(false);
-const swapError = ref('');
-const swapSuccess = ref(false);
-const slippage = ref(1); // percent, default 1
-const routeData = ref<any>(null);
-const selectedRouteIndex = ref(0);
-let previewTimer: ReturnType<typeof setTimeout> | null = null;
-let previewRequestId = 0;
+const auth = useAuthStore();
 
-const tokenOptions = computed(() => tokensStore.tokens);
+type Tab = 'swap' | 'advanced';
+const tab = ref<Tab>('swap');
+const selectedTab = ref<'orderbook' | 'trades' | 'orders'>('orderbook');
+const tradingPairs = ref<any[]>([]);
+const orderBook = ref<{ bids: any[], asks: any[] }>({ bids: [], asks: [] });
+const recentTrades = ref<any[]>([]);
+const userOrders = ref<any[]>([]);
+const marketStats = ref<any>({});
 
-const canPreview = computed(() => {
-  const normalized = String(amountIn.value || '')
-    .replace(/,/g, '.')
-    .trim();
-  return (
-    !!fromToken.value &&
-    !!toToken.value &&
-    fromToken.value !== toToken.value &&
-    !!normalized &&
-    !isNaN(Number(normalized)) &&
-    Number(normalized) > 0
-  );
-});
-const canSwap = computed(() => canPreview.value && minAmountOut.value && !swapLoading.value && !previewLoading.value);
+// Trading state
+const selectedPair = ref<string>('');
+const baseToken = ref<string>('MRY');
+const quoteToken = ref<string>('STEEM');
+const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
+const orderSide = ref<'BUY' | 'SELL'>('BUY');
+const price = ref<string>('');
+const quantity = ref<string>('');
 
-function queuePreview() {
-  console.debug('[swap] queuePreview triggered', {
-    from: fromToken.value,
-    to: toToken.value,
-    amountIn: amountIn.value,
-  });
-  // reset preview state immediately
-  previewError.value = '';
-  previewOut.value = '';
-  previewPath.value = [];
-  routeData.value = null;
-  selectedRouteIndex.value = 0;
+// URL parameters for swap
+const urlTokenIn = ref<string>('');
+const urlTokenOut = ref<string>('');
+const useTradeWidget = ref<boolean>(false);
+const pairId = ref<string>('');
 
-  // debounce API calls while the user is typing
-  if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = setTimeout(async () => {
-    if (!canPreview.value) {
-      console.debug('[swap] canPreview=false, skipping preview');
-      return;
-    }
-    const normalizedAmount = String(amountIn.value || '').replace(/,/g, '.').trim();
-    if (!normalizedAmount || isNaN(Number(normalizedAmount)) || Number(normalizedAmount) <= 0) {
-      console.debug('[swap] invalid normalizedAmount, skipping', normalizedAmount);
-      return;
-    }
+// UI state
+const loading = ref(false);
+const error = ref('');
+const orderLoading = ref(false);
 
-    previewLoading.value = true;
-    const requestId = ++previewRequestId;
-    console.debug('[swap] fetching route', {
-      requestId,
-      from: fromToken.value,
-      to: toToken.value,
-      amount: normalizedAmount,
-      slippage: slippage.value,
-    });
-    try {
-      const res = await api.autoSwapRoute(
-        fromToken.value,
-        toToken.value,
-        normalizedAmount,
-        slippage.value
-      );
-      // Ignore stale responses
-      if (requestId !== previewRequestId) return;
-      routeData.value = res;
-
-      // Set default values from best route
-      if (res.bestRoute) {
-        previewOut.value = res.bestRoute.finalAmountOutFormatted;
-        previewPath.value = res.bestRoute.hops.map((hop: any) => hop.tokenIn);
-        if (res.bestRoute.hops.length > 0) {
-          previewPath.value.push(res.bestRoute.hops[res.bestRoute.hops.length - 1].tokenOut);
-        }
-        minAmountOut.value = res.bestRoute.minFinalAmountOutFormatted;
-      }
-    } catch (e: any) {
-      if (requestId !== previewRequestId) return;
-      previewError.value = e?.message || 'Failed to preview swap.';
-    } finally {
-      if (requestId === previewRequestId) previewLoading.value = false;
-    }
-  }, 300);
-}
-
-watch(() => fromToken.value, queuePreview, { flush: 'pre' });
-watch(() => toToken.value, queuePreview, { flush: 'pre' });
-watch(() => amountIn.value, queuePreview, { flush: 'pre' });
-
-watch([selectedRouteIndex, routeData], () => {
-  if (routeData.value && routeData.value.allRoutes && routeData.value.allRoutes[selectedRouteIndex.value]) {
-    const selectedRoute = routeData.value.allRoutes[selectedRouteIndex.value];
-    previewOut.value = selectedRoute.finalAmountOutFormatted;
-    previewPath.value = selectedRoute.hops.map((hop: any) => hop.tokenIn);
-    if (selectedRoute.hops.length > 0) {
-      previewPath.value.push(selectedRoute.hops[selectedRoute.hops.length - 1].tokenOut);
-    }
-    minAmountOut.value = selectedRoute.minFinalAmountOutFormatted;
-  }
-});
-
-watch([previewOut, slippage], () => {
-  if (previewOut.value && !isNaN(Number(previewOut.value)) && slippage.value >= 0) {
-    const slip = Math.max(0, Math.min(100, Number(slippage.value)));
-    minAmountOut.value = (Number(previewOut.value) * (1 - slip / 100)).toFixed(8).replace(/\.0+$/, '');
-  }
-});
-
-async function handleSwap() {
-  swapError.value = '';
-  swapSuccess.value = false;
-  swapLoading.value = true;
+// Cancel order
+const cancelOrder = async (orderId: string) => {
   try {
-    const selectedRoute = routeData.value?.allRoutes?.[selectedRouteIndex.value];
-    if (!selectedRoute) {
-      throw new Error('No route selected');
-    }
-    
-    // Construct hops array from the selected route
-    const hops = selectedRoute.hops.map((hop: any) => ({
-      poolId: hop.poolId,
-      tokenIn_symbol: hop.tokenIn,
-      tokenOut_symbol: hop.tokenOut,
-      amountIn: hop.amountIn,
-      minAmountOut: hop.minAmountOut
-    }));
-    
+    // Build cancel order data according to Type 10: Market Cancel Order
+    const cancelOrderData = {
+      orderId: orderId,
+      trader: auth.state.username  // Will be automatically set to sender, but include for clarity
+    };
+
     const customJsonOperation = {
       required_auths: [auth.state.username],
       required_posting_auths: [],
       id: 'sidechain',
       json: JSON.stringify({
-        contract: 'pool_swap',
-        payload: {
-          tokenIn_symbol: fromToken.value,
-          tokenOut_symbol: toToken.value,
-          amountIn: selectedRoute.finalAmountIn,
-          minAmountOut: selectedRoute.minFinalAmountOut,
-          slippagePercent: slippage.value,
-          hops: hops
-        },
-      }),
+        contract: 'market_cancel_order',
+        payload: cancelOrderData
+      })
     };
-    await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
-    swapSuccess.value = true;
-  } catch (e: any) {
-    swapError.value = e?.message || 'Swap failed.';
-  } finally {
-    swapLoading.value = false;
-  }
-}
 
-function getBalance(symbol: string) {
-  return meeray.account?.balances?.[symbol] ?? '--';
-}
-
-const route = useRoute();
-onMounted(() => {
-  // Ensure tokens are loaded before interacting
-  if (!tokensStore.tokens.length && !tokensStore.loading) {
-    appStore.setAppLoading(true);
-    tokensStore.fetchTokens().finally(() => {
-      appStore.setAppLoading(false);
+    await TransactionService.send('custom_json', customJsonOperation, {
+      requiredAuth: 'active'
     });
+
+    await Promise.all([fetchUserOrders(), fetchOrderBook(), meeray.refreshAccount()]);
+  } catch (e: any) {
+    error.value = e?.message || 'Failed to cancel order';
   }
-  // Handle path parameter (for multi-hop routes)
-  const qPath = route.query.path;
-  if (qPath) {
-    let arr = Array.isArray(qPath) ? qPath : [qPath];
-    arr = arr.filter((x): x is string => Boolean(x) && typeof x === 'string');
-    if (arr.length >= 2) {
-      fromToken.value = arr[0] as string;
-      toToken.value = arr[arr.length - 1] as string;
-    }
-  }
-  
-  // Handle tokenIn/tokenOut parameters (for direct swaps)
+};
+
+// Handle URL parameters for swap
+const handleUrlParameters = () => {
   const tokenIn = route.query.tokenIn;
   const tokenOut = route.query.tokenOut;
+  const useTrade = route.query.useTradeWidget;
+  const pair = route.query.pairId;
+  
   if (tokenIn && typeof tokenIn === 'string') {
-    fromToken.value = tokenIn;
+    urlTokenIn.value = tokenIn;
   }
   if (tokenOut && typeof tokenOut === 'string') {
-    toToken.value = tokenOut;
+    urlTokenOut.value = tokenOut;
   }
+  if (useTrade !== undefined) {
+    useTradeWidget.value = useTrade === 'true' || useTrade === '';
+  }
+  if (pair && typeof pair === 'string') {
+    pairId.value = pair;
+  }
+  
+  // If we have both tokens, switch to swap tab
+  if (urlTokenIn.value && urlTokenOut.value) {
+    tab.value = 'swap';
+  }
+  
+  // If we're using trade widget, switch to advanced tab
+  if (useTradeWidget.value) {
+    tab.value = 'advanced';
+  }
+};
+
+// Watch for route changes
+watch(() => route.query, handleUrlParameters, { immediate: true });
+
+onMounted(() => {
+  handleUrlParameters();
 });
 
-function switchTokens() {
-  if (fromToken.value && toToken.value && fromToken.value !== toToken.value) {
-    const temp = fromToken.value;
-    fromToken.value = toToken.value;
-    toToken.value = temp;
+// Fetch user orders
+const fetchUserOrders = async () => {
+  if (!auth.state?.username || !selectedPair.value) return;
+  try {
+    const response = await api.getUserOrders(auth.state.username, { pairId: selectedPair.value });
+    userOrders.value = response.data || [];
+  } catch (e: any) {
+    console.error('Failed to fetch user orders:', e);
   }
-}
+};
 
+// Fetch order book
+const fetchOrderBook = async () => {
+  if (!selectedPair.value) return;
+  try {
+    const response = await api.getOrderBook(selectedPair.value);
+    orderBook.value = response;
+  } catch (e: any) {
+    console.error('Failed to fetch order book:', e);
+  }
+};
+
+
+// Set price from order book
+const setPriceFromOrderBook = (orderPrice: string) => {
+  price.value = orderPrice;
+};
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950 py-10 px-2">
-    <div class="w-full max-w-md mx-auto rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-8">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Swap Tokens</h2>
-      <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <div class="flex flex-col">
-            <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">From</label>
-            <AppTokenSelect
-              v-model="fromToken"
-              :options="tokenOptions"
-              :filter-duplicates="[toToken]"
-              placeholder="Select token"
-            />
-            <div v-if="fromToken" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Balance: {{ getBalance(fromToken) }}</div>
-          </div>
-          <div class="flex justify-center">
-            <button
-              @click="switchTokens"
-              :disabled="!fromToken || !toToken || fromToken === toToken"
-              class="p-2 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-primary-100 dark:hover:bg-primary-900 text-gray-500 dark:text-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Switch tokens"
-              aria-label="Switch tokens"
-              style="height:2.5rem;width:2.5rem;"
-            >
-              <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M21 5H9a7 7 0 0 0-7 7v0"/><path d="M7 23l-4-4 4-4"/><path d="M3 19h12a7 7 0 0 0 7-7v0"/></svg>
-            </button>
-          </div>
-          <div class="flex flex-col">
-            <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">To</label>
-            <AppTokenSelect
-              v-model="toToken"
-              :options="tokenOptions"
-              :filter-duplicates="[fromToken]"
-              placeholder="Select token"
-            />
-            <div v-if="toToken" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Balance: {{ getBalance(toToken) }}</div>
+  <div class="min-h-screen md:px-0 container mx-auto mt-16 max-w-6xl py-8">
+    <div class="mb-6 text-center">
+      <div class="inline-flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+        <button @click="tab = 'swap'"
+          :class="['px-4 py-2 text-sm font-medium', tab === 'swap' ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300']">
+          Quick Swap
+        </button>
+        <button @click="tab = 'advanced'"
+          :class="['px-4 py-2 text-sm font-medium', tab === 'advanced' ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300']">
+          Advanced
+        </button>
+
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div v-show="tab === 'swap' && !useTradeWidget">
+        <SwapWidget 
+          :initial-token-in="urlTokenIn"
+          :initial-token-out="urlTokenOut"
+        />
+      </div>
+      <div v-show="tab === 'advanced' || useTradeWidget">
+        <TradeWidget :pair-id="pairId" />
+      </div>
+      <!-- Middle Column: Order Book and Chart -->
+      <div class=" grid-cols-1 lg:grid-cols-1 gap-6">
+        <!-- Chart Placeholder -->
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Price Chart</h3>
+          <div class="h-64 flex items-center justify-center text-gray-500">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
           </div>
         </div>
-        <div class="flex items-center gap-2 mt-4">
-          <div class="flex-1">
-            <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Amount In</label>
-            <input v-model="amountIn" type="number" min="0" step="any" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base" placeholder="Amount to swap" />
+
+        <!-- Market Data Tabs -->
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="flex space-x-8 px-4">
+              <button @click="selectedTab = 'orderbook'"
+                :class="['py-4 px-1 border-b-2 font-medium text-sm',
+                  selectedTab === 'orderbook'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
+                Order Book
+              </button>
+              <button @click="selectedTab = 'trades'"
+                :class="['py-4 px-1 border-b-2 font-medium text-sm',
+                  selectedTab === 'trades'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
+                Recent Trades
+              </button>
+              <button @click="selectedTab = 'orders'"
+                :class="['py-4 px-1 border-b-2 font-medium text-sm',
+                  selectedTab === 'orders'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
+                My Open Orders
+              </button>
+            </nav>
           </div>
-        </div>
-        <div v-if="previewLoading" class="text-primary-400 font-semibold mt-2">Previewing...</div>
-        <div v-if="previewError" class="text-red-500 text-sm mt-2">{{ previewError }}</div>
-        
-        <!-- Route Selection -->
-        <div v-if="routeData && !previewLoading" class="mt-4">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Available Routes</h3>
-          
-          <!-- Route Options -->
-          <div class="space-y-3">
-            <div v-for="(route, index) in routeData.allRoutes" :key="index" 
-                 class="border border-gray-200 dark:border-gray-700 rounded-lg p-3 cursor-pointer transition"
-                 :class="selectedRouteIndex === index ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20' : 'hover:border-gray-300 dark:hover:border-gray-600'"
-                 @click="selectedRouteIndex = index">
-              
-              <!-- Route Header -->
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                  <input type="radio" :checked="selectedRouteIndex === index" class="text-primary-400" />
-                  <span class="font-semibold text-gray-900 dark:text-white">
-                    Route {{ index + 1 }}
-                    <span v-if="index === 0" class="text-xs text-green-600 dark:text-green-400 ml-1">(Best)</span>
+
+          <div class="p-4">
+            <!-- Order Book -->
+            <div v-if="selectedTab === 'orderbook'" class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <!-- Asks (Sell Orders) -->
+                <div>
+                  <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Asks ({{ quoteToken }})
+                  </h4>
+                  <div class="space-y-1">
+                    <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <span>Price</span>
+                      <span>Quantity</span>
+                      <span>Total</span>
+                    </div>
+                    <div v-for="ask in orderBook.asks.slice(0, 10)" :key="ask.price"
+                      @click="setPriceFromOrderBook(ask.price)"
+                      class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
+                      <span class="text-red-600">{{ $formatNumber(ask.price) }}</span>
+                      <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }}</span>
+                      <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(ask.price * ask.quantity)
+                        }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bids (Buy Orders) -->
+                <div>
+                  <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Bids ({{ quoteToken }})
+                  </h4>
+                  <div class="space-y-1">
+                    <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <span>Price</span>
+                      <span>Quantity</span>
+                      <span>Total</span>
+                    </div>
+                    <div v-for="bid in orderBook.bids.slice(0, 10)" :key="bid.price"
+                      @click="setPriceFromOrderBook(bid.price)"
+                      class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/20 p-1 rounded">
+                      <span class="text-green-600">{{ $formatNumber(bid.price) }}</span>
+                      <span class="text-gray-900 dark:text-white">{{ $formatNumber(bid.quantity) }}</span>
+                      <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(bid.price * bid.quantity)
+                        }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Trades -->
+            <div v-if="selectedTab === 'trades'">
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Recent Trades</h4>
+              <div class="space-y-1">
+                <div class="grid grid-cols-4 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span>Price</span>
+                  <span>Quantity</span>
+                  <span>Time</span>
+                  <span>Side</span>
+                </div>
+                <div v-for="trade in recentTrades" :key="trade._id" class="grid grid-cols-4 gap-2 text-xs p-1">
+                  <span :class="trade.isMakerBuyer ? 'text-green-600' : 'text-red-600'">
+                    {{ $formatNumber(trade.price) }}
+                  </span>
+                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(trade.quantity) }}</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ $formatDate(trade.timestamp, 'HH:mm:ss') }}</span>
+                  <span :class="trade.isMakerBuyer ? 'text-green-600' : 'text-red-600'">
+                    {{ trade.isMakerBuyer ? 'Buy' : 'Sell' }}
                   </span>
                 </div>
-                <div class="text-right">
-                  <div class="font-bold text-gray-900 dark:text-white">{{ route.finalAmountOutFormatted }} {{ toToken }}</div>
-                  <div class="text-xs text-gray-500 dark:text-gray-400">{{ route.totalPriceImpactFormatted }} impact</div>
-                </div>
               </div>
-              
-              <!-- Route Path -->
-              <div class="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
-                <span>{{ route.hops[0].tokenIn }}</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-                <span v-for="(hop, hopIndex) in route.hops" :key="hopIndex" class="flex items-center gap-1">
-                  <span>{{ hop.tokenOut }}</span>
-                  <svg v-if="hopIndex < route.hops.length - 1" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                  </svg>
-                </span>
+            </div>
+
+            <!-- My Orders -->
+            <div v-if="selectedTab === 'orders'">
+              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">My Open Orders</h4>
+              <div v-if="userOrders.length === 0" class="text-center py-8 text-gray-500">
+                No open orders
               </div>
-              
-              <!-- Route Details -->
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div class="text-gray-500 dark:text-gray-400">
-                  <span>Min Output:</span>
-                  <span class="font-mono text-gray-900 dark:text-white ml-1">{{ route.minFinalAmountOutFormatted }}</span>
+              <div v-else class="space-y-2">
+                <div class="grid grid-cols-6 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span>Pair</span>
+                  <span>Side</span>
+                  <span>Type</span>
+                  <span>Price</span>
+                  <span>Quantity</span>
+                  <span>Action</span>
                 </div>
-                <div class="text-gray-500 dark:text-gray-400">
-                  <span>Hops:</span>
-                  <span class="font-mono text-gray-900 dark:text-white ml-1">{{ route.hops.length }}</span>
-                </div>
-              </div>
-              
-              <!-- Individual Hops -->
-              <div v-if="route.hops.length > 1" class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <div v-for="(hop, hopIndex) in route.hops" :key="hopIndex" class="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  <span class="font-mono">{{ hop.amountInFormatted }} {{ hop.tokenIn }}</span>
-                  <span>→</span>
-                  <span class="font-mono">{{ hop.amountOutFormatted }} {{ hop.tokenOut }}</span>
-                  <span class="text-gray-400">({{ hop.priceImpactFormatted }} impact)</span>
+                <div v-for="order in userOrders" :key="order._id"
+                  class="grid grid-cols-6 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
+                  <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
+                    }}</span>
+                  <span :class="order.side === 'BUY' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price) : 'Market'
+                    }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }}</span>
+                  <button @click="cancelOrder(order._id)" class="text-red-600 hover:text-red-700 text-xs">
+                    Cancel
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2 mt-2">
-          <label class="block text-gray-700 dark:text-gray-300 font-medium">Slippage</label>
-          <input v-model.number="slippage" type="number" min="0" max="100" step="0.1" class="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-          <span class="text-gray-500 dark:text-gray-400 text-sm">%</span>
-        </div>
-        <div class="flex items-center gap-2 mt-2">
-          <label class="block text-gray-700 dark:text-gray-300 font-medium">Amount to receive</label>
-          <input readonly v-model="minAmountOut" type="number" min="0" step="any" class="w-32 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
-        </div>
-        <AppButton :disabled="!canSwap" @click="handleSwap" variant="primary" size="lg" class="mt-4 w-full">
-          <span v-if="swapLoading">Swapping...</span>
-          <span v-else>Swap</span>
-        </AppButton>
-        <div v-if="swapError" class="text-red-500 text-sm mt-2">{{ swapError }}</div>
-        <div v-if="swapSuccess" class="text-green-600 dark:text-green-400 text-sm mt-2 font-semibold">Swap successful!</div>
       </div>
     </div>
   </div>
-</template> 
+</template>

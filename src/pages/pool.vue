@@ -144,6 +144,25 @@ function formatTokenAmount(amount: number | string | undefined, symbol: string |
   }
 }
 
+const tokenUsdPriceMap = computed(() => {
+  const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
+  if (pool.value) {
+    if (pool.value.tokenA_symbol && !map[pool.value.tokenA_symbol]) map[pool.value.tokenA_symbol] = useTokenUsdPrice(pool.value.tokenA_symbol);
+    if (pool.value.tokenB_symbol && !map[pool.value.tokenB_symbol]) map[pool.value.tokenB_symbol] = useTokenUsdPrice(pool.value.tokenB_symbol);
+  }
+  return map;
+});
+
+function getTvlUsd(pool: any) {
+  if(!pool) return '--';
+  const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
+  const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
+  const reserve0 = Number(pool.tokenA_reserve) || 0;
+  const reserve1 = Number(pool.tokenB_reserve) || 0;
+  const tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
+  return tvl > 0 ? `$${tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '--';
+}
+
 function formatTokenAmountFromEvent(event: any, tokenType: 'tokenA' | 'tokenB'): string {
   if (!event?.data || !pool.value) return '--';
 
@@ -208,7 +227,7 @@ function getPoolPairId(): string {
               class="px-4 py-2 rounded bg-primary-400 text-white font-semibold flex items-center justify-center">
               Swap
             </router-link>
-            <router-link v-if="pool" :to="{ path: '/trade-advanced', query: { pairId: getPoolPairId() } }"
+            <router-link v-if="pool" :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: getPoolPairId() } }"
               class="px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold flex items-center justify-center">
               Trade
             </router-link>
@@ -286,16 +305,16 @@ function getPoolPairId(): string {
           </div>
           <div class="mb-1 mt-3 flex items-center">
             <span class="text-xs text-gray-500 dark:text-gray-400">TVL</span>
-            <span class="font-bold text-gray-900 dark:text-white ml-2">{{ tvlUsd }}</span>
+            <span class="font-bold text-gray-900 dark:text-white ml-2">{{ getTvlUsd(pool) }}</span>
           </div>
           <!-- NEW: Fee Growth Global fields -->
           <div class="mb-1 mt-3 flex items-center" v-if="pool && pool.feeGrowthGlobalA">
             <span class="text-xs text-gray-500 dark:text-gray-400">Fee Growth Global A</span>
-            <span class="font-mono text-gray-900 dark:text-white ml-2">{{ pool.feeGrowthGlobalA }}</span>
+            <span class="font-mono text-gray-900 dark:text-white ml-2">{{ $formatTokenBalance(pool.feeGrowthGlobalA, "LP_TOKEN") }}</span>
           </div>
           <div class="mb-1 mt-1 flex items-center" v-if="pool && pool.feeGrowthGlobalB">
             <span class="text-xs text-gray-500 dark:text-gray-400">Fee Growth Global B</span>
-            <span class="font-mono text-gray-900 dark:text-white ml-2">{{ pool.feeGrowthGlobalB }}</span>
+            <span class="font-mono text-gray-900 dark:text-white ml-2">{{ $formatTokenBalance(pool.feeGrowthGlobalB, "LP_TOKEN") }}</span>
           </div>
           <!-- NEW: 24h Fees fields -->
           <div class="mb-1 mt-3 flex items-center" v-if="pool && pool.fees24hA">

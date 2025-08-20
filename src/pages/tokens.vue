@@ -98,11 +98,13 @@ onMounted(() => {
         <div class="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-8">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <button class="p-6 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-              <div class="text-3xl mb-3">💱</div>
-              <div class="font-bold text-lg mb-2">Swap Tokens</div>
-              <div class="text-sm opacity-90">Trade {{ selectedToken.symbol }} instantly</div>
-            </button>
+            <router-link :to="{ path: '/swap', query: { tokenIn: selectedToken.symbol, tokenOut: 'MRY' } }" class="block">
+              <button class="w-full p-6 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                <div class="text-3xl mb-3">💱</div>
+                <div class="font-bold text-lg mb-2">Swap Tokens</div>
+                <div class="text-sm opacity-90">Trade {{ selectedToken.symbol }} instantly</div>
+              </button>
+            </router-link>
             <button class="p-6 rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
               <div class="text-3xl mb-3">💧</div>
               <div class="font-bold text-lg mb-2">Add Liquidity</div>
@@ -190,10 +192,11 @@ onMounted(() => {
 
               <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex gap-2">
-                  <button class="flex-1 px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
-                    @click.prevent.stop="">
-                    Trade
-                  </button>
+                  <router-link :to="{ path: '/swap', query: { tokenIn: token.symbol, tokenOut: 'MRY' } }" class="block">
+                    <button class="w-full px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium">
+                      Trade
+                    </button>
+                  </router-link>
                   <button class="flex-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
                     @click.prevent.stop="">
                     Transfer

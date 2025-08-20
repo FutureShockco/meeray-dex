@@ -399,7 +399,7 @@ onMounted(async () => {
                       @click="openDeposit(t.symbol), depositMode = 'withdraw'">Withdraw</button>
                     <button @click="openTransfer(t.symbol)"
                       class="p-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
-                    <router-link :to="`/trade/${t.symbol}`">
+                    <router-link :to="{ path: '/swap', query: { tokenIn: t.symbol, tokenOut: 'MRY' } }">
                       <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                     <button class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
@@ -455,7 +455,7 @@ onMounted(async () => {
                   <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                     <button v-if="isOwnAccount" @click="openTransfer(token.symbol)"
                       class="px-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
-                    <router-link :to="`/trade/${token.symbol}`">
+                    <router-link :to="{ path: '/swap', query: { tokenIn: token.symbol, tokenOut: 'MRY' } }">
                       <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                     <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
@@ -504,8 +504,11 @@ onMounted(async () => {
                   </td>
                   <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formatNumber(pos.lpTokenBalance) }}
                   </td>
-                  <td v-if="isOwnAccount" class="py-2 px-2 text-right"><button
-                      class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button></td>
+                  <td v-if="isOwnAccount" class="py-2 px-2 text-right">
+                    <router-link :to="{ path: '/swap', query: { tokenIn: pos.poolId.split('_')[0], tokenOut: pos.poolId.split('_')[1] } }">
+                      <button class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button>
+                    </router-link>
+                  </td>
                 </tr>
               </tbody>
             </table>

@@ -195,14 +195,15 @@ function getPoolApr(pool: any) {
                   <th class="px-4 py-2 font-semibold">Combined APR</th>
                   <th class="px-4 py-2 font-semibold">24h Fees (A)</th>
                   <th class="px-4 py-2 font-semibold">24h Fees (B)</th>
+                  <th class="px-4 py-2 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="loading">
-                  <td colspan="9" class="text-center py-6 text-gray-400">Loading pools...</td>
+                  <td colspan="10" class="text-center py-6 text-gray-400">Loading pools...</td>
                 </tr>
                 <tr v-else-if="error">
-                  <td colspan="9" class="text-center py-6 text-red-500">{{ error }}</td>
+                  <td colspan="10" class="text-center py-6 text-red-500">{{ error }}</td>
                 </tr>
                 <tr v-else v-for="(pool, i) in pools" :key="pool.id || i"
                   class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer">
@@ -233,6 +234,16 @@ function getPoolApr(pool: any) {
                   <td class="px-4 py-2 text-gray-900 dark:text-white">
                     <span v-if="pool.fees24hB !== undefined">{{ Number(pool.fees24hB).toLocaleString(undefined, { maximumFractionDigits: 4 }) }}</span>
                     <span v-else>--</span>
+                  </td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white">
+                    <router-link :to="{ path: '/trade', query: { tokenA: pool.tokenA_symbol, tokenB: pool.tokenB_symbol } }"
+                      class="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900 hover:bg-primary-200 dark:hover:bg-primary-800 transition">
+                      Trade
+                    </router-link>
+                    <router-link :to="{ path: '/swap', query: { tokenA: pool.tokenA_symbol, tokenB: pool.tokenB_symbol } }"
+                      class="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900 hover:bg-primary-200 dark:hover:bg-primary-800 transition ml-2">
+                      Swap
+                    </router-link>
                   </td>
                 </tr>
               </tbody>

@@ -1,13 +1,20 @@
 export interface FarmCreateData {
-  lpTokenSymbol: string;      // Symbol of the LP token that will be staked (e.g., "TKA/TKB-LP")
-  lpTokenIssuer: string;      // Issuer of the LP token
-  rewardTokenSymbol: string;  // Symbol of the token given as reward
-  rewardTokenIssuer: string;  // Issuer of the reward token
-  // farmId will be generated, e.g., hash(lpTokenSymbol, lpTokenIssuer, rewardTokenSymbol, rewardTokenIssuer)
-  // rewardRate: number; // Amount of rewardToken per second/block/period. This is complex and needs careful design for distribution.
-  // startBlock/startTime: number; // Block or time when farming starts
-  // endBlock/endTime: number;   // Block or time when farming ends (or if it's perpetual)
-  // For simplicity, let's assume rewards are manually distributed or handled by a simpler periodic mechanism initially.
+  farmId: string;
+  name: string;
+  stakingToken: {
+    symbol: string;
+    issuer: string;
+  };
+  rewardToken: {
+    symbol: string;
+    issuer: string;
+  };
+  startTime: string;          // ISO date string
+  endTime: string;           // ISO date string
+  totalRewards: string | bigint;      // Total rewards to be distributed
+  rewardsPerBlock: string | bigint;   // Rewards distributed per block
+  minStakeAmount?: string | bigint;   // Minimum amount that can be staked
+  maxStakeAmount?: string | bigint;   // Maximum amount that can be staked per user
 }
 
 export interface FarmStakeData {
@@ -29,30 +36,40 @@ export interface FarmClaimRewardsData {
 }
 
 // Represents a Farm in the cache/database
-export interface Farm {
-  _id: string;                // farmId
-  lpTokenSymbol: string;
-  lpTokenIssuer: string;
-  rewardTokenSymbol: string;
-  rewardTokenIssuer: string;
-  totalLpStaked: number;      // Total amount of LP tokens currently staked in this farm
-  // rewardState: {
-  //   lastDistributionTime: string; // ISO Date string or block number
-  //   accumulatedRewardsPerShare: number; // For calculating individual rewards
-  //   totalRewardsDistributed: number;
-  // };
-  // These reward mechanics are complex and will be added incrementally.
-  createdAt: string;          // ISO Date string
+export interface FarmData {
+  _id: string;               // Unique farm ID
+  name: string;
+  stakingToken: {
+    symbol: string;
+    issuer: string;
+  };
+  rewardToken: {
+    symbol: string;
+    issuer: string;
+  };
+  startTime: string;         // ISO date string
+  endTime: string;          // ISO date string
+  totalRewards: string | bigint;     // Total rewards to be distributed
+  rewardsPerBlock: string | bigint;  // Rewards distributed per block
+  totalStaked: string | bigint;      // Total amount of staking tokens deposited
+  minStakeAmount: string | bigint;   // Minimum amount that can be staked
+  maxStakeAmount: string | bigint;   // Maximum amount that can be staked per user
+  status: 'active' | 'ended' | 'cancelled';
+  createdAt: string;
+  lastUpdatedAt?: string;
+  // Optional fields for runtime accounting
+  rewardsRemaining?: string | bigint;
+  vaultAccount?: string;
 }
 
 // Represents a user's staking position in a Farm
-export interface UserFarmPosition {
-  _id: string;                // e.g., stakerAddress-farmId
-  staker: string;
+export interface UserFarmPositionData {
+  _id: string;              // userId-farmId
+  userId: string;
   farmId: string;
-  stakedLpAmount: number;     // Amount of LP tokens staked by this user
-  createdAt: string;          // ISO Date string when the position was first created
-  lastStakedAt: string;       // ISO Date string of the last stake operation
-  lastClaimedAt?: string;      // ISO Date string of the last reward claim
-  // rewardDebt: number;        // Used in some reward calculation models (e.g., MasterChef)
-} 
+  stakedAmount: string | bigint;     // Current staked amount
+  pendingRewards: string | bigint;   // Unclaimed rewards
+  lastHarvestTime: string;  // ISO date string of last reward claim
+  createdAt: string;
+  lastUpdatedAt?: string;
+}
