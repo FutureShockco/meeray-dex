@@ -288,21 +288,6 @@ onMounted(async () => {
       </p>
     </div>
 
-    <!-- Public Profile Notice -->
-    <div v-if="!isOwnAccount"
-      class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
-      <div class="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span class="font-medium">Viewing Public Profile</span>
-      </div>
-      <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
-        You are viewing {{ username }}'s public profile. Some features and balances are only visible to the account
-        owner.
-      </p>
-    </div>
 
     <!-- Get Started Steps -->
     <!-- <div class="flex gap-4 mb-8">
