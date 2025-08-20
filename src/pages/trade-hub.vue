@@ -29,7 +29,7 @@ const marketStats = ref<any>({});
 
 // Trading state
 const selectedPair = ref<string>('');
-const baseToken = ref<string>('ECH');
+const baseToken = ref<string>('MRY');
 const quoteToken = ref<string>('STEEM');
 const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
 const orderSide = ref<'BUY' | 'SELL'>('BUY');

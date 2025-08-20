@@ -129,7 +129,7 @@ function getPoolApr(pool: any) {
         <div
           class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 flex items-center justify-between mb-4">
           <div>
-            <div class="text-2xl font-bold text-primary-400 mb-1">0 ECH</div>
+            <div class="text-2xl font-bold text-primary-400 mb-1">0 MRY</div>
             <div class="text-gray-500 dark:text-gray-400 text-sm">Rewards earned</div>
           </div>
           <button class="px-4 py-2 rounded bg-primary-400 text-white font-semibold">Collect rewards</button>

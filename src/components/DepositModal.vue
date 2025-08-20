@@ -7,7 +7,7 @@ const emit = defineEmits(['close', 'deposit', 'withdraw']);
 const to = ref('echelon-node1');
 const amount = ref<number | null>(null);
 const symbol = ref('');
-const memo = ref('Echelon');
+const memo = ref('Meeray');
 const error = ref('');
 
 watch(

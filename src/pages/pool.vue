@@ -188,7 +188,7 @@ function getPoolPairId(): string {
   if (!pool.value) return '';
 
   // Create a pair ID in the format expected by the trading API
-  // Based on the API response: "ECH@echelon-node1-STEEM@echelon-node1"
+  // Based on the API response: "MRY@echelon-node1-STEEM@echelon-node1"
   return `${pool.value.tokenA_symbol}@echelon-node1-${pool.value.tokenB_symbol}@echelon-node1`;
 }
 </script>

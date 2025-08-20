@@ -26,7 +26,7 @@ const categories = ['STEEM', 'BNB', 'BTC', 'ALTS', 'FIAT'];
 const activeCat = ref('STEEM');
 const search = ref('');
 const pairs = [
-  { pair: 'STEEM/ECH', price: '0.00002207', change: 1.3 },
+  { pair: 'STEEM/MRY', price: '0.00002207', change: 1.3 },
   { pair: 'STEEM/BTC', price: '0.00002207', change: 1.3 },
   { pair: 'STEEM/SBD', price: '0.00002207', change: 1.3 },
   { pair: 'STEEM/USDT', price: '0.00002207', change: 1.3 },

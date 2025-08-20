@@ -31,6 +31,22 @@ export const useMeerayAccountStore = defineStore('meerayAccount', () => {
         }
     }
     
+    // Add method to load any user's account
+    async function loadAccount(username: string) {
+        loading.value = true;
+        try {
+            const response = await api.getAccountDetails(username);
+            account.value = response.account;
+            error.value = '';
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : String(e);
+            account.value = null;
+            console.error('Error loading account:', e);
+        } finally {
+            loading.value = false;
+        }
+    }
+    
     // Watch for username changes (login, logout, account switching)
     watch(
         () => auth.state.username,
@@ -48,5 +64,5 @@ export const useMeerayAccountStore = defineStore('meerayAccount', () => {
         { immediate: true }
     );
 
-    return { account, error, loading, refreshAccount };
+    return { account, error, loading, refreshAccount, loadAccount };
 });

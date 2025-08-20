@@ -94,7 +94,7 @@ export function createTokenHelpers() {
      * Get token icon path
      */
     getTokenIcon(token: any): string | false {
-      if (token.symbol === 'ECH') return '/icons/ech.svg';
+      if (token.symbol === 'MRY') return '/icons/mry.svg';
       if (token.symbol === 'STEEM') return '/icons/steem.svg';
       if (token.symbol === 'SBD') return '/icons/sbd.svg';
       if (token.symbol === 'TESTS') return '/icons/steem.svg';

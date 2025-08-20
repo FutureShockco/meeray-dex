@@ -10,12 +10,11 @@ export interface TokenInfo {
 const DEFAULT_PRECISIONS: Record<string, number> = {
   'STEEM': 3,
   'SBD': 3,
-  'ECH': 8,
-  'MEER': 8,
+  'MRY': 8,
 }
 
 // Native tokens that don't require an issuer (sidechain native tokens)
-const NATIVE_TOKENS = ['ECH', 'MEER']
+const NATIVE_TOKENS = ['MRY']
 
 /**
  * Formats a decimal amount to BigInt string according to token precision

@@ -26,7 +26,7 @@ const pairIdFromUrl = computed(() => getStringParam(route.query.pairId) || getSt
 
 // Trading state
 const selectedPair = ref<string>('');
-const baseToken = ref<string>('ECH');
+const baseToken = ref<string>('MRY');
 const quoteToken = ref<string>('STEEM');
 const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
 const orderSide = ref<'BUY' | 'SELL'>('BUY');
@@ -185,12 +185,12 @@ const fetchTradingPairs = async () => {
         }
       }
 
-      // Second priority: Find ECH/STEEM pair or use first available
-      const echSteemPair = tradingPairs.value.find(p =>
-        (p.baseAssetSymbol === 'ECH' && p.quoteAssetSymbol === 'STEEM') ||
-        (p.baseAssetSymbol === 'STEEM' && p.quoteAssetSymbol === 'ECH')
+      // Second priority: Find MRY/STEEM pair or use first available
+      const mrySteemPair = tradingPairs.value.find(p =>
+        (p.baseAssetSymbol === 'MRY' && p.quoteAssetSymbol === 'STEEM') ||
+        (p.baseAssetSymbol === 'STEEM' && p.quoteAssetSymbol === 'MRY')
       );
-      selectedPair.value = echSteemPair?._id || tradingPairs.value[0]._id;
+      selectedPair.value = mrySteemPair?._id || tradingPairs.value[0]._id;
       console.log('Selected default pair:', selectedPair.value);
     }
   } catch (e: any) {

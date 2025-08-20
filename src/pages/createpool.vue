@@ -93,9 +93,6 @@ const poolRatio = computed(() => {
   const ratio = reserveB.dividedBy(reserveA);
   console.log('Calculated ratio:', ratio.toString());
   
-  // Debug: Show what the ratio should be for the user's input
-  console.log('Expected ratio for 10 ECH : 1 STEEM should be:', new BigNumber(1).dividedBy(10).toString());
-  
   return ratio;
 });
 

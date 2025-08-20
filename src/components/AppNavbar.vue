@@ -119,7 +119,7 @@ const handleThemeChange = (isDark: boolean): void => {
             <path d="M8 12h8m-4-4v8" />
           </svg>
         </button>
-        <router-link v-if="auth.state.isAuthenticated" to="/dashboard"
+        <router-link v-if="auth.state.isAuthenticated" :to="`/@${auth.state.username}`"
           class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition">
           <svg class="w-6 h-6 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" stroke-width="2"
             viewBox="0 0 24 24">

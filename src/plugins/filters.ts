@@ -43,7 +43,7 @@ export default {
       }
 
       const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
-      const defaultPrecisions: Record<string, number> = { ECH: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18 };
+      const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18 };
       const precision = token?.precision ?? defaultPrecisions[symbol] ?? 8;
 
       try {

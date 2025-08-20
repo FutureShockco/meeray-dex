@@ -8,7 +8,7 @@ export interface Account {
   id?: string;
   name: string;
   created: string; // ISO date string
-  tokens?: Record<string, number>; // e.g., { ECH: 1005827 }
+  tokens?: Record<string, number>; // e.g., { MRY: 1005827 }
   nfts: Record<string, unknown>; // empty object, or can be defined more specifically later
   totalVoteWeight?: {
     amount: string;

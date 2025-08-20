@@ -284,13 +284,13 @@ onMounted(() => {
                   <div>
                     <span class="text-gray-500 dark:text-gray-400">Vote Weight:</span>
                     <span class="font-mono font-semibold text-gray-900 dark:text-white ml-2">
-                      {{ formatVoteWeight(witness.totalVoteWeight) }} ECH
+                      {{ formatVoteWeight(witness.totalVoteWeight) }} MRY
                     </span>
                   </div>
                   <div>
                     <span class="text-gray-500 dark:text-gray-400">Balance:</span>
                     <span class="font-mono font-semibold text-gray-900 dark:text-white ml-2">
-                      {{ witness.balances?.ECH ? parseFloat(witness.balances.ECH.amount).toLocaleString() : '0' }} ECH
+                      {{ witness.balances?.MRY ? parseFloat(witness.balances.MRY.amount).toLocaleString() : '0' }} MRY
                     </span>
                   </div>
                   <div>
