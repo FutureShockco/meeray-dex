@@ -7,6 +7,15 @@ import { useApiService } from '../../composables/useApiService';
 import { useTokenListStore } from '../../stores/useTokenList';
 import BigNumber from 'bignumber.js';
 
+// Props
+interface Props {
+  pairId?: string;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  pairId: ''
+});
+
 const route = useRoute();
 
 // Store instances
@@ -21,8 +30,8 @@ function getStringParam(val: any): string {
   return typeof val === 'string' ? val : '';
 }
 
-// Get pairId from URL parameter
-const pairIdFromUrl = computed(() => getStringParam(route.query.pairId) || getStringParam(route.params.pairId));
+// Get pairId from props or URL parameter
+const pairIdFromUrl = computed(() => props.pairId || getStringParam(route.query.pairId) || getStringParam(route.params.pairId));
 
 // Trading state
 const selectedPair = ref<string>('');

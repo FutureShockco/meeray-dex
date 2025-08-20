@@ -9,7 +9,6 @@ import AppTokenSelect from '../components/AppTokenSelect.vue';
 
 
 interface FarmCreateData {
-  farmId: string;
   name: string;
   stakingToken: {
     symbol: string;
@@ -34,7 +33,6 @@ const api = useApiService();
 
 // Form data
 const formData = ref<FarmCreateData>({
-  farmId: '',
   name: '',
   stakingToken: {
     symbol: '',
@@ -60,19 +58,18 @@ const success = ref(false);
 // Computed properties
 const tokenOptions = computed(() => tokensStore.tokens);
 const canSubmit = computed(() => {
-  const hasStakingToken = isLpStakingToken.value 
+  const hasStakingToken = isLpStakingToken.value
     ? (formData.value.stakingToken.symbol && selectedPool.value)
     : (formData.value.stakingToken.symbol && formData.value.stakingToken.issuer);
-    
-  return formData.value.farmId && 
-         formData.value.name && 
-         hasStakingToken &&
-         formData.value.rewardToken.symbol && 
-         formData.value.rewardToken.issuer &&
-         formData.value.startTime && 
-         formData.value.endTime && 
-         formData.value.totalRewards && 
-         formData.value.rewardsPerBlock;
+
+  return formData.value.name &&
+    hasStakingToken &&
+    formData.value.rewardToken.symbol &&
+    formData.value.rewardToken.issuer &&
+    formData.value.startTime &&
+    formData.value.endTime &&
+    formData.value.totalRewards &&
+    formData.value.rewardsPerBlock;
 });
 
 // Token selection handlers
@@ -131,19 +128,13 @@ function toggleLpStakingToken() {
   }
 }
 
-// Generate farm ID
-function generateFarmId() {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  formData.value.farmId = `farm_${timestamp}_${random}`;
-}
 
 // Set default times
 function setDefaultTimes() {
   const now = new Date();
   const startTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Start tomorrow
   const endTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // End in 30 days
-  
+
   formData.value.startTime = startTime.toISOString().slice(0, 16);
   formData.value.endTime = endTime.toISOString().slice(0, 16);
 }
@@ -151,45 +142,44 @@ function setDefaultTimes() {
 // Submit form
 async function handleSubmit() {
   if (!canSubmit.value) return;
-  
+
   loading.value = true;
   error.value = '';
   success.value = false;
-  
+
   try {
     // Validate dates
     const startDate = new Date(formData.value.startTime);
     const endDate = new Date(formData.value.endTime);
     const now = new Date();
-    
+
     if (startDate <= now) {
       throw new Error('Start time must be in the future');
     }
-    
+
     if (endDate <= startDate) {
       throw new Error('End time must be after start time');
     }
-    
+
     // Validate amounts
     if (Number(formData.value.totalRewards) <= 0) {
       throw new Error('Total rewards must be greater than 0');
     }
-    
+
     if (Number(formData.value.rewardsPerBlock) <= 0) {
       throw new Error('Rewards per block must be greater than 0');
     }
-    
+
     if (formData.value.minStakeAmount && Number(formData.value.minStakeAmount) < 0) {
       throw new Error('Minimum stake amount cannot be negative');
     }
-    
+
     if (formData.value.maxStakeAmount && Number(formData.value.maxStakeAmount) <= 0) {
       throw new Error('Maximum stake amount must be greater than 0');
     }
-    
+
     // Prepare farm data
     const farmData = {
-      farmId: formData.value.farmId,
       name: formData.value.name,
       stakingToken: {
         symbol: formData.value.stakingToken.symbol,
@@ -203,10 +193,15 @@ async function handleSubmit() {
       endTime: new Date(formData.value.endTime).toISOString(),
       totalRewards: formData.value.totalRewards,
       rewardsPerBlock: formData.value.rewardsPerBlock,
-      minStakeAmount: formData.value.minStakeAmount || '0',
-      maxStakeAmount: formData.value.maxStakeAmount || '0'
     };
-    
+
+    if (formData.value.minStakeAmount) {
+      (farmData as any).minStakeAmount = formData.value.minStakeAmount;
+    }
+    if (formData.value.maxStakeAmount) {
+      (farmData as any).maxStakeAmount = formData.value.maxStakeAmount;
+    }
+
     // Send transaction
     const customJsonOperation = {
       required_auths: [auth.state.username],
@@ -217,17 +212,16 @@ async function handleSubmit() {
         payload: farmData
       })
     };
-    
+
     await TransactionService.send('custom_json', customJsonOperation, {
       requiredAuth: 'active'
     });
-    
+
     success.value = true;
-    
+
     // Reset form after successful submission
     setTimeout(() => {
       formData.value = {
-        farmId: '',
         name: '',
         stakingToken: { symbol: '', issuer: '' },
         rewardToken: { symbol: '', issuer: '' },
@@ -240,7 +234,7 @@ async function handleSubmit() {
       };
       success.value = false;
     }, 3000);
-    
+
   } catch (e: any) {
     error.value = e?.message || 'Failed to create farm';
   } finally {
@@ -252,9 +246,8 @@ onMounted(async () => {
   if (!tokensStore.tokens.length) {
     await tokensStore.fetchTokens();
   }
-  
+
   // Set default values
-  generateFarmId();
   setDefaultTimes();
   await fetchAvailablePools(); // Fetch pools on mount
 });
@@ -276,39 +269,25 @@ onMounted(async () => {
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <!-- Farm ID -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Farm ID
-              </label>
-              <div class="flex gap-2">
-                <input
-                  v-model="formData.farmId"
-                  type="text"
-                  required
-                  class="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                  placeholder="farm_1234567890_abc123"
-                />
-                <button
-                  type="button"
-                  @click="generateFarmId"
-                  class="px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm font-medium"
-                >
-                  Generate
-                </button>
-              </div>
-            </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Farm Name
               </label>
-              <input
-                v-model="formData.name"
-                type="text"
-                required
+              <input v-model="formData.name" type="text" required
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="My Awesome Farm"
-              />
+                placeholder="My Awesome Farm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Staking Token
+              </label>
+              <div class="flex items-center gap-2 mb-2">
+                <button type="button" @click="toggleLpStakingToken"
+                  class="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm font-medium">
+                  {{ isLpStakingToken ? 'LP Token' : 'Regular Token' }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -319,50 +298,29 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Staking Token
               </label>
-                             <div class="flex items-center gap-2 mb-2">
-                 <button
-                   type="button"
-                   @click="toggleLpStakingToken"
-                   class="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm font-medium"
-                 >
-                   {{ isLpStakingToken ? 'LP Token' : 'Regular Token' }}
-                 </button>
-               </div>
-               
-               <!-- Regular Token Selection -->
-               <div v-if="!isLpStakingToken">
-                 <AppTokenSelect
-                   v-model="formData.stakingToken.symbol"
-                   :options="tokenOptions"
-                   placeholder="Select staking token"
-                   @update:model-value="onStakingTokenChange"
-                 />
-                 <div v-if="formData.stakingToken.issuer" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                   Issuer: {{ formData.stakingToken.issuer }}
-                 </div>
-               </div>
-               
-               <!-- LP Token Selection -->
-               <div v-if="isLpStakingToken">
-                 <select
-                   v-model="selectedPool"
-                   @change="onPoolSelection(selectedPool)"
-                   class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                   required
-                 >
-                   <option value="">Select a pool for LP token</option>
-                   <option
-                     v-for="pool in availablePools"
-                     :key="pool.poolId"
-                     :value="pool"
-                   >
-                     {{ pool.tokenA_symbol }}/{{ pool.tokenB_symbol }} ({{ pool.poolId }})
-                   </option>
-                 </select>
-                 <div v-if="formData.stakingToken.symbol" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                   LP Token: {{ formData.stakingToken.symbol }}
-                 </div>
-               </div>
+              <!-- Regular Token Selection -->
+              <div v-if="!isLpStakingToken">
+                <AppTokenSelect v-model="formData.stakingToken.symbol" :options="tokenOptions"
+                  placeholder="Select staking token" @update:model-value="onStakingTokenChange" />
+                <div v-if="formData.stakingToken.issuer" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Issuer: {{ formData.stakingToken.issuer }}
+                </div>
+              </div>
+
+              <!-- LP Token Selection -->
+              <div v-if="isLpStakingToken">
+                <select v-model="selectedPool" @change="onPoolSelection(selectedPool)"
+                  class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  required>
+                  <option value="">Select a pool for LP token</option>
+                  <option v-for="pool in availablePools" :key="pool.poolId" :value="pool">
+                    {{ pool.tokenA_symbol }}/{{ pool.tokenB_symbol }} ({{ pool.poolId }})
+                  </option>
+                </select>
+                <div v-if="formData.stakingToken.symbol" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  LP Token: {{ formData.stakingToken.symbol }}
+                </div>
+              </div>
             </div>
 
             <!-- Reward Token -->
@@ -370,12 +328,8 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Reward Token
               </label>
-              <AppTokenSelect
-                v-model="formData.rewardToken.symbol"
-                :options="tokenOptions"
-                placeholder="Select reward token"
-                @update:model-value="onRewardTokenChange"
-              />
+              <AppTokenSelect v-model="formData.rewardToken.symbol" :options="tokenOptions"
+                placeholder="Select reward token" @update:model-value="onRewardTokenChange" />
               <div v-if="formData.rewardToken.issuer" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 Issuer: {{ formData.rewardToken.issuer }}
               </div>
@@ -388,24 +342,16 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Start Time
               </label>
-              <input
-                v-model="formData.startTime"
-                type="datetime-local"
-                required
-                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              />
+              <input v-model="formData.startTime" type="datetime-local" required
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 End Time
               </label>
-              <input
-                v-model="formData.endTime"
-                type="datetime-local"
-                required
-                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              />
+              <input v-model="formData.endTime" type="datetime-local" required
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
             </div>
           </div>
 
@@ -415,30 +361,18 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Total Rewards
               </label>
-              <input
-                v-model="formData.totalRewards"
-                type="number"
-                min="0"
-                step="any"
-                required
+              <input v-model="formData.totalRewards" type="number" min="0" step="any" required
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="1000000"
-              />
+                placeholder="1000000" />
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Rewards Per Block
               </label>
-              <input
-                v-model="formData.rewardsPerBlock"
-                type="number"
-                min="0"
-                step="any"
-                required
+              <input v-model="formData.rewardsPerBlock" type="number" min="0" step="any" required
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="100"
-              />
+                placeholder="100" />
             </div>
           </div>
 
@@ -448,48 +382,37 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Min Stake Amount (Optional)
               </label>
-              <input
-                v-model="formData.minStakeAmount"
-                type="number"
-                min="0"
-                step="any"
+              <input v-model="formData.minStakeAmount" type="number" min="0" step="any"
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="0"
-              />
+                placeholder="0" />
             </div>
-            
+
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Max Stake Amount Per User (Optional)
               </label>
-              <input
-                v-model="formData.maxStakeAmount"
-                type="number"
-                min="0"
-                step="any"
+              <input v-model="formData.maxStakeAmount" type="number" min="0" step="any"
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="0 (no limit)"
-              />
+                placeholder="0 (no limit)" />
             </div>
           </div>
 
           <!-- Quick Actions -->
           <div class="flex gap-3">
-            <button
-              type="button"
-              @click="setDefaultTimes"
-              class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm font-medium"
-            >
+            <button type="button" @click="setDefaultTimes"
+              class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm font-medium">
               Set Default Times
             </button>
           </div>
 
           <!-- Error and Success Messages -->
-          <div v-if="error" class="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
+          <div v-if="error"
+            class="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
             <div class="text-red-800 dark:text-red-200 text-sm">{{ error }}</div>
           </div>
 
-          <div v-if="success" class="p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg">
+          <div v-if="success"
+            class="p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg">
             <div class="text-green-800 dark:text-green-200 text-sm font-medium">
               ✅ Farm created successfully! Redirecting...
             </div>
@@ -497,13 +420,7 @@ onMounted(async () => {
 
           <!-- Submit Button -->
           <div class="pt-4">
-            <AppButton
-              type="submit"
-              :disabled="!canSubmit || loading"
-              variant="primary"
-              size="lg"
-              class="w-full"
-            >
+            <AppButton type="submit" :disabled="!canSubmit || loading" variant="primary" size="lg" class="w-full">
               <span v-if="loading">Creating Farm...</span>
               <span v-else>Create Farm</span>
             </AppButton>
