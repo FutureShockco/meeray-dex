@@ -15,9 +15,9 @@ const apiService = useApiService();
 const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length);
 
 onMounted(() => {
-  //steemPriceHistory.fetchPriceHistory();
-  //coinPrices.fetchPrices();
-  //if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
+  steemPriceHistory.fetchPriceHistory();
+  coinPrices.fetchPrices();
+  if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
   //useWsService();
   apiService.getConfig().then((response) => {
     if (response && response.config) {
@@ -45,13 +45,13 @@ onMounted(() => {
     </div>
     <AppNavbar>
       <template #logo>
-        <span class="font-extrabold text-2xl tracking-tight text-primary-400">MeeRayDEX</span>
+        <span class="font-extrabold text-2xl tracking-tight text-primary-400 dark:text-white">MeeRayDEX</span>
       </template>
     </AppNavbar>
-    <router-view class="container mx-auto mt-16" />
+    <router-view class="mx-auto mt-16" />
 
     <footer class="bg-gray-100 border-t mt-auto">
-      <div class="container mx-auto px-4 py-6">
+      <div class="mx-auto px-4 py-6">
         <div class="flex flex-col md:flex-row justify-between items-center text-gray-600">
           <div class="mb-4 md:mb-0">
             <p>&copy; {{ new Date().getFullYear() }} MeeRayDEX</p>

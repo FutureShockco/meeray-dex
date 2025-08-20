@@ -90,7 +90,7 @@ const handleThemeChange = (isDark: boolean): void => {
       <!-- Logo -->
       <router-link to="/" class="flex items-center space-x-3">
         <slot name="logo">
-          <span class="font-extrabold text-2xl tracking-tight text-primary-400">MeeRayDex</span>
+          <span class="font-extrabold text-2xl tracking-tight text-primary-400 dark:text-white">MeeRayDex</span>
         </slot>
       </router-link>
       <!-- Menu -->

@@ -83,7 +83,7 @@ const faqs = [
 
     <!-- Stats Section -->
     <section v-if="tokenList">
-      <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center mt-6">
         <div v-for="stat in stats" :key="stat.label"
           class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
           <div class="text-2xl font-bold text-primary-500 mb-1">{{ stat.value }}</div>
@@ -182,8 +182,8 @@ const faqs = [
     </section>
 
     <!-- FAQ Section -->
-    <section class="max-w-6xl mx-auto py-12 bg-primary-50 dark:bg-primary-900">
-      <div>
+    <section class="py-12 bg-primary-50 dark:bg-primary-900">
+      <div class="max-w-6xl mx-auto">
         <h2 class="font-bold text-center mb-10 text-gray-900 dark:text-white">FAQ</h2>
         <div class="grid md:grid-cols-2 gap-8">
           <div v-for="(faq, i) in faqs.slice(0, 2)" :key="faq.q" class="mb-4">

@@ -70,7 +70,7 @@ async function handleMint(payload: any) {
     const precision = token?.precision ?? 8; // Default to 8 if token not found
     const mintPayload = {
       to: payload.to,
-      amount:new BigNumber(payload.amount).shiftedBy(precision).integerValue(BigNumber.ROUND_DOWN).toString(),
+      amount: new BigNumber(payload.amount).shiftedBy(precision).integerValue(BigNumber.ROUND_DOWN).toString(),
       symbol: payload.symbol,
       memo: payload.memo,
     };
@@ -127,14 +127,15 @@ onMounted(() => {
           <span class="font-semibold text-gray-900 dark:text-white">Hot Coins</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-                 <div v-for="coin in hotCoins" :key="coin.symbol" class="flex items-center justify-between py-1">
-           <div class="flex items-center space-x-2">
-             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
-             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
-           </div>
-           <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}</div>
-           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
-         </div>
+        <div v-for="coin in hotCoins" :key="coin.symbol" class="flex items-center justify-between py-1">
+          <div class="flex items-center space-x-2">
+            <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
+            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
+          </div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}
+          </div>
+          <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
+        </div>
       </div>
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
@@ -142,12 +143,13 @@ onMounted(() => {
           <span class="font-semibold text-gray-900 dark:text-white">New Listing</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-                 <div v-for="token in tokensStore.newTokens.slice(0, 3)" :key="token.symbol"
-           class="flex items-center justify-between py-1">
-           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ token.symbol }}</span>
-           <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap) }}</div>
-           <div :class="token.change < 0 ? 'text-red-500' : 'text-green-500'">{{ token.change }}%</div>
-         </div>
+        <div v-for="token in tokensStore.newTokens.slice(0, 3)" :key="token.symbol"
+          class="flex items-center justify-between py-1">
+          <span class="font-medium text-sm text-gray-900 dark:text-white">{{ token.symbol }}</span>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap) }}
+          </div>
+          <div :class="token.change < 0 ? 'text-red-500' : 'text-green-500'">{{ token.change }}%</div>
+        </div>
       </div>
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
@@ -157,7 +159,8 @@ onMounted(() => {
         </div>
         <div v-for="coin in topGainers" :key="coin.symbol" class="flex items-center justify-between py-1">
           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}
+          </div>
           <div :class="coin.change < 0 ? 'text-green-500' : 'text-red-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -172,7 +175,8 @@ onMounted(() => {
             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}</div>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}
+          </div>
           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
         </div>
       </div>
@@ -211,23 +215,26 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition align-items-center"
+          <tr
+            class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition align-items-center"
             v-for="token in tokensStore.tokens" :key="token.symbol">
 
             <td class="px-4 py-2 flex items-center space-x-2">
               <router-link :to="`/tokens?symbol=${token.symbol}`" class="flex">
-                <img  :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" :alt="token.symbol" class="w-5 h-5 mr-2" />
+                <img :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" :alt="token.symbol"
+                  class="w-5 h-5 mr-2" />
                 <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ token.symbol }}</span>
                 <span class="text-gray-500 dark:text-gray-400">{{ token.name }}</span>
               </router-link>
             </td>
-            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap) }}</td>
+            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap)
+              }}</td>
             <td class="px-4 py-2" :class="tokenHelpers.getTokenChangeClass(token)">
               {{ tokenHelpers.getTokenChange(token) }}
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.volume }}</td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">
-              <span >{{ tokenHelpers.getMarketCap(token, tokenUsdPriceMap) }}</span>
+              <span>{{ tokenHelpers.getMarketCap(token, tokenUsdPriceMap) }}</span>
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.issuer || 'native' }}</td>
             <td class="px-4 py-2 flex space-x-2">
@@ -238,12 +245,19 @@ onMounted(() => {
                   <path d="M12 4v16m8-8H4" />
                 </svg>
               </button>
-            
+
             </td>
           </tr>
 
         </tbody>
       </table>
+    </div>
+    <div class="max-w-7xl mx-auto mb-4">
+      <div class="flex items-center justify-between">
+        <router-link to="/tokens"
+          class="text-primary-500 hover:text-primary-600 font-medium transition-colors w-full mt-6 text-center"> View all
+          tokens</router-link>
+      </div>
     </div>
     <TransferModal :show="showMintModal" :symbol="mintSymbol" mode="mint" @close="showMintModal = false"
       @mint="handleMint" />
