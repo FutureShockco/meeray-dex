@@ -6,7 +6,7 @@ import { useCoinPricesStore } from '../stores/useCoinPrices';
  */
 export function createTokenHelpers() {
   const coinPricesStore = useCoinPricesStore();
-  
+
   return {
     /**
      * Get token precision from token object
@@ -23,12 +23,12 @@ export function createTokenHelpers() {
       const price = tokenUsdPriceMap[token.symbol];
       const supply = token.supply || token.totalSupply || token.circulatingSupply;
       const precision = this.getTokenPrecision(token);
-      
+
       // First priority: Use CoinGecko market cap if available
       if (coingeckoCap !== undefined && coingeckoCap !== null) {
         return `$${Number(coingeckoCap).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
       }
-      
+
       // Second priority: Calculate from price × supply using pool-based price
       if (price !== undefined && price !== null && supply !== undefined && supply !== null) {
         const cap = Number(price) * Number(supply);
@@ -36,30 +36,29 @@ export function createTokenHelpers() {
           return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
         }
       }
-      
+
       // Third priority: Use currentSupply if available
       if (price && token.currentSupply && token.currentSupply > 0) {
         const cap = Number(price) * Number(token.currentSupply);
         return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
       }
-      
+
       return '--';
     },
 
     /**
      * Format token price with proper precision
      */
-    getTokenPrice(token: any, tokenUsdPriceMap: any): string {
-      if (!tokenUsdPriceMap[token.symbol]) return '--';
-      
+    getTokenPrice(token: any, tokenUsdPriceMap: any): number {
+      if (!tokenUsdPriceMap[token.symbol]) return 0;
+
       const price = tokenUsdPriceMap[token.symbol].value;
-      const precision = this.getTokenPrecision(token);
-      
+
       if (price !== undefined && price !== null) {
-        return '$' + Number(price).toLocaleString(undefined, { maximumFractionDigits: precision });
+        return Number(price);
       }
-      
-      return '--';
+
+      return 0;
     },
 
     /**
@@ -67,12 +66,12 @@ export function createTokenHelpers() {
      */
     getTokenChange(token: any): string {
       const change = coinPricesStore.changes[token.symbol];
-      
+
       if (change !== undefined && change !== null) {
         const val = Number(change).toFixed(2);
         return (change > 0 ? '+' : '') + val + '%';
       }
-      
+
       return null;
     },
 
@@ -81,12 +80,12 @@ export function createTokenHelpers() {
      */
     getTokenChangeClass(token: any): string {
       const change = coinPricesStore.changes?.[token.symbol];
-      
+
       if (typeof change === 'number') {
         if (change > 0) return 'text-green-500';
         if (change < 0) return 'text-red-500';
       }
-      
+
       return '';
     },
 
@@ -104,7 +103,7 @@ export function createTokenHelpers() {
       if (token.symbol === 'BTC') return '/icons/btc.svg';
       if (token.symbol === 'ETH') return '/icons/eth.svg';
       if (token.symbol === 'BNB') return '/icons/bnb.svg';
-      
+
       return false;
     },
 
@@ -114,7 +113,7 @@ export function createTokenHelpers() {
     formatUSD(amount: number | string, decimals: number = 2): string {
       const num = Number(amount);
       if (isNaN(num) || !isFinite(num)) return '--';
-      
+
       return `$${num.toLocaleString(undefined, { maximumFractionDigits: decimals })}`;
     },
 
@@ -124,7 +123,7 @@ export function createTokenHelpers() {
     formatPercentage(change: number | string): string {
       const num = Number(change);
       if (isNaN(num) || !isFinite(num)) return '--';
-      
+
       const formatted = num.toFixed(2);
       return (num > 0 ? '+' : '') + formatted + '%';
     },
@@ -135,7 +134,7 @@ export function createTokenHelpers() {
     formatTokenBalance(balance: string | number, precision: number = 8): string {
       const num = Number(balance);
       if (isNaN(num) || !isFinite(num)) return '--';
-      
+
       return num.toLocaleString(undefined, { maximumFractionDigits: precision });
     },
 

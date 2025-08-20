@@ -118,6 +118,7 @@ const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).
         throw new Error(`API error: ${res.status}`);
       }
       const data = await res.json();
+      console.log('[ApiService] Response data:', data);
       return data;
     } catch (error) {
       console.error('[ApiService] Fetch error:', error);
@@ -134,7 +135,11 @@ export function useApiService() {
   // --- Account Endpoints ---
   const getAccountsList = (params: { limit?: number; offset?: number; hasToken?: string; isWitness?: string; sortBy?: string; sortDirection?: string } = {}) =>
     fetcher(`${API_BASE}/accounts?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<AccountList>;
-  const getAccountDetails = (name: string) => fetcher(`${API_BASE}/accounts/${name}`) as Promise<AccountResponse>;
+  const getAccountDetails = (name: string) => {
+    console.log('API: Calling getAccountDetails for:', name);
+    console.log('API: Full URL:', `${API_BASE}/accounts/${name}`);
+    return fetcher(`${API_BASE}/accounts/${name}`) as Promise<AccountResponse>;
+  };
   const getAccountTransactions = (name: string, params: { limit?: number; offset?: number; type?: number } = {}) =>
     fetcher(`${API_BASE}/accounts/${name}/transactions?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<AccountHistory>;
   const getAccountTokens = (name: string) => fetcher(`${API_BASE}/accounts/${name}/tokens`) as Promise<{ account: string; tokens: { symbol: string; amount: number }[] }>;

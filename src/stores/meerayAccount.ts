@@ -8,6 +8,7 @@ export const useMeerayAccountStore = defineStore('meerayAccount', () => {
     const api = useApiService();
 
     const account = ref<Account | null>(null);
+    const publicAccount = ref<Account | null>(null); // For viewing other users' profiles
     const error = ref('');
     const loading = ref(false);
     
@@ -35,13 +36,34 @@ export const useMeerayAccountStore = defineStore('meerayAccount', () => {
     async function loadAccount(username: string) {
         loading.value = true;
         try {
+            console.log('Store: Loading account for username:', username);
+            console.log('Store: Current auth username:', auth.state.username);
+            
             const response = await api.getAccountDetails(username);
-            account.value = response.account;
+            console.log('Store: API response:', response);
+            
+            // If loading own account, update the main account ref
+            if (username === auth.state.username) {
+                console.log('Store: Updating main account');
+                account.value = response.account;
+            } else {
+                // If loading someone else's account, update the public account ref
+                console.log('Store: Updating public account');
+                publicAccount.value = response.account;
+            }
+            
+            console.log('Store: Account after update:', account.value);
+            console.log('Store: Public account after update:', publicAccount.value);
+            
             error.value = '';
         } catch (e) {
             error.value = e instanceof Error ? e.message : String(e);
-            account.value = null;
-            console.error('Error loading account:', e);
+            if (username === auth.state.username) {
+                account.value = null;
+            } else {
+                publicAccount.value = null;
+            }
+            console.error('Store: Error loading account:', e);
         } finally {
             loading.value = false;
         }
@@ -64,5 +86,5 @@ export const useMeerayAccountStore = defineStore('meerayAccount', () => {
         { immediate: true }
     );
 
-    return { account, error, loading, refreshAccount, loadAccount };
+    return { account, publicAccount, error, loading, refreshAccount, loadAccount };
 });

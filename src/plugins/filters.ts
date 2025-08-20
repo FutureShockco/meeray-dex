@@ -35,7 +35,9 @@ export default {
       symbol: string,
       format: string = '0,0.00'
     ) => {
+      
       if (tokenListStore.tokens.length === 0) {
+        console.log('Filter: No tokens loaded, using fallback formatting');
         const value = typeof balanceData === 'object'
           ? balanceData.amount || balanceData.rawAmount || '0'
           : balanceData;
@@ -43,6 +45,7 @@ export default {
       }
 
       const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
+      
       const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18, LP_TOKEN: 18 };
       const precision = token?.precision ?? defaultPrecisions[symbol] ?? 8;
 
@@ -51,6 +54,7 @@ export default {
           ? balanceData.rawAmount || balanceData.amount || '0'
           : balanceData;
 
+
         if (rawValue === "1000000000000000000000000000000") {
           return 'Infinite';
         }
@@ -58,9 +62,10 @@ export default {
         const human = new BigNumber(rawValue)
           .dividedBy(new BigNumber(10).pow(precision));
         const decimalPlaces = Math.min(precision, 8);
-        return human.toFixed(decimalPlaces);
+        const result = human.toFixed(decimalPlaces);
+        return result;
       } catch (e) {
-        console.warn('format error:', e);
+        console.warn('Filter: format error:', e);
         const value = typeof balanceData === 'object'
           ? balanceData.amount || '0'
           : balanceData;
@@ -92,11 +97,15 @@ export default {
       return store.prices[symbol] ?? null;
     };
 
-    app.config.globalProperties.$formattedCoinPrice = (symbol: string, format = '$0,0.00') => {
+    app.config.globalProperties.$formattedCoinPrice = (symbol: string) => {
       const store = useCoinPricesStore();
       const price = store.prices[symbol];
-      if (price == null) return '--';
-      return numeral(price).format(format);
+      if (price == null) return 0;
+      return Number(price);
+    };
+
+    app.config.globalProperties.$formatUsdValue = (value: number | string,  format: string = '0,0.00') => {
+      return numeral(Number(value)).format(format);
     };
   }
 };

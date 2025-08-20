@@ -7,6 +7,7 @@ import CreateTokenModal from '../components/CreateTokenModal.vue';
 import TransferModal from '../components/TransferModal.vue';
 import DepositModal from '../components/DepositModal.vue';
 import BigNumber from 'bignumber.js';
+import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -20,6 +21,7 @@ const api = useApiService();
 const coinPrices = useCoinPricesStore();
 const tokenList = useTokenListStore();
 const tokenHelpers = createTokenHelpers();
+const tokensStore = useTokenListStore();
 
 // Extract username from URL parameter
 const username = computed(() => {
@@ -33,8 +35,20 @@ const username = computed(() => {
 // Check if current user is viewing their own account
 const isOwnAccount = computed(() => auth.state.username === username.value);
 
+// Get the account data being viewed (own account or public account)
+const currentAccount = computed(() => isOwnAccount.value ? meeray.account : meeray.publicAccount);
+
 // Add a computed to check if tokens are loaded
 const tokensLoaded = computed(() => tokenList.tokens.length > 0);
+
+
+const tokenUsdPriceMap = computed(() => {
+  const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
+  for (const token of tokensStore.tokens) {
+    if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
+  }
+  return map;
+});
 
 const user = computed(() => ({
   username: username.value,
@@ -47,7 +61,7 @@ const user = computed(() => ({
 
 
 const balance = computed(() => ({
-  mry: meeray.account?.balances?.MRY ? meeray.account.balances.MRY : { amount: '0', rawAmount: '0' },
+  mry: currentAccount.value?.balances?.MRY || { amount: '0', rawAmount: '0' },
   usd: 0.0,
   pnl: 0.00,
   pnlPercent: 0.0,
@@ -55,16 +69,17 @@ const balance = computed(() => ({
 
 const portfolio = computed(() => {
   try {
-    // Only show balances if viewing own profile
-    if (!isOwnAccount.value) {
-      return [
-        { symbol: 'MRY', amount: { amount: '0', rawAmount: '0' }, name: 'MeeRay', logoUrl: '/icons/mry.svg' },
-        { symbol: 'STEEM', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM', logoUrl: '/icons/steem.svg' },
-        { symbol: 'SBD', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM BACKED DOLLAR', logoUrl: '/icons/sbd.svg' }
-      ];
-    }
+    // Use the current account data being viewed
+    const balances = currentAccount.value?.balances || {};
 
-    const balances = meeray.account?.balances || {};
+    console.log('Portfolio computation:', {
+      username: username.value,
+      isOwnAccount: isOwnAccount.value,
+      currentAccount: currentAccount.value,
+      balances,
+      loading: meeray.loading
+    });
+
     const userBalances = Object.entries(balances)
       .filter(([symbol]) => !symbol.startsWith('LP')) // Filter out LP tokens
       .map(([symbol, balanceData]) => ({
@@ -136,6 +151,18 @@ function openDeposit(symbol: string) {
 
 const transferLoading = ref(false);
 const transferError = ref('');
+
+async function reloadAccount() {
+  try {
+    console.log('Manually reloading account for:', username.value);
+    await meeray.loadAccount(username.value);
+    console.log('Account reloaded:', meeray.publicAccount);
+    console.log('Public account balances:', meeray.publicAccount?.balances);
+  } catch (e: any) {
+    console.error('Error reloading account:', e);
+    error.value = e?.message || 'Failed to reload account';
+  }
+}
 
 async function handleTransfer(transferData: { to: string; amount: number; symbol: string; memo: string }) {
   transferError.value = '';
@@ -236,13 +263,18 @@ onMounted(async () => {
   }
   loading.value = true;
   try {
+
     // Fetch tokens first to ensure they're available for formatting
     if (!tokenList.tokens.length) {
+      console.log('Fetching tokens...');
       await tokenList.fetchTokens();
+    } else {
+      console.log('Tokens already loaded:', tokenList.tokens.length);
     }
 
     // Load account data for the specific username
     await meeray.loadAccount(username.value);
+
 
     const res = await api.getUserLiquidityPositions(username.value);
     userPositions.value = res?.data || [];
@@ -287,8 +319,6 @@ onMounted(async () => {
         You are viewing {{ username }}'s public profile. Some features are only available when viewing your own profile.
       </p>
     </div>
-
-
     <!-- Get Started Steps -->
     <!-- <div class="flex gap-4 mb-8">
       <div v-for="(step, i) in steps" :key="step.title" class="flex-1">
@@ -311,7 +341,7 @@ onMounted(async () => {
     </div> -->
 
     <!-- Estimated Balance -->
-    <div v-if="isOwnAccount" class="mb-8">
+    <div class="mb-8">
       <div
         class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
         <div>
@@ -328,7 +358,7 @@ onMounted(async () => {
             Today's PnL: {{ balance.pnl < 0 ? '-' : '+' }}${{ Math.abs(balance.pnl) }} ({{ balance.pnlPercent }}%)
               </div>
           </div>
-          <div class="flex gap-2">
+          <div v-if="isOwnAccount" class="flex gap-2">
             <button class="px-3 py-1 rounded bg-primary-400 text-white text-xs"
               @click="openTransfer('MRY')">Transfer</button>
             <button class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs">Buy
@@ -361,6 +391,7 @@ onMounted(async () => {
                   <th class="py-2 px-2 text-right">Amount</th>
                   <th class="py-2 px-2 text-right">Coin Price</th>
                   <th class="py-2 px-2 text-right">24H Change</th>
+                  <th class="py-2 px-2 text-right">Value</th>
                   <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
                 </tr>
               </thead>
@@ -371,8 +402,7 @@ onMounted(async () => {
                 ]">
                   <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
                     <router-link :to="`/tokens?symbol=${t.symbol}`" class="flex">
-                      <img :src="tokenHelpers.getTokenIcon(t) || t.logoUrl" :alt="t.symbol"
-                        class="w-5 h-5 mr-2" />
+                      <img :src="tokenHelpers.getTokenIcon(t) || t.logoUrl" :alt="t.symbol" class="w-5 h-5 mr-2" />
                       <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ t.symbol }}</span>
                       <span class="text-gray-500 dark:text-gray-400">{{ t.name }}</span>
                     </router-link>
@@ -389,7 +419,9 @@ onMounted(async () => {
                     {{
                       $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') ?
                         $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') + '%' : '0.00%' }}</td>
-
+                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
+                    ${{ $formatUsdValue(Number(tokenHelpers.getTokenPrice(t, tokenUsdPriceMap)) * Number(t.amount.amount)) }}
+                  </td>
                   <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                     <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"
                       class="p-2 py-1 mr-1 rounded bg-primary-400 text-white"
@@ -399,7 +431,8 @@ onMounted(async () => {
                       @click="openDeposit(t.symbol), depositMode = 'withdraw'">Withdraw</button>
                     <button @click="openTransfer(t.symbol)"
                       class="p-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
-                    <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}@echelon-node1-MRY@echelon-node1` } }">
+                    <router-link
+                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}@echelon-node1-MRY@echelon-node1` } }">
                       <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                     <button class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
@@ -421,7 +454,8 @@ onMounted(async () => {
           </div>
           <div v-if="userCreatedTokens.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
             <div class="text-lg mb-2">No tokens created yet</div>
-            <div class="text-sm">{{ isOwnAccount ? 'Create your first token to get started' : 'This user has not created any tokens yet' }}</div>
+            <div class="text-sm">{{ isOwnAccount ? 'Create your first token' : 'This user has not created any tokens' }}
+            </div>
           </div>
           <div v-else class="overflow-x-auto">
             <table class="min-w-full text-xs">
@@ -455,7 +489,8 @@ onMounted(async () => {
                   <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                     <button v-if="isOwnAccount" @click="openTransfer(token.symbol)"
                       class="px-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
-                    <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}@echelon-node1-MRY@echelon-node1` } }">
+                    <router-link
+                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}@echelon-node1-MRY@echelon-node1` } }">
                       <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                     <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
@@ -505,7 +540,8 @@ onMounted(async () => {
                   <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formatNumber(pos.lpTokenBalance) }}
                   </td>
                   <td v-if="isOwnAccount" class="py-2 px-2 text-right">
-                    <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}@echelon-node1-${pos.poolId.split('_')[1]}@echelon-node1` } }">
+                    <router-link
+                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}@echelon-node1-${pos.poolId.split('_')[1]}@echelon-node1` } }">
                       <button class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                   </td>

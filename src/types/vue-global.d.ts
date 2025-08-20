@@ -9,6 +9,7 @@ declare module '@vue/runtime-core' {
     $formatRawNumber: (value: string | number, symbol: string, format?: string) => string;
     $formatDate: (value: string | Date, format?: string) => string;
     $coinPrice: (symbol: string) => number | null;
-    $formattedCoinPrice: (symbol: string, format?: string) => string;
+    $formattedCoinPrice: (symbol: string, format?: string) => number;
+    $formatUsdValue: (value: number | string, symbol?: string, format?: string) => string;
   }
 } 

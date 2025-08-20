@@ -279,7 +279,9 @@ onMounted(() => {
 
               <!-- Witness Info -->
               <div class="flex-grow">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">{{ witness.name }}</h3>
+                <router-link :to="{ path: `/${witness.name}` }">
+                  <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">@{{ witness.name }}</h3>
+                </router-link>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span class="text-gray-500 dark:text-gray-400">Vote Weight:</span>

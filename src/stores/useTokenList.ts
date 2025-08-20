@@ -14,19 +14,27 @@ export const useTokenListStore = defineStore('tokenList', () => {
     loading.value = true;
     error.value = '';
     try {
+      console.log('TokenList: Fetching tokens...');
       const res = await api.getTokens();
+      console.log('TokenList: Tokens response:', res);
       tokens.value = Array.isArray(res.data) ? res.data : [];
+      console.log('TokenList: Tokens loaded:', tokens.value.length);
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch tokens';
+      console.error('TokenList: Error fetching tokens:', e);
     } finally {
       loading.value = false;
     }
 
     try {
+      console.log('TokenList: Fetching new tokens...');
       const res = await api.getNewTokens();
+      console.log('TokenList: New tokens response:', res);
       newTokens.value = Array.isArray(res.data) ? res.data : [];
+      console.log('TokenList: New tokens loaded:', newTokens.value.length);
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch tokens';
+      console.error('TokenList: Error fetching new tokens:', e);
     } finally {
       loading.value = false;
     }

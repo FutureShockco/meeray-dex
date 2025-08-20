@@ -58,7 +58,7 @@ export function useTokenUsdPrice(symbol: string) {
       }
       if (!found) {
         // No pool found, default to 1 USD
-        usdPrice.value = 1;
+        usdPrice.value = 0.0;
         error.value = 'No pool found for token, defaulting to 1 USD';
       }
     } catch (e: any) {
