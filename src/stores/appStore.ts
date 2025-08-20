@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import type { Config } from '../types/config';
 
 interface OrderBookEntry {
   price: string;
@@ -16,11 +17,14 @@ interface CandleEntry {
   [key: string]: any;
 }
 
+
+
 interface State {
   orderBook: { asks: OrderBookEntry[]; bids: OrderBookEntry[] };
   trades: TradeEntry[];
   candles: CandleEntry[];
   isAppLoading: boolean;
+  config: Config;
 }
 
 export const useAppStore = defineStore('appStore', {
@@ -29,8 +33,12 @@ export const useAppStore = defineStore('appStore', {
     trades: [],
     candles: [],
     isAppLoading: false,
+    config: null,
   }),
   actions: {
+    setConfig(config: Config) {
+      this.config = config;
+    },
     setAppLoading(val: boolean) {
       this.isAppLoading = val;
     },

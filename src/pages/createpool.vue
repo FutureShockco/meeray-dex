@@ -10,12 +10,14 @@ import { useApiService, type Pool } from '../composables/useApiService';
 import BigNumber from 'bignumber.js';
 import { generatePoolId } from '../utils/idUtils';
 import { useRoute } from 'vue-router';
+import { useAppStore } from '../stores/appStore';
 
 const auth = useAuthStore();
 const tokensStore = useTokenListStore();
 const meeray = useMeerayAccountStore();
 const api = useApiService();
 const route = useRoute();
+const appStore = useAppStore();
 
 const step = ref(1);
 const tokens = ref(['', '']);
@@ -46,12 +48,18 @@ const isStep3Valid = computed(() => deposit.value[0] && deposit.value[1]);
 
 const tokenOptions = computed<{ symbol: string; name: string }[]>(() => tokensStore.tokens);
 
-const feeTiers = [
+const possibleFeeTiers = [
   { value: 10, label: 'Very Low', desc: 'Best for stable pairs (e.g., USDT/USDC)' },
   { value: 50, label: 'Low', desc: 'For low volatility pairs' },
   { value: 300, label: 'Standard', desc: 'Most pairs, standard DEX fee' },
   { value: 1000, label: 'High', desc: 'Exotic or volatile pairs' },
 ];
+
+const feeTiers = computed(() => possibleFeeTiers.filter(tier => appStore.config.allowedFeeTiers.includes(tier.value)).map(tier => ({
+  value: tier.value,
+  label: `${tier.value / 1000}%`,
+  desc: tier.desc
+})));
 
 // Calculate pool ratio for existing pools
 const poolRatio = computed(() => {

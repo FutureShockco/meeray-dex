@@ -4,20 +4,30 @@ import { useSteemPriceHistoryStore } from './stores/useSteemPriceHistory';
 import { useCoinPricesStore } from './stores/useCoinPrices';
 import { useTokenListStore } from './stores/useTokenList';
 import { useAppStore } from './stores/appStore';
+import { useApiService } from './composables/useApiService';
 
 const steemPriceHistory = useSteemPriceHistoryStore();
 const coinPrices = useCoinPricesStore();
 const tokenListStore = useTokenListStore();
 const appStore = useAppStore();
+const apiService = useApiService();
 
 const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length);
 
 onMounted(() => {
-  steemPriceHistory.fetchPriceHistory();
-  coinPrices.fetchPrices();
-  if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
+  //steemPriceHistory.fetchPriceHistory();
+  //coinPrices.fetchPrices();
+  //if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
   //useWsService();
-
+  apiService.getConfig().then((response) => {
+    if (response && response.config) {
+      appStore.setConfig(response.config);
+    } else {
+      console.warn('Invalid config response structure:', response);
+    }
+  }).catch((error) => {
+    console.error('Failed to load config:', error);
+  });
 });
 </script>
 

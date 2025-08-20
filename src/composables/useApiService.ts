@@ -22,7 +22,7 @@ export interface Account {
   }>;
 }
 // export interface AccountDetails { /* ... */ } // Commented out as Account is more specific
-export interface AccountList { 
+export interface AccountList {
   data: Account[];
   total: number;
   limit: number;
@@ -70,7 +70,7 @@ export interface Pool {
   status?: string;
   lastUpdatedAt?: string;
   created?: string;
- }
+}
 
 export interface PoolEvent { /* ... */ }
 export interface PoolRatio { /* ... */ }
@@ -88,7 +88,7 @@ export interface NFTDelegation { /* ... */ }
 export interface NFTMarketListing { /* ... */ }
 export interface UserLiquidityPosition { /* ... */ }
 export interface TradeRoute { /* ... */ }
-export interface Token { 
+export interface Token {
   symbol: string;
   name: string;
   precision: number;
@@ -99,34 +99,37 @@ export interface Token {
   rawTotalSupply?: string; // in smallest units
   createdAt?: string; // ISO date string
   updatedAt?: string; // ISO date string
- }
+}
 
 
 // Use globalThis.$fetch if available (Nuxt 3), otherwise fallback to fetch
 const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).$fetch === 'function'
   ? (url: string) => (globalThis as any).$fetch(url)
   : async (url: string) => {
-      console.log('[ApiService] Fetching:', url);
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          // For 404 responses, we want to handle them gracefully as "not found"
-          if (res.status === 404 && url.includes('/accounts/')) {
-            console.log('[ApiService] Account not found in API:', url);
-            return { success: false, account: null };
-          }
-          throw new Error(`API error: ${res.status}`);
+    console.log('[ApiService] Fetching:', url);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        // For 404 responses, we want to handle them gracefully as "not found"
+        if (res.status === 404 && url.includes('/accounts/')) {
+          console.log('[ApiService] Account not found in API:', url);
+          return { success: false, account: null };
         }
-        const data = await res.json();
-        return data;
-      } catch (error) {
-        console.error('[ApiService] Fetch error:', error);
-        throw error;
+        throw new Error(`API error: ${res.status}`);
       }
-    };
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error('[ApiService] Fetch error:', error);
+      throw error;
+    }
+  };
 
 export function useApiService() {
-    const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.example.com';
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.meeray.com';
+
+  // --- Config Endpoints ---
+  const getConfig = () => fetcher(`${API_BASE}/config/current`) as Promise<any>;
 
   // --- Account Endpoints ---
   const getAccountsList = (params: { limit?: number; offset?: number; hasToken?: string; isWitness?: string; sortBy?: string; sortDirection?: string } = {}) =>
@@ -146,7 +149,7 @@ export function useApiService() {
   const searchTokensByName = (searchName: string, params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/tokens/name/${searchName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
   const getNewTokens = (params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/tokens/new?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>; 
+    fetcher(`${API_BASE}/tokens/new?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
 
   const getTokenSupply = () => fetcher(`${API_BASE}/supply`) as Promise<TokenSupply>;
   const getTokenHolders = (symbol: string) => fetcher(`${API_BASE}/holders/${symbol}`) as Promise<TokenHolders>;
@@ -197,21 +200,21 @@ export function useApiService() {
   const getTradesByOrder = (orderId: string, params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/markets/trades/order/${orderId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
   const getTradeDetails = (tradeId: string) => fetcher(`${API_BASE}/markets/trades/${tradeId}`);
-  
+
   // --- Transaction Endpoints ---
   const getTransaction = (txid: string) => fetcher(`${API_BASE}/tx/${txid}`) as Promise<TransactionDetails>;
-  
+
   // --- Events Endpoints ---
-  const getEvents = (params: { 
-    type?: string; 
-    actor?: string; 
-    transactionId?: string; 
-    poolId?: string; 
-    startTime?: string; 
-    endTime?: string; 
-    sortDirection?: 'asc' | 'desc'; 
-    limit?: number; 
-    offset?: number; 
+  const getEvents = (params: {
+    type?: string;
+    actor?: string;
+    transactionId?: string;
+    poolId?: string;
+    startTime?: string;
+    endTime?: string;
+    sortDirection?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
   } = {}) => fetcher(`${API_BASE}/events?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: any[]; total: number; limit: number; offset: number }>;
 
   // --- Block Endpoints ---
@@ -236,7 +239,7 @@ export function useApiService() {
   const getPoolDetailsById = (poolId: string) => fetcher(`${API_BASE}/pools/${poolId}`) as Promise<Pool>;
   const getPoolsByToken = (tokenSymbol: string, params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/pools/token/${tokenSymbol}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Pool[]; total: number; limit: number; skip: number }>;
-  
+
   // User Liquidity Positions
   const getUserLiquidityPositions = (userId: string, params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/pools/positions/user/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: UserLiquidityPosition[]; total: number; limit: number; skip: number }>;
@@ -254,7 +257,7 @@ export function useApiService() {
   const getPoolRatio = (token0: string, token1: string) => fetcher(`${API_BASE}/pools/${token0}/${token1}/ratio`) as Promise<PoolRatio>;
   const getUserLpBalance = (token0: string, token1: string, user: string) => fetcher(`${API_BASE}/pools/${token0}/${token1}/user/${user}`) as Promise<UserLpBalance>;
   const previewSwap = (token0: string, token1: string, amountIn: string, tokenIn: string) => fetcher(`${API_BASE}/pools/${token0}/${token1}/previewSwap?amountIn=${amountIn}&tokenIn=${tokenIn}`) as Promise<SwapPreview>;
-  
+
   // Preview multi-hop swap output
   const getPreviewSwapRoute = (path: string[], amountIn: string | number) => {
     // path is an array, amountIn is string or number
@@ -300,16 +303,16 @@ export function useApiService() {
   // --- Market/Trading Endpoints ---
   const getTradingPairs = (params: { limit?: number; offset?: number; status?: string } = {}) =>
     fetcher(`${API_BASE}/market/pairs?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ pairs: any[]; total: number }>;
-    
+
   const getOrderBook = (pairId: string, params: { limit?: number } = {}) =>
     fetcher(`${API_BASE}/market/orderbook/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ bids: any[]; asks: any[] }>;
-    
+
   const getTradeHistory = (pairId: string, params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/market/trades/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: any[]; total: number; limit: number; skip: number }>;
-    
+
   const getUserOrders = (userId: string, params: { pairId?: string; status?: string; limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/market/orders/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: any[]; total: number; limit: number; skip: number }>;
-    
+
   const getMarketStats = (pairId: string) =>
     fetcher(`${API_BASE}/market/stats/${pairId}`) as Promise<{ volume24h: string; change24h: string; lastPrice: string; high24h: string; low24h: string }>;
 
@@ -317,7 +320,7 @@ export function useApiService() {
   const getTopWitnesses = (params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/witnesses?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Account[]; total: number; limit: number; skip: number }>;
   const getWitnessDetails = (name: string) => fetcher(`${API_BASE}/witnesses/${name}/details`) as Promise<Account>;
-  const getWitnessVotesCastBy = (voterName: string) => 
+  const getWitnessVotesCastBy = (voterName: string) =>
     fetcher(`${API_BASE}/witnesses/votescastby/${voterName}`) as Promise<{ votedWitnesses: string[] }>;
   const getVotersForWitness = (witnessName: string, params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/witnesses/votersfor/${witnessName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: string[]; total: number; limit: number; skip: number }>;
@@ -341,6 +344,8 @@ export function useApiService() {
 
 
   return {
+    // Config
+    getConfig,
     // Account
     getAccountsList,
     getAccountDetails,
