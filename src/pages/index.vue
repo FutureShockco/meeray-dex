@@ -3,10 +3,15 @@ import { computed } from 'vue';
 import { useTokenListStore } from '../stores/useTokenList';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import { useApiService } from '../composables/useApiService';
+import { usePoolsStore } from '../stores/usePoolList';
 const tokensStore = useTokenListStore();
+const poolsStore = usePoolsStore();
 
 // Create token helper functions
 const tokenHelpers = createTokenHelpers();
+const { getUserCount } = useApiService();
+const userCount = ref(0);
 
 const hotCoins = computed(() => tokensStore.tokens.slice(0, 3));
 const newTokens = computed(() => tokensStore.newTokens.slice(0, 3));
@@ -21,11 +26,16 @@ const tokenUsdPriceMap = computed(() => {
   return map;
 });
 
+onMounted(async () => {
+  const res = await getUserCount();
+  userCount.value = res.count;
+});
+
 const stats = computed(() => [
   { label: 'Tokens', value: tokenList.value.length || 0 },
-  { label: 'Users', value: '2' },
+  { label: 'Users', value: userCount.value },
   { label: 'Volume (24h)', value: 'NA' },
-  { label: 'Pools', value: 'NA' },
+  { label: 'Pools', value: poolsStore.pools.length },
 ]);
 
 

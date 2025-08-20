@@ -96,9 +96,10 @@ function formatEventType(type: string | undefined): string {
   // Map event types to user-friendly names
   const typeMap: Record<string, string> = {
     'pool_swap': 'Swap',
-    'pool_add_liquidity': 'Add Liquidity',
+    'pool_liquidity_added': 'Add Liquidity',
     'pool_remove_liquidity': 'Remove Liquidity',
     'pool_created': 'Pool Created',
+    'market_pair_created': 'Market Pair Created',
     'token_transfer': 'Transfer',
     'token_mint': 'Mint',
     'token_burn': 'Burn'
@@ -113,9 +114,10 @@ function getEventTypeClass(type: string | undefined): string {
   // Color coding for different event types
   const classMap: Record<string, string> = {
     'pool_swap': 'text-blue-600 dark:text-blue-400',
-    'pool_add_liquidity': 'text-green-600 dark:text-green-400',
+    'pool_liquidity_added': 'text-green-600 dark:text-green-400',
     'pool_remove_liquidity': 'text-orange-600 dark:text-orange-400',
     'pool_created': 'text-purple-600 dark:text-purple-400',
+    'market_pair_created': 'text-purple-600 dark:text-purple-400',
     'token_transfer': 'text-gray-600 dark:text-gray-400',
     'token_mint': 'text-green-600 dark:text-green-400',
     'token_burn': 'text-red-600 dark:text-red-400'
@@ -154,7 +156,7 @@ const tokenUsdPriceMap = computed(() => {
 });
 
 function getTvlUsd(pool: any) {
-  if(!pool) return '--';
+  if (!pool) return '--';
   const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
   const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
   const reserve0 = Number(pool.tokenA_reserve) || 0;
@@ -238,8 +240,8 @@ function getPoolPairId(): string {
           </div>
         </div>
         <!-- Volume Chart -->
-        <div
-          class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 mt-16 pb-5 mb-4 h-49 flex items-center justify-center">
+
+        <div>
           <PoolVolumeChart :poolId="poolId" />
         </div>
         <!-- Transactions Table -->
@@ -272,15 +274,24 @@ function getPoolPairId(): string {
                   class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
                   <td class="px-4 py-2 max-w-[100px]">{{ formatEventTime(event.timestamp || event.time) }}</td>
                   <td class="px-4 py-2" :class="getEventTypeClass(event.type)">
-                    {{ formatEventType(event.type) }} 
+                    {{ formatEventType(event.type) }}
                   </td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-if="event.data.tokenIn_symbol && event.data.tokenOut_symbol">{{ event.data.tokenIn_symbol }} > {{ event.data.tokenOut_symbol }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white"
+                    v-if="event.data.tokenIn_symbol && event.data.tokenOut_symbol">{{ event.data.tokenIn_symbol }} > {{
+                      event.data.tokenOut_symbol }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
 
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ? formatUSD(event.usd || event.amount) : '--' }}</td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white" >{{ event.data.tokenIn_symbol ? event.data.tokenIn_symbol === pool.tokenA_symbol ? $formatTokenBalance(event.data.amountIn, event.data.tokenIn_symbol) :  $formatTokenBalance(event.data.amountOut, event.data.tokenOut_symbol) : '--' }}
+                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ? formatUSD(event.usd
+                    || event.amount) : '--' }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ?
+                    event.data.tokenIn_symbol === pool.tokenA_symbol ? $formatTokenBalance(event.data.amountIn,
+                      event.data.tokenIn_symbol) : $formatTokenBalance(event.data.amountOut, event.data.tokenOut_symbol) :
+                    '--' }}
                   </td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ? event.data.tokenIn_symbol === pool.tokenB_symbol ? $formatTokenBalance(event.data.amountIn, event.data.tokenIn_symbol) :  $formatTokenBalance(event.data.amountOut, event.data.tokenOut_symbol) : '--' }}
+                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ?
+                    event.data.tokenIn_symbol === pool.tokenB_symbol ? $formatTokenBalance(event.data.amountIn,
+                      event.data.tokenIn_symbol) : $formatTokenBalance(event.data.amountOut, event.data.tokenOut_symbol) :
+                    '--' }}
                   </td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white">@{{ event.actor || event.wallet || '--' }}</td>
                 </tr>
@@ -294,27 +305,30 @@ function getPoolPairId(): string {
         <!-- Stats Card -->
         <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 mb-4">
           <div class="text-gray-500 dark:text-gray-400 text-xs mb-3">Stats</div>
-          <div class="mb-3">
+          <div v-if="pool" class="mb-3">
             <span class="font-semibold text-gray-900 dark:text-white">Pool balances</span>
-            <div class="flex flex-col gap-1 mt-2 ml-1">
-              <span class="text-xs text-gray-500 dark:text-gray-400">{{ pool ? pool.tokenA_symbol : 'Token A' }} <span
-                  class="font-mono text-gray-900 dark:text-white">{{ token0Balance }}</span></span>
-              <span class="text-xs text-gray-500 dark:text-gray-400">{{ pool ? pool.tokenB_symbol : 'Token B' }} <span
-                  class="font-mono text-gray-900 dark:text-white">{{ token1Balance }}</span></span>
+            <div class="flex gap-1 mt-2">
+              <span class="font-mono text-gray-900 dark:text-white">{{ token0Balance }} {{ pool.tokenA_symbol }} -
+              </span>
+              <span class="font-mono text-gray-900 dark:text-white">{{ token1Balance }} {{ pool.tokenB_symbol }}</span>
             </div>
           </div>
           <div class="mb-1 mt-3 flex items-center">
-            <span class="text-xs text-gray-500 dark:text-gray-400">TVL</span>
+            <span class="font-semibold text-gray-900 dark:text-white">TVL:</span>
             <span class="font-bold text-gray-900 dark:text-white ml-2">{{ getTvlUsd(pool) }}</span>
           </div>
           <!-- NEW: Fee Growth Global fields -->
           <div class="mb-1 mt-3 flex items-center" v-if="pool && pool.feeGrowthGlobalA">
-            <span class="text-xs text-gray-500 dark:text-gray-400">Fee Growth Global A</span>
-            <span class="font-mono text-gray-900 dark:text-white ml-2">{{ $formatTokenBalance(pool.feeGrowthGlobalA, "LP_TOKEN") }}</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Fee Growth:</span>
+            <span class="text-xs font-bold text-gray-900 dark:text-white ml-2">{{
+              $formatTokenBalance(pool.feeGrowthGlobalA,
+                "LP_TOKEN") }} {{ pool.tokenA_symbol }}</span>
           </div>
           <div class="mb-1 mt-1 flex items-center" v-if="pool && pool.feeGrowthGlobalB">
-            <span class="text-xs text-gray-500 dark:text-gray-400">Fee Growth Global B</span>
-            <span class="font-mono text-gray-900 dark:text-white ml-2">{{ $formatTokenBalance(pool.feeGrowthGlobalB, "LP_TOKEN") }}</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">Fee Growth:</span>
+            <span class="text-xs font-bold text-gray-900 dark:text-white ml-2">{{
+              $formatTokenBalance(pool.feeGrowthGlobalB,
+                "LP_TOKEN") }} {{ pool.tokenB_symbol }}</span>
           </div>
           <!-- NEW: 24h Fees fields -->
           <div class="mb-1 mt-3 flex items-center" v-if="pool && pool.fees24hA">
@@ -328,17 +342,7 @@ function getPoolPairId(): string {
               Number(pool.fees24hB).toLocaleString(undefined, { maximumFractionDigits: 4 }) }}</span>
           </div>
         </div>
-        <!-- Links Card -->
-        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5">
-          <div class="text-gray-500 dark:text-gray-400 text-xs mb-2">Links</div>
-          <div class="flex flex-col gap-1 ml-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="font-semibold text-gray-900 dark:text-white">{{ poolName }}</span>
-            </div>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ pool ? pool.tokenA_symbol : 'Token A' }}</span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ pool ? pool.tokenB_symbol : 'Token B' }}</span>
-          </div>
-        </div>
+
       </div>
     </div>
   </div>

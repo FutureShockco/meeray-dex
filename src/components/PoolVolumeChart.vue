@@ -195,38 +195,39 @@ const timeframeLabel = computed(() => {
 </script>
 
 <template>
-  <div class="w-full">
-    <div class="mb-2">
-      <div class="text-3xl md:text-4xl font-extrabold text-primary-400">
-        <span v-if="selectedMetric === 'volume'">${{ totalVolume.toLocaleString(undefined, { maximumFractionDigits: 2 }) }}</span>
-        <span v-else>${{ totalFees.toLocaleString(undefined, { maximumFractionDigits: 2 }) }}</span>
-      </div>
-      <div class="text-gray-400 text-base font-semibold">{{ timeframeLabel }}</div>
-      <div v-if="aprA !== null && aprB !== null" class="text-xs text-gray-500 mt-1">
-        APR: <span class="font-semibold text-primary-400">{{ (aprA * 100).toFixed(2) }}%</span> (A), <span class="font-semibold text-primary-400">{{ (aprB * 100).toFixed(2) }}%</span> (B)
-      </div>
+  <div >
+    <div class="text-3xl md:text-4xl font-extrabold text-primary-400">
+      <span v-if="selectedMetric === 'volume'">${{ totalVolume.toLocaleString(undefined, { maximumFractionDigits: 2 })
+      }}</span>
+      <span v-else>${{ totalFees.toLocaleString(undefined, { maximumFractionDigits: 2 }) }}</span>
     </div>
-    <div class="relative w-full h-48 md:h-64">
-      <Bar :data="chartData" :options="chartOptions" :height="220" :width="600" />
-    </div>
-    <div class="flex items-center justify-between mt-4">
-      <div class="flex gap-2">
-        <button
-          v-for="tf in TIMEFRAMES"
-          :key="tf.value"
-          @click="selectedTimeframe = tf.value"
-          class="px-3 py-1 rounded-full text-sm font-semibold transition border"
-          :class="selectedTimeframe === tf.value
-            ? 'bg-primary-400 text-white border-primary-400 shadow'
-            : 'bg-transparent text-gray-400 border-gray-700 hover:bg-gray-800'"
-        >
-          {{ tf.label }}
-        </button>
+    <div
+      class="w-full rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+      <div class="mb-2">
+        <div class="text-gray-400 text-base font-semibold">{{ timeframeLabel }}</div>
+        <div v-if="aprA !== null && aprB !== null" class="text-xs text-gray-500 mt-1">
+          APR: <span class="font-semibold text-primary-400">{{ (aprA * 100).toFixed(2) }}%</span> (A), <span
+            class="font-semibold text-primary-400">{{ (aprB * 100).toFixed(2) }}%</span> (B)
+        </div>
       </div>
-      <div>
-        <select v-model="selectedMetric" class="bg-gray-900 text-white rounded px-3 py-1 text-sm border border-gray-700">
-          <option v-for="m in METRICS" :key="m.value" :value="m.value">{{ m.label }}</option>
-        </select>
+      <div class="relative w-full h-48 md:h-64">
+        <Bar :data="chartData" :options="chartOptions" :height="220" :width="600" />
+      </div>
+      <div class="flex items-center justify-between mt-4">
+        <div class="flex gap-2">
+          <button v-for="tf in TIMEFRAMES" :key="tf.value" @click="selectedTimeframe = tf.value"
+            class="px-3 py-1 rounded-full text-sm font-semibold transition border" :class="selectedTimeframe === tf.value
+              ? 'bg-primary-400 text-white border-primary-400 shadow'
+              : 'bg-transparent text-gray-400 border-gray-700 hover:bg-gray-800'">
+            {{ tf.label }}
+          </button>
+        </div>
+        <div>
+          <select v-model="selectedMetric"
+            class="bg-gray-900 text-white rounded px-3 py-1 text-sm border border-gray-700">
+            <option v-for="m in METRICS" :key="m.value" :value="m.value">{{ m.label }}</option>
+          </select>
+        </div>
       </div>
     </div>
     <div v-if="error" class="text-red-500 text-xs mt-2">{{ error }}</div>

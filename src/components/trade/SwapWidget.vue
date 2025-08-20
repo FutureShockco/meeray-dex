@@ -170,8 +170,8 @@ async function handleSwap() {
     // Construct hops array from the selected route
     const hops = selectedRoute.hops.map((hop: any) => ({
       poolId: hop.poolId,
-      tokenIn_symbol: tokensStore.getTokenIdentifier(hop.tokenIn),
-      tokenOut_symbol: tokensStore.getTokenIdentifier(hop.tokenOut),
+      tokenIn_symbol: tokensStore.getTokenIdentifier(hop.tokenIn,true),
+      tokenOut_symbol: tokensStore.getTokenIdentifier(hop.tokenOut,true),
       amountIn: hop.amountIn,
       minAmountOut: hop.minAmountOut
     }));
@@ -183,8 +183,9 @@ async function handleSwap() {
       json: JSON.stringify({
         contract: 'pool_swap',
         payload: {
-          tokenIn_symbol: tokensStore.getTokenIdentifier(fromToken.value),
-          tokenOut_symbol: tokensStore.getTokenIdentifier(toToken.value),
+          poolId: selectedRoute.poolId,
+          tokenIn_symbol: tokensStore.getTokenIdentifier(fromToken.value,true),
+          tokenOut_symbol: tokensStore.getTokenIdentifier(toToken.value,true),
           amountIn: selectedRoute.finalAmountIn,
           minAmountOut: selectedRoute.minFinalAmountOut,
           slippagePercent: slippage.value,

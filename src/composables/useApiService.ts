@@ -138,6 +138,8 @@ export function useApiService() {
   const getAccountTransactions = (name: string, params: { limit?: number; offset?: number; type?: number } = {}) =>
     fetcher(`${API_BASE}/accounts/${name}/transactions?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<AccountHistory>;
   const getAccountTokens = (name: string) => fetcher(`${API_BASE}/accounts/${name}/tokens`) as Promise<{ account: string; tokens: { symbol: string; amount: number }[] }>;
+  const getUserCount = () =>
+    fetcher(`${API_BASE}/accounts/count`) as Promise<{ count: number }>;
 
   // --- Token Endpoints ---
   const getTokens = (params: { limit?: number; offset?: number } = {}) =>
@@ -351,6 +353,7 @@ export function useApiService() {
     getAccountDetails,
     getAccountTransactions,
     getAccountTokens,
+    getUserCount,
     // Token
     getTokens,
     getNewTokens,

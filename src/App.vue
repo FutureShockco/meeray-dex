@@ -5,19 +5,21 @@ import { useCoinPricesStore } from './stores/useCoinPrices';
 import { useTokenListStore } from './stores/useTokenList';
 import { useAppStore } from './stores/appStore';
 import { useApiService } from './composables/useApiService';
+import { usePoolsStore } from './stores/usePoolList';
 
 const steemPriceHistory = useSteemPriceHistoryStore();
 const coinPrices = useCoinPricesStore();
 const tokenListStore = useTokenListStore();
 const appStore = useAppStore();
 const apiService = useApiService();
-
+const poolsStore = usePoolsStore();
 const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length);
 
 onMounted(() => {
   steemPriceHistory.fetchPriceHistory();
   coinPrices.fetchPrices();
   if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
+  if (!poolsStore.pools.length) poolsStore.fetchPools();
   //useWsService();
   apiService.getConfig().then((response) => {
     if (response && response.config) {
@@ -34,9 +36,11 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-950 dark:text-white relative">
-    <div v-if="isAppLoading" class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70 backdrop-blur-sm">
+    <div v-if="isAppLoading"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-white/70 dark:bg-gray-950/70 backdrop-blur-sm">
       <div class="flex flex-col items-center gap-3 text-gray-700 dark:text-gray-200">
-        <svg class="animate-spin h-8 w-8 text-primary-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg class="animate-spin h-8 w-8 text-primary-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
         </svg>
