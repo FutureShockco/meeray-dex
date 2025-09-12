@@ -8,7 +8,7 @@ import { useCoinPricesStore } from '../stores/useCoinPrices';
 export function useTokenUsdPrice(symbol: string) {
   const api = useApiService();
   const coinPrices = useCoinPricesStore();
-  const usdPrice = ref<number|null>(0);
+  const usdPrice = ref<number>(0);
   const loading = ref(false);
   const error = ref('');
 
@@ -18,7 +18,7 @@ export function useTokenUsdPrice(symbol: string) {
   async function fetchPrice() {
     loading.value = true;
     error.value = '';
-    usdPrice.value = null;
+    usdPrice.value = 0;
     try {
       // If symbol is a reference token, use CoinGecko price directly
       if (referenceTokens.includes(symbol)) {
@@ -32,6 +32,7 @@ export function useTokenUsdPrice(symbol: string) {
         loading.value = false;
         return;
       }
+      console.log('Fetching pools to determine USD price for', symbol);
       const poolsResult = await api.getPoolsList({ limit: 1000 });
       const pools = poolsResult.data as Pool[];
       let found = false;
@@ -57,10 +58,13 @@ export function useTokenUsdPrice(symbol: string) {
         }
       }
       if (!found) {
-        // No pool found, default to 1 USD
+        console.warn('No pool found for', symbol, 'with reference tokens, defaulting to 0 USD');
+        // No pool found, default to 0 USD
         usdPrice.value = 0.0;
-        error.value = 'No pool found for token, defaulting to 1 USD';
+        error.value = 'No pool found for token, defaulting to 0 USD';
       }
+            console.log('Determined USD price for', symbol, ':', usdPrice.value, 'Found via pool:', found);
+
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch price';
     } finally {

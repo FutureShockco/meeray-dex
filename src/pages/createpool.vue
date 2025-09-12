@@ -49,13 +49,10 @@ const isStep3Valid = computed(() => deposit.value[0] && deposit.value[1]);
 const tokenOptions = computed<{ symbol: string; name: string }[]>(() => tokensStore.tokens);
 
 const possibleFeeTiers = [
-  { value: 10, label: 'Very Low', desc: 'Best for stable pairs (e.g., USDT/USDC)' },
-  { value: 50, label: 'Low', desc: 'For low volatility pairs' },
   { value: 300, label: 'Standard', desc: 'Most pairs, standard DEX fee' },
-  { value: 1000, label: 'High', desc: 'Exotic or volatile pairs' },
 ];
 
-const feeTiers = computed(() => possibleFeeTiers.filter(tier => appStore.config.allowedFeeTiers.includes(tier.value)).map(tier => ({
+const feeTiers = computed(() => possibleFeeTiers.map(tier => ({
   value: tier.value,
   label: `${tier.value / 1000}%`,
   desc: tier.desc
@@ -189,7 +186,7 @@ async function handleStep1Continue() {
   poolCheckLoading.value = true;
   poolAlreadyExists.value = false;
   try {
-    const pool = await api.getPoolDetails(generatePoolId(tokens.value[0], tokens.value[1], feeTier.value));
+    const pool = await api.getPoolDetails(generatePoolId(tokens.value[0], tokens.value[1]));
     if (pool) {
       poolAlreadyExists.value = true;
       poolDetails.value = pool;
@@ -256,7 +253,7 @@ async function handleAddLiquidity() {
     console.log('Precisions:', { precisionA, precisionB });
 
     // Construct poolId as in your API (feeTier_tokenA_tokenB)
-    const poolId = generatePoolId(tokens.value[0], tokens.value[1], feeTier.value);
+    const poolId = generatePoolId(tokens.value[0], tokens.value[1]);
     console.log('poolId', poolId);
     console.log('precisionA', precisionA, 'precisionB', precisionB, 'poolId', poolId);
     

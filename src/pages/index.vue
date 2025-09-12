@@ -112,15 +112,18 @@ const faqs = [
             <ul>
               <li v-for="item in hotCoins" :key="item.symbol" class="py-2 flex justify-between space-x-2">
                 <div class="flex items-center space-x-2">
-                  <img :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol" class="w-5 h-5 mr-2" />
+                  <TokenIcon :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol"
+                    class="w-5 h-5 mr-2" />
                   <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
                   <span class="text-gray-500 dark:text-gray-400">{{ item.name }}</span>
                 </div>
                 <div>
-                  <span class="text-gray-700 dark:text-gray-200">{{ tokenHelpers.getTokenPrice(item, tokenUsdPriceMap)
-                  }}</span>
-                  <span v-if="item.change" :class="item.change ? 'text-green-500' : 'text-red-500'">{{
-                    item.change }}</span>
+                  <span class="text-gray-700 dark:text-gray-200">
+                    {{ tokenHelpers.getTokenPrice(item, tokenUsdPriceMap) }}
+                  </span>
+                  <span v-if="item.change" :class="item.change ? 'text-green-500' : 'text-red-500'">
+                    {{ item.change }}
+                  </span>
                 </div>
               </li>
             </ul>
@@ -130,7 +133,8 @@ const faqs = [
             <ul>
               <li v-for="item in newTokens" :key="item.symbol" class="py-2 flex justify-between space-x-2">
                 <div class="flex items-center space-x-2">
-                  <img :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol" class="w-5 h-5 mr-2" />
+                  <TokenIcon :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol"
+                    class="w-5 h-5 mr-2" />
                   <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
                   <span class="text-gray-500 dark:text-gray-400">{{ item.name }}</span>
                 </div>
@@ -148,12 +152,18 @@ const faqs = [
             <ul>
               <li v-for="item in topGainers" :key="item.symbol" class="py-2 flex justify-between space-x-2">
                 <div class="flex items-center space-x-2">
+                  <TokenIcon :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol"
+                    class="w-5 h-5 mr-2" />
                   <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
                 </div>
                 <div>
-                  <span class="text-gray-700 dark:text-gray-200">{{ item.price }}</span>
-                  <span :class="tokenHelpers.getTokenChangeClass(item)">{{ tokenHelpers.getTokenChange(item) }}</span>
+                  <span class="text-gray-700 dark:text-gray-200 mr-2">{{ tokenHelpers.getTokenPrice(item,
+                    tokenUsdPriceMap)
+                  }}</span>
+                  <span :class="tokenHelpers.getTokenChangeClass(item)">{{
+                    tokenHelpers.getTokenChange(item) }}</span>
                 </div>
+
               </li>
             </ul>
           </div>

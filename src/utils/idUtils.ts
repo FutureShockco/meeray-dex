@@ -18,9 +18,9 @@ export function generateDeterministicId(...components: string[]): string {
   return validComponents.sort().join('_');
 }
 
-export function generatePoolId(tokenA_symbol: string, tokenB_symbol: string, feeTier: number): string {
+export function generatePoolId(tokenA_symbol: string, tokenB_symbol: string): string {
   const [token1, token2] = [tokenA_symbol, tokenB_symbol].sort();
-  return `${token1}_${token2}_${feeTier}`;
+  return `${token1}_${token2}`;
 }
 
 export function toString(value: bigint, padLength: number = MAX_INTEGER_LENGTH): string {

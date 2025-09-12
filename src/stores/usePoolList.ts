@@ -34,12 +34,7 @@ export const usePoolsStore = defineStore('pools', () => {
   function getPoolIdentifier(symbol: string): string {
     const token = pools.value.find((t: any) => t.symbol === symbol);
     if (!token) return symbol;
-    
-    // If token has an issuer, return TOKEN@ISSUER format
-    // If no issuer (native tokens like STEEM, SBD), return just the symbol
-    if (token.issuer && token.issuer !== 'native') {
-      return `${symbol}@${token.issuer}`;
-    }
+
     return symbol;
   }
 

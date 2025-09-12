@@ -432,7 +432,7 @@ onMounted(async () => {
                     <button @click="openTransfer(t.symbol)"
                       class="p-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
                     <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}@echelon-node1-MRY@echelon-node1` } }">
+                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}-MRY` } }">
                       <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                     <button class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
@@ -490,7 +490,7 @@ onMounted(async () => {
                     <button v-if="isOwnAccount" @click="openTransfer(token.symbol)"
                       class="px-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
                     <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}@echelon-node1-MRY@echelon-node1` } }">
+                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }">
                       <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                     <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
@@ -541,7 +541,7 @@ onMounted(async () => {
                   </td>
                   <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                     <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}@echelon-node1-${pos.poolId.split('_')[1]}@echelon-node1` } }">
+                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}-${pos.poolId.split('_')[1]}` } }">
                       <button class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button>
                     </router-link>
                   </td>

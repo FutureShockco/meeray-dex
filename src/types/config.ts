@@ -41,5 +41,4 @@ export interface Config {
     witnessShufflePrecision: number;
     memoryBlocks: number;
     randomBytesLength: number;
-    allowedFeeTiers: number[];
 }

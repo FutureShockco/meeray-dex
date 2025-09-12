@@ -236,7 +236,7 @@ function getPoolApr(pool: any) {
                     <span v-else>--</span>
                   </td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white">
-                    <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pool.tokenA_symbol}@echelon-node1-${pool.tokenB_symbol}@echelon-node1` } }"
+                    <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pool.tokenA_symbol}-${pool.tokenB_symbol}` } }"
                       class="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-100 dark:bg-primary-900 hover:bg-primary-200 dark:hover:bg-primary-800 transition">
                       Trade
                     </router-link>

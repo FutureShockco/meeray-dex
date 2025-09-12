@@ -95,6 +95,7 @@ async function fetchAvailablePools() {
   try {
     const response = await api.getPoolsList();
     availablePools.value = Array.isArray(response.data) ? response.data : [];
+    console.log('availablePools', availablePools.value);
   } catch (error) {
     console.error('Failed to fetch pools:', error);
     availablePools.value = [];
@@ -106,8 +107,7 @@ function onPoolSelection(pool: any) {
   selectedPool.value = pool;
   if (pool) {
     // Create LP token symbol in format LP_TOKENA_TOKENB
-    const lpSymbol = `LP_${pool.tokenA_symbol}_${pool.tokenB_symbol}`;
-    formData.value.stakingToken.symbol = lpSymbol;
+    formData.value.stakingToken.symbol = pool.id;
     formData.value.stakingToken.issuer = 'pool'; // LP tokens are issued by the pool contract
   }
 }
@@ -314,7 +314,7 @@ onMounted(async () => {
                   required>
                   <option value="">Select a pool for LP token</option>
                   <option v-for="pool in availablePools" :key="pool.poolId" :value="pool">
-                    {{ pool.tokenA_symbol }}/{{ pool.tokenB_symbol }} ({{ pool.poolId }})
+                    {{ pool.tokenA_symbol }}/{{ pool.tokenB_symbol }} ({{ pool.id }})
                   </option>
                 </select>
                 <div v-if="formData.stakingToken.symbol" class="mt-2 text-xs text-gray-500 dark:text-gray-400">

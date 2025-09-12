@@ -50,6 +50,7 @@ const mintSymbol = ref('');
 const tokenUsdPriceMap = computed(() => {
   const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
   for (const token of tokensStore.tokens) {
+    console.log('Processing token for USD price:', token.symbol,  useTokenUsdPrice(token.symbol));
     if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
   }
   return map;
@@ -221,7 +222,7 @@ onMounted(() => {
 
             <td class="px-4 py-2 flex items-center space-x-2">
               <router-link :to="`/tokens?symbol=${token.symbol}`" class="flex">
-                <img :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" :alt="token.symbol"
+                <TokenIcon :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" :alt="token.symbol"
                   class="w-5 h-5 mr-2" />
                 <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ token.symbol }}</span>
                 <span class="text-gray-500 dark:text-gray-400">{{ token.name }}</span>

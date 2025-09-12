@@ -79,13 +79,7 @@ const getStatusColor = (status: string) => {
 const getPairName = (stakingToken: any) => {
   if (!stakingToken?.symbol) return 'Unknown';
   
-  // Handle LP token format like "LP_MRY_TESTS"
-  if (stakingToken.symbol.startsWith('LP_')) {
-    const parts = stakingToken.symbol.split('_');
-    if (parts.length >= 3) {
-      return `${parts[1]}/${parts[2]}`;
-    }
-  }
+
   
   return stakingToken.symbol;
 };

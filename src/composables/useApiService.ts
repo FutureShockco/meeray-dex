@@ -312,16 +312,42 @@ export function useApiService() {
     fetcher(`${API_BASE}/market/pairs?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ pairs: any[]; total: number }>;
 
   const getOrderBook = (pairId: string, params: { limit?: number } = {}) =>
-    fetcher(`${API_BASE}/market/orderbook/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ bids: any[]; asks: any[] }>;
+    fetcher(`${API_BASE}/market/orderbook/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ 
+      pairId: string;
+      timestamp: number;
+      bids: Array<{ price: number; quantity: number; total?: number }>; 
+      asks: Array<{ price: number; quantity: number; total?: number }>; 
+      spread?: number;
+      spreadPercent?: number;
+      depth?: { bids: number; asks: number };
+    }>;
 
   const getTradeHistory = (pairId: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/market/trades/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: any[]; total: number; limit: number; skip: number }>;
+    fetcher(`${API_BASE}/market/trades/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data?: any[]; trades?: any[]; pairId?: string; total?: number; limit?: number; skip?: number }>;
 
   const getUserOrders = (userId: string, params: { pairId?: string; status?: string; limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/market/orders/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: any[]; total: number; limit: number; skip: number }>;
+    fetcher(`${API_BASE}/market/orders/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data?: any[]; orders?: any[]; total?: number; limit?: number; skip?: number; userId?: string; pairId?: string }>;
 
   const getMarketStats = (pairId: string) =>
-    fetcher(`${API_BASE}/market/stats/${pairId}`) as Promise<{ volume24h: string; change24h: string; lastPrice: string; high24h: string; low24h: string }>;
+    fetcher(`${API_BASE}/market/stats/${pairId}`) as Promise<{ 
+      pairId: string;
+      volume24h: string; 
+      rawVolume24h: string;
+      priceChange24h: string;
+      rawPriceChange24h: string;
+      priceChange24hPercent: number;
+      currentPrice: string;
+      rawCurrentPrice: string;
+      high24h?: string;
+      rawHigh24h?: string;
+      low24h?: string;
+      rawLow24h?: string;
+      highestBid?: string;
+      rawHighestBid?: string;
+      lowestAsk?: string;
+      rawLowestAsk?: string;
+      tradeCount24h: number;
+    }>;
 
   // --- Witnesses Endpoints ---
   const getTopWitnesses = (params: { limit?: number; offset?: number } = {}) =>

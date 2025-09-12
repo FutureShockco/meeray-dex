@@ -6,6 +6,21 @@ interface OrderBookEntry {
   amount: string;
   total: string;
 }
+
+interface RawOrderBookEntry {
+  price: string;
+  quantity: string;
+  total: string;
+}
+
+interface OrderBook {
+  asks: OrderBookEntry[];
+  bids: OrderBookEntry[];
+  raw?: {
+    asks: RawOrderBookEntry[];
+    bids: RawOrderBookEntry[];
+  };
+}
 interface TradeEntry {
   price: string;
   amount: string;
@@ -20,7 +35,7 @@ interface CandleEntry {
 
 
 interface State {
-  orderBook: { asks: OrderBookEntry[]; bids: OrderBookEntry[] };
+  orderBook: OrderBook;
   trades: TradeEntry[];
   candles: CandleEntry[];
   isAppLoading: boolean;
@@ -41,6 +56,9 @@ export const useAppStore = defineStore('appStore', {
     },
     setAppLoading(val: boolean) {
       this.isAppLoading = val;
+    },
+    setOrderBook(orderBook: OrderBook) {
+      this.orderBook = orderBook;
     },
     /**
      * Handle a WebSocket event from the backend.

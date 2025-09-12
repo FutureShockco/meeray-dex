@@ -95,10 +95,10 @@ function formatEventType(type: string | undefined): string {
 
   // Map event types to user-friendly names
   const typeMap: Record<string, string> = {
-    'pool_swap': 'Swap',
-    'pool_liquidity_added': 'Add Liquidity',
-    'pool_remove_liquidity': 'Remove Liquidity',
-    'pool_created': 'Pool Created',
+    'defi_swap': 'Swap',
+    'defi_liquidity_added': 'Add Liquidity',
+    'defi_liquidity_removed': 'Remove Liquidity',
+    'defi_pool_created': 'Pool Created',
     'market_pair_created': 'Market Pair Created',
     'token_transfer': 'Transfer',
     'token_mint': 'Mint',
@@ -209,8 +209,8 @@ function getPoolPairId(): string {
   if (!pool.value) return '';
 
   // Create a pair ID in the format expected by the trading API
-  // Based on the API response: "MRY@echelon-node1-STEEM@echelon-node1"
-  return `${pool.value.tokenA_symbol}@echelon-node1-${pool.value.tokenB_symbol}@echelon-node1`;
+  // Based on the API response: "MRY-STEEM"
+  return `${pool.value.tokenA_symbol}-${pool.value.tokenB_symbol}`;
 }
 </script>
 

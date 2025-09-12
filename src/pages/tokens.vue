@@ -98,7 +98,7 @@ onMounted(() => {
         <div class="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-8">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${selectedToken.symbol}@echelon-node1-MRY@echelon-node1` } }" class="block">
+            <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${selectedToken.symbol}-MRY` } }" class="block">
               <button class="w-full p-6 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                 <div class="text-3xl mb-3">💱</div>
                 <div class="font-bold text-lg mb-2">Trade Tokens</div>
@@ -192,7 +192,7 @@ onMounted(() => {
 
               <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex gap-2">
-                  <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}@echelon-node1-MRY@echelon-node1` } }" class="block">
+                  <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }" class="block">
                     <button class="w-full px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium">
                       Trade
                     </button>

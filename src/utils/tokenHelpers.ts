@@ -18,32 +18,31 @@ export function createTokenHelpers() {
     /**
      * Calculate and format market cap for a token
      */
-    getMarketCap(token: any, tokenUsdPriceMap: any): string {
+    getMarketCap(token: any, tokenUsdPriceMap: any): number | string {
       const coingeckoCap = coinPricesStore.marketCaps[token.symbol];
-      const price = tokenUsdPriceMap[token.symbol];
-      const supply = token.supply || token.totalSupply || token.circulatingSupply;
-      const precision = this.getTokenPrecision(token);
-
+      const price = tokenUsdPriceMap[token.symbol].value;
+      const supply = token.supply || token.totalSupply || token.circulatingSupply || token.currentSupply;
+      console.log(  'Calculating market cap for', token.symbol, { coingeckoCap, price, supply, currentSupply: token.currentSupply });
       // First priority: Use CoinGecko market cap if available
       if (coingeckoCap !== undefined && coingeckoCap !== null) {
-        return `$${Number(coingeckoCap).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+        return coingeckoCap;
       }
 
       // Second priority: Calculate from price × supply using pool-based price
       if (price !== undefined && price !== null && supply !== undefined && supply !== null) {
         const cap = Number(price) * Number(supply);
         if (isFinite(cap)) {
-          return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+          return cap;
         }
       }
 
       // Third priority: Use currentSupply if available
       if (price && token.currentSupply && token.currentSupply > 0) {
         const cap = Number(price) * Number(token.currentSupply);
-        return `$${cap.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+        return cap;
       }
 
-      return '--';
+      return 0;
     },
 
     /**

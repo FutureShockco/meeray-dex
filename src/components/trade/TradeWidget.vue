@@ -5,6 +5,7 @@ import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../../stores/meerayAccount';
 import { useApiService } from '../../composables/useApiService';
 import { useTokenListStore } from '../../stores/useTokenList';
+import { useAppStore } from '../../stores/appStore';
 import BigNumber from 'bignumber.js';
 
 // Props
@@ -23,6 +24,7 @@ const auth = useAuthStore();
 const meeray = useMeerayAccountStore();
 const api = useApiService();
 const tokenList = useTokenListStore();
+const appStore = useAppStore();
 
 // Helper function to get string parameter from route
 function getStringParam(val: any): string {
@@ -44,10 +46,17 @@ const quantity = ref<string>('');
 
 // Market data
 const tradingPairs = ref<any[]>([]);
-const orderBook = ref<{ bids: any[], asks: any[] }>({ bids: [], asks: [] });
+const orderBook = ref<{ 
+  pairId?: string;
+  timestamp?: number;
+  bids: any[];
+  asks: any[];
+  spread?: number;
+  spreadPercent?: number;
+  depth?: { bids: number; asks: number };
+}>({ bids: [], asks: [] });
 const recentTrades = ref<any[]>([]);
 const userOrders = ref<any[]>([]);
-const marketStats = ref<any>({});
 
 // UI state
 const loading = ref(false);
@@ -170,9 +179,45 @@ const isValidOrder = computed(() => {
 // Estimated order value
 const orderValue = computed(() => {
   if (!quantity.value) return '0';
-  if (orderType.value === 'MARKET') return 'Market Price';
+  if (orderType.value === 'MARKET') {
+    return estimatedMarketPrice.value;
+  }
   if (!price.value) return '0';
   return (parseFloat(quantity.value) * parseFloat(price.value)).toFixed(8);
+});
+
+// Calculate estimated market execution price based on orderbook depth
+const estimatedMarketPrice = computed(() => {
+  if (!quantity.value || !appStore.orderBook) return 'Market Price';
+  
+  const qty = parseFloat(quantity.value);
+  if (qty <= 0) return 'Market Price';
+  
+  // Choose the appropriate side of the orderbook
+  const orders = orderSide.value === 'BUY' ? appStore.orderBook.asks : appStore.orderBook.bids;
+  
+  if (!orders || orders.length === 0) return 'No Liquidity';
+  
+  let remainingQty = qty;
+  let totalCost = 0;
+  
+  // Calculate the execution price by walking through the orderbook
+  for (const order of orders) {
+    if (remainingQty <= 0) break;
+    
+    const orderPrice = parseFloat(order.price);
+    const orderAmount = parseFloat(order.amount);
+    const availableQty = Math.min(orderAmount, remainingQty);
+    totalCost += availableQty * orderPrice;
+    remainingQty -= availableQty;
+  }
+  
+  if (remainingQty > 0) {
+    return `Partial Fill (~${((qty - remainingQty) / qty * 100).toFixed(1)}%)`;
+  }
+  
+  const avgPrice = totalCost / qty;
+  return `≈ ${avgPrice.toFixed(8)} (Total: ${totalCost.toFixed(8)})`;
 });
 
 // Fetch trading pairs
@@ -211,9 +256,64 @@ const fetchTradingPairs = async () => {
 // Fetch order book
 const fetchOrderBook = async () => {
   if (!selectedPair.value) return;
+  console.log('Fetching order book for pair:', selectedPair.value);
   try {
     const response = await api.getOrderBook(selectedPair.value);
-    orderBook.value = response;
+    console.log('Raw orderbook response:', response);
+    
+    // Get current pair data for token precision
+    const currentPairData = currentPair.value;
+    if (!currentPairData) {
+      console.warn('No current pair data available for orderbook conversion');
+      orderBook.value = response;
+      return;
+    }
+    
+    // Get token precisions
+    const baseTokenPrecision = tokenList.getTokenPrecision(currentPairData.baseAssetSymbol);
+    const quoteTokenPrecision = tokenList.getTokenPrecision(currentPairData.quoteAssetSymbol);
+    
+    console.log('Token precisions for orderbook:', {
+      baseToken: currentPairData.baseAssetSymbol,
+      basePrecision: baseTokenPrecision,
+      quoteToken: currentPairData.quoteAssetSymbol,
+      quotePrecision: quoteTokenPrecision
+    });
+    
+    // Convert raw values to human-readable format
+    const convertedResponse = {
+      ...response,
+      bids: (response.bids || []).map((bid: any) => ({
+        ...bid,
+        price: new BigNumber(bid.price).dividedBy(new BigNumber(10).pow(quoteTokenPrecision)).toNumber(),
+        quantity: new BigNumber(bid.quantity).dividedBy(new BigNumber(10).pow(baseTokenPrecision)).toNumber(),
+        total: bid.total ? new BigNumber(bid.total).dividedBy(new BigNumber(10).pow(quoteTokenPrecision + baseTokenPrecision)).toNumber() : undefined
+      })),
+      asks: (response.asks || []).map((ask: any) => ({
+        ...ask,
+        price: new BigNumber(ask.price).dividedBy(new BigNumber(10).pow(quoteTokenPrecision)).toNumber(),
+        quantity: new BigNumber(ask.quantity).dividedBy(new BigNumber(10).pow(baseTokenPrecision)).toNumber(),
+        total: ask.total ? new BigNumber(ask.total).dividedBy(new BigNumber(10).pow(quoteTokenPrecision + baseTokenPrecision)).toNumber() : undefined
+      }))
+    };
+    
+    console.log('Converted orderbook:', convertedResponse);
+    orderBook.value = convertedResponse;
+    
+    // Update appStore with converted data for OrderBook component
+    const appStoreOrderBook = {
+      asks: convertedResponse.asks.map((ask: any) => ({
+        price: ask.price.toFixed(8),
+        amount: ask.quantity.toFixed(8),
+        total: (ask.price * ask.quantity).toFixed(8)
+      })),
+      bids: convertedResponse.bids.map((bid: any) => ({
+        price: bid.price.toFixed(8),
+        amount: bid.quantity.toFixed(8),
+        total: (bid.price * bid.quantity).toFixed(8)
+      }))
+    };
+    appStore.setOrderBook(appStoreOrderBook);
   } catch (e: any) {
     console.error('Failed to fetch order book:', e);
   }
@@ -235,20 +335,33 @@ const fetchUserOrders = async () => {
   if (!auth.state?.username || !selectedPair.value) return;
   try {
     const response = await api.getUserOrders(auth.state.username, { pairId: selectedPair.value });
-    userOrders.value = response.data || [];
+    console.log('TradeWidget - User orders response:', response);
+    
+    // Handle the actual API response structure
+    const orders = response.orders || response.data || [];
+    
+    // Map the API response to match the expected format
+    userOrders.value = orders.map((order: any) => {
+      const pair = tradingPairs.value.find(p => p._id === order.pairId);
+      return {
+        _id: order.id || order._id,
+        id: order.id || order._id,
+        pairId: order.pairId,
+        baseAssetSymbol: pair?.baseAssetSymbol || '',
+        quoteAssetSymbol: pair?.quoteAssetSymbol || '',
+        side: order.side?.toUpperCase() || order.side,
+        type: order.type?.toUpperCase() || order.type,
+        price: parseFloat(order.price || 0),
+        quantity: parseFloat(order.quantity || order.remainingQuantity || 0),
+        filledQuantity: parseFloat(order.filledQuantity || 0),
+        status: order.status,
+        ...order
+      };
+    });
+    
+    console.log('TradeWidget - Processed user orders:', userOrders.value);
   } catch (e: any) {
     console.error('Failed to fetch user orders:', e);
-  }
-};
-
-// Fetch market stats
-const fetchMarketStats = async () => {
-  if (!selectedPair.value) return;
-  try {
-    const response = await api.getMarketStats(selectedPair.value);
-    marketStats.value = response;
-  } catch (e: any) {
-    console.error('Failed to fetch market stats:', e);
   }
 };
 
@@ -261,6 +374,12 @@ const placeOrder = async () => {
   tradeStatus.value = '';
 
   try {
+    // Ensure tokens are loaded before placing order
+    if (tokenList.tokens.length === 0) {
+      console.log('Tokens not loaded, fetching...');
+      await tokenList.fetchTokens();
+    }
+
     // Get token identifiers with issuer
     const currentPairData = currentPair.value;
     if (!currentPairData) {
@@ -283,7 +402,10 @@ const placeOrder = async () => {
       baseToken: currentPairData.baseAssetSymbol,
       basePrecision: baseTokenPrecision,
       quoteToken: currentPairData.quoteAssetSymbol,
-      quotePrecision: quoteTokenPrecision
+      quotePrecision: quoteTokenPrecision,
+      tokensLoaded: tokenList.tokens.length,
+      baseTokenFound: tokenList.tokens.find((t: any) => t.symbol === currentPairData.baseAssetSymbol),
+      quoteTokenFound: tokenList.tokens.find((t: any) => t.symbol === currentPairData.quoteAssetSymbol)
     });
 
     let amountIn: string;
@@ -292,41 +414,119 @@ const placeOrder = async () => {
     if (orderSide.value === 'BUY') {
       // For BUY orders: spending quote token to get base token
       if (orderType.value === 'LIMIT') {
-        // Amount in quote token (what we're spending)
-        amountIn = new BigNumber(quantity.value).multipliedBy(price.value).shiftedBy(quoteTokenPrecision).toString();
+        // Amount in quote token (what we're spending) = quantity * price
+        const totalCost = new BigNumber(quantity.value).multipliedBy(price.value);
+        amountIn = totalCost.shiftedBy(quoteTokenPrecision).toString();
         // Min amount out in base token (what we want to receive)
         minAmountOut = new BigNumber(quantity.value).shiftedBy(baseTokenPrecision).toString();
       } else {
-        // For market orders, use the quote balance as amount in
-        amountIn = new BigNumber(quantity.value).multipliedBy(price.value || '1').shiftedBy(quoteTokenPrecision).toString();
-        minAmountOut = '0'; // Market order uses maxSlippagePercent instead
+        // For market buy orders: estimate cost using raw orderbook data for precision
+        const desiredBaseAmount = new BigNumber(quantity.value);
+        minAmountOut = desiredBaseAmount.shiftedBy(baseTokenPrecision).toString();
+        
+        // Use raw orderbook data for precise market estimation
+        if (appStore.orderBook?.raw?.asks && appStore.orderBook.raw.asks.length > 0) {
+          let totalCost = new BigNumber(0);
+          let remainingQuantity = desiredBaseAmount.shiftedBy(baseTokenPrecision);
+          
+          for (const ask of appStore.orderBook.raw.asks) {
+            const askQuantity = new BigNumber(ask.quantity);
+            const askPrice = new BigNumber(ask.price);
+            
+            if (remainingQuantity.lte(0)) break;
+            
+            const quantityToTake = BigNumber.min(remainingQuantity, askQuantity);
+            const costForThisLevel = quantityToTake.multipliedBy(askPrice);
+            totalCost = totalCost.plus(costForThisLevel);
+            remainingQuantity = remainingQuantity.minus(quantityToTake);
+          }
+          
+          // Add 10% slippage buffer and ensure we're in the right precision units
+          const estimatedCostWithSlippage = totalCost.multipliedBy(1.1);
+          amountIn = estimatedCostWithSlippage.toFixed(0);
+        } else {
+          // Fallback: use current market price + slippage
+          if (appStore.orderBook?.asks && appStore.orderBook.asks.length > 0) {
+            const bestAsk = parseFloat(appStore.orderBook.asks[0].price);
+            const estimatedCost = desiredBaseAmount.multipliedBy(bestAsk * 1.1);
+            amountIn = estimatedCost.shiftedBy(quoteTokenPrecision).toString();
+          } else {
+            // Last resort: use user's entire balance
+            const maxSpend = new BigNumber(quoteBalance.value);
+            amountIn = maxSpend.shiftedBy(quoteTokenPrecision).toString();
+          }
+        }
       }
     } else {
       // For SELL orders: spending base token to get quote token
       // Amount in base token (what we're spending)
       amountIn = new BigNumber(quantity.value).shiftedBy(baseTokenPrecision).toString();
+      
       if (orderType.value === 'LIMIT') {
-        // Min amount out in quote token (what we want to receive)
-        minAmountOut = new BigNumber(quantity.value).multipliedBy(price.value).shiftedBy(quoteTokenPrecision).toString();
+        // Min amount out in quote token (what we want to receive) = quantity * price
+        const expectedQuoteAmount = new BigNumber(quantity.value).multipliedBy(price.value);
+        minAmountOut = expectedQuoteAmount.shiftedBy(quoteTokenPrecision).toString();
       } else {
-        minAmountOut = '0'; // Market order uses maxSlippagePercent instead
+        // For market sell orders: estimate minimum output using raw orderbook data
+        if (appStore.orderBook?.raw?.bids && appStore.orderBook.raw.bids.length > 0) {
+          let totalOutput = new BigNumber(0);
+          let remainingQuantity = new BigNumber(quantity.value).shiftedBy(baseTokenPrecision);
+          
+          for (const bid of appStore.orderBook.raw.bids) {
+            const bidQuantity = new BigNumber(bid.quantity);
+            const bidPrice = new BigNumber(bid.price);
+            
+            if (remainingQuantity.lte(0)) break;
+            
+            const quantityToSell = BigNumber.min(remainingQuantity, bidQuantity);
+            const outputForThisLevel = quantityToSell.multipliedBy(bidPrice);
+            totalOutput = totalOutput.plus(outputForThisLevel);
+            remainingQuantity = remainingQuantity.minus(quantityToSell);
+          }
+          
+          // Apply 10% negative slippage (we expect to get at least 90% of estimated)
+          const minOutputWithSlippage = totalOutput.multipliedBy(0.9);
+          minAmountOut = minOutputWithSlippage.toFixed(0);
+        } else {
+          // Fallback: use current market price with slippage
+          if (appStore.orderBook?.bids && appStore.orderBook.bids.length > 0) {
+            const bestBid = parseFloat(appStore.orderBook.bids[0].price);
+            const estimatedOutput = new BigNumber(quantity.value).multipliedBy(bestBid * 0.9); // 10% negative slippage
+            minAmountOut = estimatedOutput.shiftedBy(quoteTokenPrecision).toString();
+          } else {
+            // Last resort: minimal output (let market decide)
+            minAmountOut = '1'; // Minimal non-zero value
+          }
+        }
       }
     }
 
-    console.log('Trade amounts:', {
+    console.log('Trade amounts calculated:', {
       orderSide: orderSide.value,
       orderType: orderType.value,
-      quantity: quantity.value,
-      price: price.value,
+      humanReadableQuantity: quantity.value,
+      humanReadablePrice: price.value,
+      currentPair: currentPairData,
       tokenIn,
       tokenOut,
-      amountIn,
-      minAmountOut
+      rawAmountIn: amountIn,
+      rawMinAmountOut: minAmountOut,
+      baseTokenPrecision,
+      quoteTokenPrecision,
+      calculations: {
+        quantityInBaseUnits: orderSide.value === 'SELL' ? amountIn : minAmountOut,
+        priceCalculation: orderType.value === 'LIMIT' ? `${quantity.value} × ${price.value}` : 'Market price'
+      },
+      tokenDetails: {
+        baseToken: currentPairData.baseAssetSymbol,
+        quoteToken: currentPairData.quoteAssetSymbol,
+        baseTokenIn: tokenIn === tokenList.getTokenIdentifier(currentPairData.baseAssetSymbol),
+        quoteTokenIn: tokenIn === tokenList.getTokenIdentifier(currentPairData.quoteAssetSymbol)
+      }
     });
 
     // Build trade data according to Type 11: Hybrid Market Trade
     const hybridTradeData: any = {
-      trader: auth.state.username,
       tokenIn: tokenIn,
       tokenOut: tokenOut,
       amountIn: amountIn
@@ -392,38 +592,20 @@ const placeOrder = async () => {
   }
 };
 
-// Cancel order
-const cancelOrder = async (orderId: string) => {
-  try {
-    // Build cancel order data according to Type 10: Market Cancel Order
-    const cancelOrderData = {
-      orderId: orderId,
-      trader: auth.state.username  // Will be automatically set to sender, but include for clarity
-    };
 
-    const customJsonOperation = {
-      required_auths: [auth.state.username],
-      required_posting_auths: [],
-      id: 'sidechain',
-      json: JSON.stringify({
-        contract: 'market_cancel_order',
-        payload: cancelOrderData
-      })
-    };
 
-    await TransactionService.send('custom_json', customJsonOperation, {
-      requiredAuth: 'active'
-    });
-
-    await Promise.all([fetchUserOrders(), fetchOrderBook(), meeray.refreshAccount()]);
-  } catch (e: any) {
-    error.value = e?.message || 'Failed to cancel order';
+// Set best available market price
+const setBestMarketPrice = () => {
+  if (!appStore.orderBook) return;
+  
+  // For buy orders, use the lowest ask price
+  // For sell orders, use the highest bid price
+  const orders = orderSide.value === 'BUY' ? appStore.orderBook.asks : appStore.orderBook.bids;
+  
+  if (orders && orders.length > 0) {
+    price.value = orders[0].price;
   }
-};
-
-// Set price from order book
-const setPriceFromOrderBook = (orderPrice: string) => {
-  price.value = orderPrice;
+  // Note: Fallback to market stats removed since market stats are now in swap page
 };
 
 // Set quantity to max available
@@ -450,7 +632,6 @@ watch(selectedPair, (newPairId) => {
     fetchOrderBook();
     fetchRecentTrades();
     fetchUserOrders();
-    fetchMarketStats();
   }
 });
 
@@ -459,9 +640,29 @@ watch(pairIdFromUrl, (newPairId) => {
   if (newPairId && tradingPairs.value.length > 0) {
     const urlPair = tradingPairs.value.find(p => p._id === newPairId);
     if (urlPair && selectedPair.value !== newPairId) {
+      console.log('URL pairId changed, updating selected pair:', newPairId);
       selectedPair.value = newPairId;
       console.log('Updated pair from URL change:', selectedPair.value);
     }
+  }
+});
+
+// Watch for quantity changes to refresh orderbook for accurate market pricing
+let quantityRefreshTimeout: NodeJS.Timeout;
+watch([quantity, orderType, orderSide], () => {
+  // Debounce orderbook refresh to avoid too many requests
+  if (quantityRefreshTimeout) {
+    clearTimeout(quantityRefreshTimeout);
+  }
+  
+  // Only refresh for market orders or when significant quantity changes
+  if (orderType.value === 'MARKET' || (quantity.value && parseFloat(quantity.value) > 0)) {
+    quantityRefreshTimeout = setTimeout(() => {
+      if (selectedPair.value) {
+        console.log('Refreshing orderbook due to quantity/order type change');
+        fetchOrderBook();
+      }
+    }, 500); // 500ms debounce
   }
 });
 
@@ -493,7 +694,6 @@ onMounted(async () => {
     if (selectedPair.value) {
       fetchOrderBook();
       fetchRecentTrades();
-      fetchMarketStats();
     }
   }, 5000);
 });
@@ -501,6 +701,9 @@ onMounted(async () => {
 onUnmounted(() => {
   if (refreshInterval) {
     clearInterval(refreshInterval);
+  }
+  if (quantityRefreshTimeout) {
+    clearTimeout(quantityRefreshTimeout);
   }
 });
 </script>
@@ -546,28 +749,6 @@ onUnmounted(() => {
             </option>
           </select>
 
-          <!-- Market Stats -->
-          <div v-if="currentPair"
-            class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Market Stats</h3>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-500">24h Volume:</span>
-                <span class="text-gray-900 dark:text-white">{{ marketStats.volume24h || '0' }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">24h Change:</span>
-                <span :class="(marketStats.change24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'">
-                  {{ marketStats.change24h || '0' }}%
-                </span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">Last Price:</span>
-                <span class="text-gray-900 dark:text-white">{{ marketStats.lastPrice || '0' }}</span>
-              </div>
-            </div>
-          </div>
-
           <!-- Order Side Tabs -->
           <div class="flex my-4">
             <button @click="orderSide = 'BUY'"
@@ -610,8 +791,14 @@ onUnmounted(() => {
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Target Price ({{ quoteToken }})
             </label>
-            <input v-model="price" type="number" step="0.00000001" placeholder="0.00000000"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <div class="flex gap-2">
+              <input v-model="price" type="number" step="0.00000001" placeholder="0.00000000"
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+              <button @click="setBestMarketPrice" type="button"
+                class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors whitespace-nowrap">
+                Best Price
+              </button>
+            </div>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
               System will find best route to achieve this price or better
             </p>
@@ -691,42 +878,12 @@ onUnmounted(() => {
               <div>
                 <strong class="text-gray-900 dark:text-white">Market Trades:</strong>
                 <p>Execute immediately at the best available price across all liquidity sources (AMM pools + orderbook).
-                </p>
-              </div>
-              <div>
-                <strong class="text-gray-900 dark:text-white">Why Orders May Not Appear:</strong>
-                <p>If your trade finds immediate liquidity (via AMM or existing orders), it executes instantly and won't
-                  create a standing order.</p>
+                  May result in partial fills if insufficient liquidity.</p>
               </div>
               <div>
                 <strong class="text-gray-900 dark:text-white">Check Recent Trades:</strong>
                 <p>If you don't see your order in "My Orders", check "Recent Trades" - your trade may have executed
                   immediately.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Market Depth -->
-          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Market Depth</h3>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-500">Total Bids:</span>
-                <span class="text-green-600">{{orderBook.bids.reduce((sum, b) => sum + b.quantity, 0).toFixed(4)
-                }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">Total Asks:</span>
-                <span class="text-red-600">{{orderBook.asks.reduce((sum, a) => sum + a.quantity, 0).toFixed(4)
-                }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500">Spread:</span>
-                <span class="text-gray-900 dark:text-white">
-                  {{ orderBook.asks.length && orderBook.bids.length
-                    ? (orderBook.asks[0].price - orderBook.bids[0].price).toFixed(8)
-                    : '0' }}
-                </span>
               </div>
             </div>
           </div>

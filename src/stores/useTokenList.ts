@@ -48,12 +48,8 @@ export const useTokenListStore = defineStore('tokenList', () => {
   function getTokenIdentifier(symbol: string, swap: boolean = false): string {
     const token = tokens.value.find((t: any) => t.symbol === symbol);
     if (!token) return symbol;
-    
 
-    if (token.issuer && token.issuer !== 'native' && !swap) {
-      return `${symbol}@${token.issuer}`;
-    }
-    return symbol;
+    return token.symbol;
   }
 
   return { tokens, newTokens, loading, error, fetchTokens, getTokenPrecision, getTokenIdentifier };

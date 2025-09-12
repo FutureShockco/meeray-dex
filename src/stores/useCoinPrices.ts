@@ -43,20 +43,21 @@ export const useCoinPricesStore = defineStore('coinPrices', {
         this.marketCaps = {};
         for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
           if(symbol === 'STEEM') {
-            this.prices['TESTS'] = data[id]?.[FIAT] ?? null;
-            this.changes['TESTS'] = data[id]?.[`${FIAT}_24h_change`] ?? null;
-            this.marketCaps['TESTS'] = data[id]?.[`${FIAT}_market_cap`] ?? null;
+            this.prices['TESTS'] = Number(data[id]?.[FIAT] ?? 0);
+            this.changes['TESTS'] = Number(data[id]?.[`${FIAT}_24h_change`] ?? 0);
+            this.marketCaps['TESTS'] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
           }
           if(symbol === 'SBD') {
-            this.prices['TBD'] = data[id]?.[FIAT] ?? null;
-            this.changes['TBD'] = data[id]?.[`${FIAT}_24h_change`] ?? null;
-            this.marketCaps['TBD'] = data[id]?.[`${FIAT}_market_cap`] ?? null;
+            this.prices['TBD'] = Number(data[id]?.[FIAT] ?? 0);
+            this.changes['TBD'] = Number(data[id]?.[`${FIAT}_24h_change`] ?? 0);
+            this.marketCaps['TBD'] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
           }
-          this.prices[symbol] = data[id]?.[FIAT] ?? null;
-          this.changes[symbol] = data[id]?.[`${FIAT}_24h_change`] ?? null;
-          this.marketCaps[symbol] = data[id]?.[`${FIAT}_market_cap`] ?? null;
+          this.prices[symbol] = Number(data[id]?.[FIAT] ?? 0);
+          this.changes[symbol] = Number(data[id]?.[`${FIAT}_24h_change`] ?? 0);
+          this.marketCaps[symbol] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
 
         }
+        console.log('Fetched coin prices:', this.prices, this.changes, this.marketCaps);
       } catch (e: any) {
         this.error = e.message || 'Unknown error';
       } finally {
