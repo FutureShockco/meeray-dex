@@ -143,9 +143,6 @@
           <div class="text-sm font-mono font-semibold text-gray-900 dark:text-white">
             {{ $formatNumber(hoveredPoint.price) }}
           </div>
-          <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Point {{ hoveredPointIndex + 1 }} of {{ chartData.length }}
-          </div>
           <div class="text-xs mt-1" :class="hoveredPoint.isUp ? 'text-green-600' : 'text-red-600'">
             {{ hoveredPoint.isUp ? '↗ Up' : '↘ Down' }}
           </div>
