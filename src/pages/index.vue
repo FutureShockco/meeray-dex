@@ -74,7 +74,7 @@ const faqs = [
 <template>
   <div class="min-h-screen md:px-0 ">
     <!-- Hero Section -->
-    <section class="py-16 bg-primary-50 dark:bg-primary-900">
+    <section class="py-16 bg-primary-50 dark:bg-primary-400">
       <div class="max-w-4xl mx-auto text-center">
         <h1 class="text-5xl font-extrabold mb-4 text-gray-900 dark:text-white">
           Find the Next <span class="text-primary-500">Steem Gem</span>
@@ -92,7 +92,7 @@ const faqs = [
     </section>
 
     <!-- Stats Section -->
-    <section v-if="tokenList">
+    <section v-if="tokenList" class="bg-white dark:bg-primary-1000 py-12">
       <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center mt-6">
         <div v-for="stat in stats" :key="stat.label"
           class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
@@ -100,12 +100,8 @@ const faqs = [
           <div class="text-gray-700 dark:text-gray-200 text-sm">{{ stat.label }}</div>
         </div>
       </div>
-    </section>
-
-    <!-- Market Overview -->
-    <section class="py-12">
       <div class="max-w-6xl mx-auto">
-        <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">Crypto Market Today</h2>
+        <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white mt-12">Crypto Market Today</h2>
         <div class="grid md:grid-cols-3 gap-8">
           <div class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
             <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">Hot List</h3>
@@ -172,7 +168,7 @@ const faqs = [
     </section>
 
     <!-- Features Section -->
-    <section class="py-12 bg-primary-50 dark:bg-primary-900">
+    <section class="py-12 bg-primary-50 dark:bg-primary-400">
       <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">Explore MeeRayDEX Features</h2>
         <div class="grid md:grid-cols-4 gap-8">
@@ -187,7 +183,7 @@ const faqs = [
     </section>
 
     <!-- How It Works / Security Section -->
-    <section class="py-12">
+    <section class="py-12 bg-primary-50 dark:bg-primary-1000">
       <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">How It Works</h2>
         <div class="grid md:grid-cols-4 gap-8">
@@ -202,7 +198,7 @@ const faqs = [
     </section>
 
     <!-- FAQ Section -->
-    <section class="py-12 bg-primary-50 dark:bg-primary-900">
+    <section class="py-12 bg-primary-50 dark:bg-primary-400">
       <div class="max-w-6xl mx-auto">
         <h2 class="font-bold text-center mb-10 text-gray-900 dark:text-white">FAQ</h2>
         <div class="grid md:grid-cols-2 gap-8">
