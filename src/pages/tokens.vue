@@ -52,7 +52,7 @@ onMounted(() => {
           <div class="flex items-start justify-between mb-6">
             <div class="flex items-center gap-6">
               <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg">
-                <img :src="tokenHelpers.getTokenIcon(selectedToken) || selectedToken.logoUrl" class="w-15 h-15 rounded-full" />
+                <TokenIcon :src="tokenHelpers.getTokenIcon(selectedToken) || selectedToken.logoUrl" class="w-15 h-15 rounded-full" />
                 <!-- <span class="text-3xl font-bold text-white">{{ selectedToken.symbol[0] }}</span> -->
               </div>
               <div>
@@ -161,7 +161,7 @@ onMounted(() => {
               <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center gap-4">
                   <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-                    <img :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" class="w-15 h-15 rounded-full" />
+                    <TokenIcon :src="tokenHelpers.getTokenIcon(token) || token.logoUrl" class="w-15 h-15 rounded-full" />
                     <!-- <span class="font-bold text-white">{{ token.symbol[0] }}</span> -->
                   </div>
                   <div>

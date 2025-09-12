@@ -49,6 +49,7 @@ const UserFarmIcon = {
 
 const menuItems = [
   { label: 'Markets', href: 'markets' },
+  { label: 'Explore', href: 'tokens' },
   { label: 'Swap', href: 'swap' },
   { label: 'Pools', href: 'pools' },
   {

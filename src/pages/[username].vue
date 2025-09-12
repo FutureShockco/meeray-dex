@@ -16,6 +16,7 @@ import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
 import { useApiService } from '../composables/useApiService';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import { useDsteemClient } from '../composables/useDsteemClient';
 
 const api = useApiService();
 const coinPrices = useCoinPricesStore();
@@ -54,9 +55,8 @@ const user = computed(() => ({
   username: username.value,
   steemAccount: isOwnAccount.value ? auth.state : null,
   uid: `@${username.value}`,
-  vip: 'Regular User',
-  following: 0,
-  followers: 0,
+  vip: 'Regular User'
+
 }));
 
 
@@ -77,6 +77,7 @@ const portfolio = computed(() => {
       isOwnAccount: isOwnAccount.value,
       currentAccount: currentAccount.value,
       balances,
+      steemAccount: steemAccount.value,
       loading: meeray.loading
     });
 
@@ -89,19 +90,56 @@ const portfolio = computed(() => {
         logoUrl: tokenList.tokens.find((t: any) => t.symbol === symbol)?.logoUrl || '/icons/steem.svg'
       }));
 
+    // Add Steem account balances if available
+    if (steemAccount.value) {
+      const steemBalance = steemAccount.value.balance || '0.000 STEEM';
+      const sbdBalance = steemAccount.value.sbd_balance || '0.000 SBD';
+
+      // Parse Steem balance (format: "123.456 STEEM")
+      const steemAmount = steemBalance.split(' ')[0] || '0';
+      const sbdAmount = sbdBalance.split(' ')[0] || '0';
+
+      // Add/update STEEM balance
+      const steemIndex = userBalances.findIndex(b => b.symbol === 'STEEM');
+      if (steemIndex >= 0) {
+        userBalances[steemIndex].amount = { amount: steemAmount, rawAmount: steemAmount };
+      } else {
+        userBalances.push({
+          symbol: 'STEEM',
+          amount: { amount: steemAmount, rawAmount: steemAmount },
+          name: 'STEEM',
+          logoUrl: '/icons/steem.svg'
+        });
+      }
+
+      // Add/update SBD balance (use TESTS fallback if no SBD)
+      const sbdIndex = userBalances.findIndex(b => b.symbol === 'SBD');
+      if (sbdIndex >= 0) {
+        userBalances[sbdIndex].amount = { amount: sbdAmount, rawAmount: sbdAmount };
+      } else {
+        userBalances.push({
+          symbol: 'SBD',
+          amount: { amount: sbdAmount, rawAmount: sbdAmount },
+          name: 'STEEM BACKED DOLLAR',
+          logoUrl: '/icons/sbd.svg'
+        });
+      }
+    } else {
+      // Fallback to TESTS and TBD if no Steem account
+      if (!userBalances.some((b: { symbol: string }) => b.symbol === 'TESTS')) {
+        userBalances.push({ symbol: 'TESTS', amount: { amount: '0', rawAmount: '0' }, name: 'TESTS', logoUrl: '/icons/steem.svg' });
+      }
+      if (!userBalances.some((b: { symbol: string }) => b.symbol === 'TBD')) {
+        userBalances.push({ symbol: 'TBD', amount: { amount: '0', rawAmount: '0' }, name: 'TBD', logoUrl: '/icons/sbd.svg' });
+      }
+    }
+
     if (userBalances.length === 0) {
       return [
         { symbol: 'MRY', amount: { amount: '0', rawAmount: '0' }, name: 'MeeRay', logoUrl: '/icons/mry.svg' },
-        { symbol: 'STEEM', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM', logoUrl: '/icons/steem.svg' },
-        { symbol: 'SBD', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM BACKED DOLLAR', logoUrl: '/icons/sbd.svg' }
+        { symbol: 'TESTS', amount: { amount: '0', rawAmount: '0' }, name: 'TESTS', logoUrl: '/icons/steem.svg' },
+        { symbol: 'TBD', amount: { amount: '0', rawAmount: '0' }, name: 'TBD', logoUrl: '/icons/sbd.svg' }
       ];
-    }
-
-    if (!userBalances.some((b: { symbol: string }) => b.symbol === 'STEEM')) {
-      userBalances.push({ symbol: 'STEEM', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM', logoUrl: '/icons/steem.svg' });
-    }
-    if (!userBalances.some((b: { symbol: string }) => b.symbol === 'SBD')) {
-      userBalances.push({ symbol: 'SBD', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM BACKED DOLLAR', logoUrl: '/icons/sbd.svg' });
     }
 
     return userBalances;
@@ -109,10 +147,63 @@ const portfolio = computed(() => {
     console.error('Error computing portfolio:', error);
     return [
       { symbol: 'MRY', amount: { amount: '0', rawAmount: '0' }, name: 'MeeRay', logoUrl: '/icons/mry.svg' },
-      { symbol: 'STEEM', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM', logoUrl: '/icons/steem.svg' },
-      { symbol: 'SBD', amount: { amount: '0', rawAmount: '0' }, name: 'STEEM BACKED DOLLAR', logoUrl: '/icons/sbd.svg' }
+      { symbol: 'TESTS', amount: { amount: '0', rawAmount: '0' }, name: 'TESTS', logoUrl: '/icons/steem.svg' },
+      { symbol: 'TBD', amount: { amount: '0', rawAmount: '0' }, name: 'TBD', logoUrl: '/icons/sbd.svg' }
     ];
   }
+});
+
+// Steem account data
+const steemAccount = ref<any>(null);
+const steemAccountLoading = ref(false);
+const steemAccountError = ref('');
+const dsteemClient = useDsteemClient();
+
+// Fetch Steem account data
+const fetchSteemAccount = async () => {
+  if (!username.value) return;
+
+  steemAccountLoading.value = true;
+  steemAccountError.value = '';
+
+  try {
+    const accounts = await dsteemClient.database.getAccounts([username.value]);
+    if (accounts.length > 0) {
+      steemAccount.value = accounts[0];
+      console.log('Fetched Steem account:', steemAccount.value);
+    } else {
+      steemAccount.value = null;
+      steemAccountError.value = 'Steem account not found';
+    }
+  } catch (error: any) {
+    console.error('Failed to fetch Steem account:', error);
+    steemAccount.value = null;
+    steemAccountError.value = error?.message || 'Failed to fetch Steem account';
+  } finally {
+    steemAccountLoading.value = false;
+  }
+};
+
+// Steem balances for display in the estimated balance card
+const steemBalances = computed(() => {
+  if (!steemAccount.value) {
+    return {
+      primary: { symbol: 'TESTS', amount: '0.000', name: 'TESTS (Steem Testnet)' },
+      secondary: { symbol: 'TBD', amount: '0.000', name: 'TBD (SBD Testnet)' }
+    };
+  }
+
+  const steemBalance = steemAccount.value.balance || '0.000 STEEM';
+  const sbdBalance = steemAccount.value.sbd_balance || '0.000 SBD';
+
+  // Parse amounts (format: "123.456 SYMBOL")
+  const steemAmount = steemBalance.split(' ')[0] || '0.000';
+  const sbdAmount = sbdBalance.split(' ')[0] || '0.000';
+
+  return {
+    primary: { symbol: 'STEEM', amount: steemAmount, name: 'STEEM' },
+    secondary: { symbol: 'SBD', amount: sbdAmount, name: 'STEEM BACKED DOLLAR' }
+  };
 });
 
 const userCreatedTokens = computed(() => {
@@ -275,6 +366,8 @@ onMounted(async () => {
     // Load account data for the specific username
     await meeray.loadAccount(username.value);
 
+    // Fetch Steem account data
+    await fetchSteemAccount();
 
     const res = await api.getUserLiquidityPositions(username.value);
     userPositions.value = res?.data || [];
@@ -298,10 +391,7 @@ onMounted(async () => {
       <div>
         <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ user.username }}</div>
         <div class="text-xs text-gray-500 dark:text-gray-400 flex gap-4">
-          <span>UID {{ user.uid }}</span>
-          <span>VIP Level <span class="font-medium text-primary-400">{{ user.vip }}</span></span>
-          <span>Following {{ user.following }}</span>
-          <span>Followers {{ user.followers }}</span>
+          <span>VIP Level: <span class="font-medium text-primary-400">{{ user.vip }}</span></span>
         </div>
       </div>
     </div>
@@ -344,219 +434,246 @@ onMounted(async () => {
     <div class="mb-8">
       <div
         class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
-        <div>
+        <div class="flex-1">
           <div class="text-xs text-gray-500 dark:text-gray-400">Estimated Balance</div>
-          <div class="text-2xl font-mono font-bold text-gray-900 dark:text-white">
+
+          <!-- MRY Balance -->
+          <div class="text-2xl font-mono font-bold text-gray-900 dark:text-white mb-4">
             <span v-if="tokensLoaded">{{ $formatTokenBalance(balance.mry, 'MRY') }}</span>
-            <span v-else>{{ $formatNumber(typeof balance.mry === 'object' ? (balance.mry.amount || balance.mry.rawAmount
-              || '0') : (balance.mry || 0)) }}</span>
+            <span v-else>{{ $formatNumber(parseFloat(typeof balance.mry === 'object' ? (balance.mry.amount ||
+              balance.mry.rawAmount || '0') : (balance.mry || 0))) }}</span>
             <span class="text-base font-normal">MRY</span>
           </div>
+
+          <!-- Steem Account Balances -->
+          <div class="space-y-2 mb-4">
+            <div v-if="steemAccountLoading" class="text-sm text-gray-500 dark:text-gray-400">
+              Loading Steem account...
+            </div>
+            <div v-else-if="steemAccountError" class="text-sm text-red-500">
+              {{ steemAccountError }}
+            </div>
+            <div v-else class="space-y-1">
+              <div class="text-lg font-mono font-semibold text-gray-900 dark:text-white">
+                {{ steemBalances.primary.amount }} <span class="text-sm font-normal">{{ steemBalances.primary.symbol
+                  }}</span>
+              </div>
+              <div class="text-lg font-mono font-semibold text-gray-900 dark:text-white">
+                {{ steemBalances.secondary.amount }} <span class="text-sm font-normal">{{ steemBalances.secondary.symbol
+                  }}</span>
+              </div>
+            </div>
+          </div>
+
           <div class="text-xs text-gray-500 dark:text-gray-400">~ ${{ $formatNumber(balance.usd) }}</div>
           <div class="text-xs"
             :class="balance.pnl < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
             Today's PnL: {{ balance.pnl < 0 ? '-' : '+' }}${{ Math.abs(balance.pnl) }} ({{ balance.pnlPercent }}%)
               </div>
           </div>
-          <div v-if="isOwnAccount" class="flex gap-2">
-            <button class="px-3 py-1 rounded bg-primary-400 text-white text-xs"
-              @click="openTransfer('MRY')">Transfer</button>
-            <button class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs">Buy
-              with Card</button>
+          <div class="flex flex-col gap-2">
+            <div v-if="isOwnAccount" class="flex gap-2">
+              <button class="px-3 py-1 rounded bg-primary-400 text-white text-xs"
+                @click="openTransfer('MRY')">Transfer</button>
+            </div>
           </div>
-          <div class="hidden md:block w-32 h-12 bg-gradient-to-t from-yellow-400/20 to-yellow-400/60 rounded"></div>
         </div>
+
+        <div>
+          <div class="flex items-center justify-between my-4">
+            <div class="text-lg font-semibold text-gray-900 dark:text-white">Portfolio</div>
+            <button v-if="isOwnAccount" class="px-3 py-1 rounded bg-primary-400 text-white text-xs"
+              @click="showCreateToken = true">Create
+              Token</button>
+          </div>
+
+          <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-lg font-semibold text-gray-900 dark:text-white">Markets</div>
+              <div class="flex gap-2 text-xs">
+                <button class="px-2 py-1 rounded bg-primary-400 text-white">Holding</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-xs">
+                <thead>
+                  <tr class="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                    <th class="py-2 px-2 text-left">Symbol</th>
+                    <th class="py-2 px-2 text-right">Amount</th>
+                    <th class="py-2 px-2 text-right">Coin Price</th>
+                    <th class="py-2 px-2 text-right">24H Change</th>
+                    <th class="py-2 px-2 text-right">Value</th>
+                    <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(t, idx) in portfolio" :key="t.symbol" :class="[
+                    'border-b border-gray-100 dark:border-gray-700',
+                    idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/40' : ''
+                  ]">
+                    <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
+                      <router-link :to="`/tokens?symbol=${t.symbol}`" class="flex">
+                        <img :src="tokenHelpers.getTokenIcon(t) || t.logoUrl" :alt="t.symbol" class="w-5 h-5 mr-2" />
+                        <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ t.symbol }}</span>
+                        <span class="text-gray-500 dark:text-gray-400">{{ t.name }}</span>
+                      </router-link>
+                    </td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
+                      <span v-if="tokensLoaded">{{ $formatTokenBalance(t.amount, t.symbol) }}</span>
+                      <span v-else>{{ $formatNumber(typeof t.amount === 'object' ? (t.amount.amount ||
+                        t.amount.rawAmount
+                        || '0') : (t.amount || 0)) }}</span>
+                    </td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formattedCoinPrice(t.symbol) }}
+                    </td>
+                    <td class="py-2 px-2 text-right"
+                      :class="coinPrices.changes[t.symbol] ?? 0 < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
+                      {{
+                        $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') ?
+                          $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') + '%' : '0.00%' }}</td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
+                      ${{ $formatUsdValue(Number(tokenHelpers.getTokenPrice(t, tokenUsdPriceMap)) *
+                        Number(t.amount.amount)) }}
+                    </td>
+                    <td v-if="isOwnAccount" class="py-2 px-2 text-right">
+                      <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"
+                        class="p-2 py-1 mr-1 rounded bg-primary-400 text-white"
+                        @click="openDeposit(t.symbol), depositMode = 'deposit'">Deposit</button>
+                      <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"
+                        class="p-2 py-1 mr-1 rounded bg-primary-400 text-white"
+                        @click="openDeposit(t.symbol), depositMode = 'withdraw'">Withdraw</button>
+                      <button @click="openTransfer(t.symbol)"
+                        class="p-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
+                      <router-link
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}-MRY` } }">
+                        <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
+                      </router-link>
+                      <button class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
+                    </td>
+
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 mb-4 mt-4">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ isOwnAccount ? 'Your tokens' :
+                `${username}'s tokens` }}</div>
+              <div class="flex gap-2 text-xs">
+                <button class="px-2 py-1 rounded bg-primary-400 text-white">View All</button>
+              </div>
+            </div>
+            <div v-if="userCreatedTokens.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div class="text-lg mb-2">No tokens created yet</div>
+              <div class="text-sm">{{ isOwnAccount ? 'Create your first token' : 'This user has not created any tokens'
+                }}
+              </div>
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="min-w-full text-xs">
+                <thead>
+                  <tr class="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                    <th class="py-2 px-2 text-left">Symbol</th>
+                    <th class="py-2 px-2 text-right">Total Supply</th>
+                    <th class="py-2 px-2 text-right">Precision</th>
+                    <th class="py-2 px-2 text-right">Created</th>
+                    <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(token, idx) in userCreatedTokens" :key="token._id" :class="[
+                    'border-b border-gray-100 dark:border-gray-700',
+                    idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/40' : ''
+                  ]">
+                    <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
+                      <span
+                        class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold">{{
+                          token.symbol[0] }}</span>
+                      <span>{{ token.name }}</span>
+                    </td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
+                      <span v-if="tokensLoaded">{{ $formatTokenBalance(token.totalSupply, token.symbol) }}</span>
+                      <span v-else>{{ $formatNumber(token.totalSupply) }}</span>
+                    </td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ token.precision }}</td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ new
+                      Date(token.createdAt).toLocaleDateString() }}</td>
+                    <td v-if="isOwnAccount" class="py-2 px-2 text-right">
+                      <button v-if="isOwnAccount" @click="openTransfer(token.symbol)"
+                        class="px-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
+                      <router-link
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }">
+                        <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
+                      </router-link>
+                      <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
+                      <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-lg font-semibold text-gray-900 dark:text-white">Liquidity Positions</div>
+              <div v-if="isOwnAccount" class="flex gap-2 text-xs">
+                <router-link :to="'/createpool'" class="px-2 py-1 rounded bg-primary-400 text-white">Create
+                  Pool</router-link>
+                <button class="px-2 py-1 rounded bg-primary-400 text-white">View All</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <div v-if="loading">Loading...</div>
+              <div v-else-if="error" class="text-red-500">{{ error }}</div>
+              <div v-else-if="userPositions.length === 0">No liquidity positions found.</div>
+              <table v-else class="min-w-full text-xs">
+                <thead>
+                  <tr class="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                    <th class="py-2 px-2 text-left">Pool</th>
+                    <th class="py-2 px-2 text-right">Fees</th>
+                    <th class="py-2 px-2 text-right">Lp Tokens</th>
+                    <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(pos, idx) in userPositions" :key="pos._id || pos.poolId" :class="[
+                    'border-b border-gray-100 dark:border-gray-700',
+                    idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/40' : ''
+                  ]">
+                    <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
+                      <span
+                        class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold">{{
+                          pos.poolId.split('_')[0] }}</span>
+                      <span>{{ pos.poolId.split('_')[0] }} / {{ pos.poolId.split('_')[1] }}</span>
+                    </td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ pos.poolId.split('_')[2] / 1000
+                      }}%
+                    </td>
+                    <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formatNumber(pos.lpTokenBalance)
+                      }}
+                    </td>
+                    <td v-if="isOwnAccount" class="py-2 px-2 text-right">
+                      <router-link
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}-${pos.poolId.split('_')[1]}` } }">
+                        <button class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button>
+                      </router-link>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <CreateTokenModal v-if="showCreateToken" @close="showCreateToken = false" @create="handleCreateToken" />
+          <div v-if="createTokenLoading" class="mt-2 text-primary-400 font-semibold">Creating token...</div>
+          <div v-if="createTokenError" class="mt-2 text-red-500 font-semibold">{{ createTokenError }}</div>
+        </div>
+        <TransferModal :show="showTransferModal" :symbol="transferSymbol" @close="showTransferModal = false"
+          @transfer="handleTransfer" />
+        <DepositModal :show="showDepositModal" :symbol="depositSymbol" :mode="depositMode"
+          @close="showDepositModal = false" @deposit="handleDeposit" @withdraw="handleWithdraw" />
       </div>
-
-      <div>
-        <div class="flex items-center justify-between mb-4">
-          <div class="text-lg font-semibold text-gray-900 dark:text-white">Portfolio</div>
-          <button v-if="isOwnAccount" class="px-3 py-1 rounded bg-primary-400 text-white text-xs"
-            @click="showCreateToken = true">Create
-            Token</button>
-        </div>
-
-        <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-lg font-semibold text-gray-900 dark:text-white">Markets</div>
-            <div class="flex gap-2 text-xs">
-              <button class="px-2 py-1 rounded bg-primary-400 text-white">Holding</button>
-            </div>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-xs">
-              <thead>
-                <tr class="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th class="py-2 px-2 text-left">Symbol</th>
-                  <th class="py-2 px-2 text-right">Amount</th>
-                  <th class="py-2 px-2 text-right">Coin Price</th>
-                  <th class="py-2 px-2 text-right">24H Change</th>
-                  <th class="py-2 px-2 text-right">Value</th>
-                  <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(t, idx) in portfolio" :key="t.symbol" :class="[
-                  'border-b border-gray-100 dark:border-gray-700',
-                  idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/40' : ''
-                ]">
-                  <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
-                    <router-link :to="`/tokens?symbol=${t.symbol}`" class="flex">
-                      <img :src="tokenHelpers.getTokenIcon(t) || t.logoUrl" :alt="t.symbol" class="w-5 h-5 mr-2" />
-                      <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ t.symbol }}</span>
-                      <span class="text-gray-500 dark:text-gray-400">{{ t.name }}</span>
-                    </router-link>
-                  </td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
-                    <span v-if="tokensLoaded">{{ $formatTokenBalance(t.amount, t.symbol) }}</span>
-                    <span v-else>{{ $formatNumber(typeof t.amount === 'object' ? (t.amount.amount || t.amount.rawAmount
-                      || '0') : (t.amount || 0)) }}</span>
-                  </td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formattedCoinPrice(t.symbol) }}
-                  </td>
-                  <td class="py-2 px-2 text-right"
-                    :class="coinPrices.changes[t.symbol] ?? 0 < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
-                    {{
-                      $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') ?
-                        $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') + '%' : '0.00%' }}</td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
-                    ${{ $formatUsdValue(Number(tokenHelpers.getTokenPrice(t, tokenUsdPriceMap)) * Number(t.amount.amount)) }}
-                  </td>
-                  <td v-if="isOwnAccount" class="py-2 px-2 text-right">
-                    <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"
-                      class="p-2 py-1 mr-1 rounded bg-primary-400 text-white"
-                      @click="openDeposit(t.symbol), depositMode = 'deposit'">Deposit</button>
-                    <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"
-                      class="p-2 py-1 mr-1 rounded bg-primary-400 text-white"
-                      @click="openDeposit(t.symbol), depositMode = 'withdraw'">Withdraw</button>
-                    <button @click="openTransfer(t.symbol)"
-                      class="p-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
-                    <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}-MRY` } }">
-                      <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
-                    </router-link>
-                    <button class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
-                  </td>
-
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 mb-4 mt-4">
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ isOwnAccount ? 'Your tokens' :
-              `${username}'s tokens` }}</div>
-            <div class="flex gap-2 text-xs">
-              <button class="px-2 py-1 rounded bg-primary-400 text-white">View All</button>
-            </div>
-          </div>
-          <div v-if="userCreatedTokens.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            <div class="text-lg mb-2">No tokens created yet</div>
-            <div class="text-sm">{{ isOwnAccount ? 'Create your first token' : 'This user has not created any tokens' }}
-            </div>
-          </div>
-          <div v-else class="overflow-x-auto">
-            <table class="min-w-full text-xs">
-              <thead>
-                <tr class="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th class="py-2 px-2 text-left">Symbol</th>
-                  <th class="py-2 px-2 text-right">Total Supply</th>
-                  <th class="py-2 px-2 text-right">Precision</th>
-                  <th class="py-2 px-2 text-right">Created</th>
-                  <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(token, idx) in userCreatedTokens" :key="token._id" :class="[
-                  'border-b border-gray-100 dark:border-gray-700',
-                  idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/40' : ''
-                ]">
-                  <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
-                    <span
-                      class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold">{{
-                        token.symbol[0] }}</span>
-                    <span>{{ token.name }}</span>
-                  </td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
-                    <span v-if="tokensLoaded">{{ $formatTokenBalance(token.totalSupply, token.symbol) }}</span>
-                    <span v-else>{{ $formatNumber(token.totalSupply) }}</span>
-                  </td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ token.precision }}</td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ new
-                    Date(token.createdAt).toLocaleDateString() }}</td>
-                  <td v-if="isOwnAccount" class="py-2 px-2 text-right">
-                    <button v-if="isOwnAccount" @click="openTransfer(token.symbol)"
-                      class="px-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
-                    <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }">
-                      <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
-                    </router-link>
-                    <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
-                    <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-lg font-semibold text-gray-900 dark:text-white">Liquidity Positions</div>
-            <div v-if="isOwnAccount" class="flex gap-2 text-xs">
-              <router-link :to="'/createpool'" class="px-2 py-1 rounded bg-primary-400 text-white">Create
-                Pool</router-link>
-              <button class="px-2 py-1 rounded bg-primary-400 text-white">View All</button>
-            </div>
-          </div>
-          <div class="overflow-x-auto">
-            <div v-if="loading">Loading...</div>
-            <div v-else-if="error" class="text-red-500">{{ error }}</div>
-            <div v-else-if="userPositions.length === 0">No liquidity positions found.</div>
-            <table v-else class="min-w-full text-xs">
-              <thead>
-                <tr class="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <th class="py-2 px-2 text-left">Pool</th>
-                  <th class="py-2 px-2 text-right">Fees</th>
-                  <th class="py-2 px-2 text-right">Lp Tokens</th>
-                  <th v-if="isOwnAccount" class="py-2 px-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(pos, idx) in userPositions" :key="pos._id || pos.poolId" :class="[
-                  'border-b border-gray-100 dark:border-gray-700',
-                  idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/40' : ''
-                ]">
-                  <td class="py-2 px-2 flex items-center gap-2 text-gray-900 dark:text-white">
-                    <span
-                      class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold">{{
-                        pos.poolId.split('_')[0] }}</span>
-                    <span>{{ pos.poolId.split('_')[0] }} / {{ pos.poolId.split('_')[1] }}</span>
-                  </td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ pos.poolId.split('_')[2] / 1000 }}%
-                  </td>
-                  <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formatNumber(pos.lpTokenBalance) }}
-                  </td>
-                  <td v-if="isOwnAccount" class="py-2 px-2 text-right">
-                    <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}-${pos.poolId.split('_')[1]}` } }">
-                      <button class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button>
-                    </router-link>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <CreateTokenModal v-if="showCreateToken" @close="showCreateToken = false" @create="handleCreateToken" />
-        <div v-if="createTokenLoading" class="mt-2 text-primary-400 font-semibold">Creating token...</div>
-        <div v-if="createTokenError" class="mt-2 text-red-500 font-semibold">{{ createTokenError }}</div>
-      </div>
-      <TransferModal :show="showTransferModal" :symbol="transferSymbol" @close="showTransferModal = false"
-        @transfer="handleTransfer" />
-      <DepositModal :show="showDepositModal" :symbol="depositSymbol" :mode="depositMode"
-        @close="showDepositModal = false" @deposit="handleDeposit" @withdraw="handleWithdraw" />
     </div>
 </template>
