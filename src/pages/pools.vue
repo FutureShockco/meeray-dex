@@ -9,6 +9,7 @@ import BigNumber from 'bignumber.js';
 
 const api = useApiService();
 const pools = ref<any[]>([]);
+const marketStats = ref<Record<string, any>>({});
 const loading = ref(true);
 const error = ref('');
 
@@ -25,6 +26,9 @@ onMounted(async () => {
 
     const res = await api.getPoolsList();
     pools.value = Array.isArray(res.data) ? res.data : [];
+
+    // Fetch market stats for each pool
+    await fetchMarketStatsForPools();
 
     // Fetch APR data and merge into pools
     try {
@@ -52,13 +56,159 @@ onMounted(async () => {
   }
 });
 
+// Fetch market statistics for all pools
+async function fetchMarketStatsForPools() {
+  const statsPromises = pools.value.map(async (pool) => {
+    try {
+      const pairId = `${pool.tokenA_symbol}-${pool.tokenB_symbol}`;
+      const stats = await api.getMarketStats(pairId);
+      marketStats.value[pairId] = stats;
+      return stats;
+    } catch (e) {
+      console.log(`Failed to fetch stats for ${pool.tokenA_symbol}-${pool.tokenB_symbol}:`, e);
+      return null;
+    }
+  });
+
+  await Promise.allSettled(statsPromises);
+}
+
 const topPools = computed(() => pools.value.slice(0, 6));
 
 const lpPositions = computed(() => {
-  const tokens = meeray.account?.balances || {};
-  return Object.entries(tokens)
-    .filter(([symbol, amount]) => symbol.startsWith('LP_') && Number(amount) > 0)
-    .map(([symbol, amount]) => ({ symbol, amount: Number(amount) }));
+  if (!meeray.account?.balances) {
+    console.log('No meeray account or balances found');
+    return [];
+  }
+
+  const tokens = meeray.account.balances;
+  console.log('All user balances:', tokens);
+
+  // Filter for LP tokens
+  const lpTokens = Object.entries(tokens).filter(([symbol, amount]) => {
+    const isLpToken = symbol.startsWith('LP_');
+    if (isLpToken) {
+      console.log('Found LP token:', symbol, amount);
+    }
+    return isLpToken;
+  });
+
+  console.log('LP tokens found:', lpTokens);
+
+  return lpTokens
+    .map(([symbol, balanceData]) => {
+      // Handle different balance formats
+      let amount = 0;
+      if (typeof balanceData === 'object' && balanceData !== null) {
+        if ('amount' in balanceData) {
+          amount = Number((balanceData as any).amount) || 0;
+        } else if ('rawAmount' in balanceData) {
+          // Convert raw amount to human readable (LP tokens typically use 18 decimal places)
+          amount = Number((balanceData as any).rawAmount) / Math.pow(10, 18) || 0;
+        }
+      } else {
+        amount = Number(balanceData) || 0;
+      }
+
+      // Only include positions with non-zero amounts
+      if (amount <= 0) return null;
+
+      // Parse LP token symbol to extract pool information
+      // Expected format: LP_TOKEN1_TOKEN2_FEETIER or similar
+      const parts = symbol.split('_');
+      let tokenA = '';
+      let tokenB = '';
+      let feeTier = '';
+
+      if (parts.length >= 3) {
+        tokenA = parts[1];
+        tokenB = parts[2];
+        feeTier = parts[3] || '300'; // Default fee tier
+      }
+
+      // Find matching pool for this LP token
+      const matchingPool = pools.value.find(pool =>
+        (pool.tokenA_symbol === tokenA && pool.tokenB_symbol === tokenB) ||
+        (pool.tokenA_symbol === tokenB && pool.tokenB_symbol === tokenA)
+      );
+
+      console.log('LP Position processed:', {
+        symbol,
+        amount,
+        tokenA,
+        tokenB,
+        feeTier,
+        hasMatchingPool: !!matchingPool
+      });
+
+      return {
+        symbol,
+        amount,
+        tokenA,
+        tokenB,
+        feeTier,
+        pool: matchingPool
+      };
+    })
+    .filter(position => position !== null) // Remove null entries
+    .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+});
+
+// Calculate estimated USD value of LP positions
+const totalLpValue = computed(() => {
+  let total = 0;
+
+  for (const position of lpPositions.value) {
+    if (position.pool) {
+      // Get pool TVL and total supply to estimate LP token value
+      const tvlString = getTvlUsd(position.pool);
+      const tvlUsd = parseFloat(tvlString.replace(/[$,]/g, '')) || 0;
+
+      // This is a simplified calculation - in reality you'd need the total LP supply
+      // For now, we'll estimate based on a percentage of the pool
+      const estimatedValue = (position.amount / 1000000) * tvlUsd; // Rough estimate
+      total += estimatedValue;
+    }
+  }
+
+  if (total >= 1_000_000) {
+    return `$${(total / 1_000_000).toFixed(2)}M`;
+  } else if (total >= 1_000) {
+    return `$${(total / 1_000).toFixed(2)}K`;
+  } else {
+    return `$${total.toFixed(2)}`;
+  }
+});
+
+// Calculate total market volume from all pools
+const totalMarketVolume = computed(() => {
+  let total = 0;
+  for (const pool of pools.value) {
+    const stats = getPoolMarketStats(pool);
+    if (stats?.volume24h) {
+      total += parseFloat(stats.volume24h);
+    }
+  }
+
+  if (total >= 1_000_000) {
+    return `$${(total / 1_000_000).toFixed(2)}M`;
+  } else if (total >= 1_000) {
+    return `$${(total / 1_000).toFixed(2)}K`;
+  } else {
+    return `$${total.toFixed(2)}`;
+  }
+});
+
+// Calculate total trades from all pools
+const totalTrades = computed(() => {
+  let total = 0;
+  for (const pool of pools.value) {
+    const stats = getPoolMarketStats(pool);
+    if (stats?.tradeCount24h) {
+      total += stats.tradeCount24h;
+    }
+  }
+  return total.toLocaleString();
 });
 
 // Map of token symbol to composable result (so each token price is only fetched once)
@@ -118,6 +268,99 @@ function getPoolApr(pool: any) {
 
   return '--';
 }
+
+// Get market stats for a specific pool
+function getPoolMarketStats(pool: any) {
+  const pairId = `${pool.tokenA_symbol}-${pool.tokenB_symbol}`;
+  return marketStats.value[pairId] || null;
+}
+
+// Get 24h volume from market stats
+function getPool24hVolume(pool: any) {
+  const stats = getPoolMarketStats(pool);
+  if (stats?.volume24h) {
+    const volume = parseFloat(stats.volume24h);
+    if (volume >= 1_000_000) {
+      return `$${(volume / 1_000_000).toFixed(2)}M`;
+    } else if (volume >= 1_000) {
+      return `$${(volume / 1_000).toFixed(2)}K`;
+    } else {
+      return `$${volume.toFixed(2)}`;
+    }
+  }
+  return '--';
+}
+
+// Get 24h price change from market stats
+function getPool24hPriceChange(pool: any) {
+  const stats = getPoolMarketStats(pool);
+  if (stats?.priceChange24hPercent !== undefined) {
+    const change = stats.priceChange24hPercent;
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
+  }
+  return '--';
+}
+
+// Get current price from market stats
+function getPoolCurrentPrice(pool: any) {
+  const stats = getPoolMarketStats(pool);
+  if (stats?.currentPrice) {
+    const price = parseFloat(stats.currentPrice);
+    return price.toFixed(6);
+  }
+  return '--';
+}
+
+// Get trade count from market stats
+function getPool24hTrades(pool: any) {
+  const stats = getPoolMarketStats(pool);
+  if (stats?.tradeCount24h !== undefined) {
+    return stats.tradeCount24h.toLocaleString();
+  }
+  return '--';
+}
+
+// Get price change color class
+function getPriceChangeColorClass(pool: any) {
+  const stats = getPoolMarketStats(pool);
+  if (stats?.priceChange24hPercent !== undefined) {
+    return stats.priceChange24hPercent >= 0
+      ? 'text-green-600 dark:text-green-400'
+      : 'text-red-600 dark:text-red-400';
+  }
+  return 'text-gray-500 dark:text-gray-400';
+}
+
+// Get estimated USD value for a single LP position
+function getPositionValue(position: any) {
+  if (!position.pool) return '$0.00';
+
+  const tvlString = getTvlUsd(position.pool);
+  const tvlUsd = parseFloat(tvlString.replace(/[$,]/g, '')) || 0;
+
+  // Simplified calculation - assumes position.amount is a percentage of total supply
+  const estimatedValue = (position.amount / 1000000) * tvlUsd;
+
+  if (estimatedValue >= 1_000_000) {
+    return `$${(estimatedValue / 1_000_000).toFixed(2)}M`;
+  } else if (estimatedValue >= 1_000) {
+    return `$${(estimatedValue / 1_000).toFixed(2)}K`;
+  } else {
+    return `$${estimatedValue.toFixed(2)}`;
+  }
+}
+
+// Helper function to simulate LP positions for testing (remove in production)
+function addTestLpPosition() {
+  if (!meeray.account?.balances) return;
+
+  // Simulate adding an LP token
+  const testLpToken = 'LP_STEEM_SBD_300';
+  meeray.account.balances[testLpToken] = { amount: '1000.123456', rawAmount: '1000123456000000000000' };
+
+  console.log('Added test LP position:', testLpToken);
+}
 </script>
 
 <template>
@@ -125,14 +368,41 @@ function getPoolApr(pool: any) {
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Main Content -->
       <div class="lg:col-span-2 flex flex-col gap-8">
-        <!-- Rewards Summary Card -->
-        <div
-          class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 flex items-center justify-between mb-4">
-          <div>
-            <div class="text-2xl font-bold text-primary-400 mb-1">0 MRY</div>
-            <div class="text-gray-500 dark:text-gray-400 text-sm">Rewards earned</div>
+        <!-- Trading Overview Card -->
+        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Total Volume -->
+            <div class="text-center">
+              <div class="text-2xl font-bold text-primary-500 mb-1">
+                {{ totalMarketVolume }}
+              </div>
+              <div class="text-gray-500 dark:text-gray-400 text-sm">24h Volume</div>
+            </div>
+
+            <!-- Total Trades -->
+            <div class="text-center">
+              <div class="text-2xl font-bold text-blue-500 mb-1">
+                {{ totalTrades }}
+              </div>
+              <div class="text-gray-500 dark:text-gray-400 text-sm">24h Trades</div>
+            </div>
+
+            <!-- Active Pools -->
+            <div class="text-center">
+              <div class="text-2xl font-bold text-green-500 mb-1">
+                {{ pools.length }}
+              </div>
+              <div class="text-gray-500 dark:text-gray-400 text-sm">Active Pools</div>
+            </div>
+
+            <!-- Your LP Value -->
+            <div class="text-center">
+              <div class="text-2xl font-bold text-purple-500 mb-1">
+                {{ totalLpValue }}
+              </div>
+              <div class="text-gray-500 dark:text-gray-400 text-sm">LP Value</div>
+            </div>
           </div>
-          <button class="px-4 py-2 rounded bg-primary-400 text-white font-semibold">Collect rewards</button>
         </div>
 
         <!-- Your Positions -->
@@ -148,37 +418,131 @@ function getPoolApr(pool: any) {
             </router-link>
           </div>
           <div v-if="lpPositions.length === 0"
-            class="rounded-lg bg-primary-50 dark:bg-gray-800 border border-primary-400 dark:border-primary-400 p-4 flex items-center gap-3">
-            <svg class="w-6 h-6 text-primary-400" fill="none" stroke="currentColor" stroke-width="2"
-              viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 12h8m-4-4v8" />
-            </svg>
-            <div class="flex-1">
-              <div class="font-semibold text-primary-400">Welcome to your positions</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400">Login with your Steem account to view your current
-                positions.
+            class="rounded-lg bg-primary-50 dark:bg-gray-800 border border-primary-400 dark:border-primary-400 p-4">
+            <div class="flex items-center gap-3 mb-3">
+              <svg class="w-6 h-6 text-primary-400" fill="none" stroke="currentColor" stroke-width="2"
+                viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 12h8m-4-4v8" />
+              </svg>
+              <div class="flex-1">
+                <div class="font-semibold text-primary-500">Welcome to your positions</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  Start by adding liquidity to earn trading fees and rewards from active pools.
+                </div>
+              </div>
+            </div>
+
+            <!-- Debug Information -->
+            <div v-if="meeray.account" class="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+              <div class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Debug Info:</div>
+              <div class="space-y-1 text-gray-600 dark:text-gray-400">
+                <div>Account loaded: {{ !!meeray.account }}</div>
+                <div>Has balances: {{ !!meeray.account?.balances }}</div>
+                <div>Total tokens: {{ Object.keys(meeray.account?.balances || {}).length }}</div>
+                <div>LP tokens found: {{Object.keys(meeray.account?.balances || {}).filter(s =>
+                  s.startsWith('LP_')).length }}</div>
+                <div v-if="Object.keys(meeray.account?.balances || {}).filter(s => s.startsWith('LP_')).length > 0">
+                  LP Tokens: {{Object.keys(meeray.account?.balances || {}).filter(s => s.startsWith('LP_')).join(', ')
+                  }}
+                </div>
+              </div>
+              <button @click="addTestLpPosition"
+                class="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
+                Add Test LP Position
+              </button>
+            </div>
+            <div v-else class="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded text-xs">
+              <div class="text-yellow-700 dark:text-yellow-300">Account not loaded or user not authenticated</div>
+            </div>
+          </div>
+          <div v-else class="space-y-3">
+            <!-- LP Positions Summary -->
+            <div
+              class="rounded-lg dark:from-primary-900/20 dark:to-blue-900/20 border border-primary-200 dark:border-primary-700 p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <div class="font-semibold text-primary-700 dark:text-primary-300">Your Liquidity Positions</div>
+                  <div class="text-sm text-gray-600 dark:text-gray-400">{{ lpPositions.length }} active positions</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">{{ totalLpValue }}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400">Estimated Value</div>
+                </div>
+              </div>
+              <!-- Individual LP Positions -->
+              <div class="grid gap-3">
+                <div v-for="position in lpPositions" :key="position.symbol"
+                  class="rounded-lg bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <!-- Pool Icon -->
+                      <div
+                        class="w-10 h-10 bg-gradient-to-r from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {{ position.tokenA?.[0] || '?' }}{{ position.tokenB?.[0] || '?' }}
+                      </div>
+
+                      <!-- Pool Info -->
+                      <div>
+                        <div class="font-semibold text-gray-900 dark:text-white">
+                          {{ position.tokenA || 'Unknown' }} / {{ position.tokenB || 'Unknown' }}
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                          <span>LP Token: {{ position.symbol }}</span>
+                          <span v-if="position.feeTier"
+                            class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+                            {{ (Number(position.feeTier) / 10000).toFixed(2) }}% fee
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Position Details -->
+                    <div class="text-right">
+                      <div class="font-bold text-gray-900 dark:text-white">
+                        {{ position.amount.toLocaleString(undefined, { maximumFractionDigits: 6 }) }}
+                      </div>
+                      <div class="text-sm text-gray-500 dark:text-gray-400">LP Tokens</div>
+
+                      <!-- Pool Stats if available -->
+                      <div v-if="position.pool" class="mt-2 space-y-1">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                          <span>24h Volume:</span>
+                          <span class="font-semibold text-primary-500">{{ getPool24hVolume(position.pool) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                          <span>Price Change:</span>
+                          <span :class="['font-semibold', getPriceChangeColorClass(position.pool)]">
+                            {{ getPool24hPriceChange(position.pool) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <router-link v-if="position.pool" :to="{ path: '/pool', query: { poolId: position.pool.id } }"
+                      class="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors">
+                      View Pool
+                    </router-link>
+                    <router-link v-if="position.tokenA && position.tokenB"
+                      :to="{ path: '/swap', query: { tokenIn: position.tokenA, tokenOut: position.tokenB } }"
+                      class="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                      Trade Pair
+                    </router-link>
+                    <button
+                      class="px-3 py-2 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div v-else
-            class="rounded-lg bg-primary-50 dark:bg-gray-800 border border-primary-400 dark:border-primary-400 p-4">
-            <table class="min-w-full text-sm">
-              <thead>
-                <tr class="text-gray-500 dark:text-gray-400">
-                  <th class="px-4 py-2 font-semibold text-left">Pool</th>
-                  <th class="px-4 py-2 font-semibold text-left">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="pos in lpPositions" :key="pos.symbol">
-                  <td class="px-4 py-2 font-semibold text-gray-900 dark:text-white">{{ pos.symbol }}</td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ pos.amount }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </div>
+
+
 
         <!-- Top Pools by TVL Table -->
         <div>
@@ -187,57 +551,92 @@ function getPoolApr(pool: any) {
             <table class="min-w-full text-sm">
               <thead class="text-gray-500 dark:text-gray-400">
                 <tr>
-                  <th class="px-4 py-2 font-semibold">Pool</th>
-                  <th class="px-4 py-2 font-semibold">TVL</th>
-                  <th class="px-4 py-2 font-semibold">APR (A)</th>
-                  <th class="px-4 py-2 font-semibold">APR (B)</th>
-                  <th class="px-4 py-2 font-semibold">24h Fees (A)</th>
-                  <th class="px-4 py-2 font-semibold">24h Fees (B)</th>
-                  <th class="px-4 py-2 font-semibold">Actions</th>
+                  <th class="px-4 py-3 font-semibold text-left">Pool</th>
+                  <th class="px-4 py-3 font-semibold text-right">Price</th>
+                  <th class="px-4 py-3 font-semibold text-right">24h Change</th>
+                  <th class="px-4 py-3 font-semibold text-right">24h Volume</th>
+                  <th class="px-4 py-3 font-semibold text-right">TVL</th>
+                  <th class="px-4 py-3 font-semibold text-right">24h Trades</th>
+                  <th class="px-4 py-3 font-semibold text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="loading">
-                  <td colspan="10" class="text-center py-6 text-gray-400">Loading pools...</td>
+                  <td colspan="7" class="text-center py-8 text-gray-400">
+                    <div class="flex items-center justify-center gap-2">
+                      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                      Loading pools...
+                    </div>
+                  </td>
                 </tr>
                 <tr v-else-if="error">
-                  <td colspan="10" class="text-center py-6 text-red-500">{{ error }}</td>
+                  <td colspan="7" class="text-center py-8 text-red-500">{{ error }}</td>
                 </tr>
                 <tr v-else v-for="(pool, i) in pools" :key="pool.id || i"
-                  class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer">
-                  <td class="px-4 py-2 font-semibold text-gray-900 dark:text-white">
+                  class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+                  <td class="px-4 py-4">
                     <router-link :to="{ path: '/pool', query: { poolId: pool.id } }"
                       class="block w-full text-inherit no-underline">
-                      {{ pool.name || `${pool.tokenA_symbol || '?'}/${pool.tokenB_symbol || '?'}` }}
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="w-8 h-8 bg-gradient-to-r from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                          {{ pool.tokenA_symbol?.[0] || '?' }}{{ pool.tokenB_symbol?.[0] || '?' }}
+                        </div>
+                        <div>
+                          <div class="font-semibold text-gray-900 dark:text-white">
+                            {{ pool.name || `${pool.tokenA_symbol || '?'}/${pool.tokenB_symbol || '?'}` }}
+                          </div>
+                          <div class="text-xs text-gray-500 dark:text-gray-400">
+                            Fee: {{ (pool.feeTier / 10000).toFixed(2) }}%
+                          </div>
+                        </div>
+                      </div>
                     </router-link>
                   </td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ getTvlUsd(pool) }}</td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ pool.aprA !== undefined ? (pool.aprA *
-                    100).toFixed(2) + '%' : '--' }}</td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ pool.aprB !== undefined ? (pool.aprB *
-                    100).toFixed(2) + '%' : '--' }}</td>
 
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">
-                    <span v-if="pool.fees24hA !== undefined">{{ Number(pool.fees24hA).toLocaleString(undefined, {
-                      maximumFractionDigits: 4 }) }}</span>
-                    <span v-else>--</span>
+                  <td class="px-4 py-4 text-right">
+                    <div class="font-mono text-gray-900 dark:text-white">
+                      {{ getPoolCurrentPrice(pool) }}
+                    </div>
                   </td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">
-                    <span v-if="pool.fees24hB !== undefined">{{ Number(pool.fees24hB).toLocaleString(undefined, {
-                      maximumFractionDigits: 4 }) }}</span>
-                    <span v-else>--</span>
+
+                  <td class="px-4 py-4 text-right">
+                    <div :class="['font-semibold', getPriceChangeColorClass(pool)]">
+                      {{ getPool24hPriceChange(pool) }}
+                    </div>
                   </td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">
-                    <router-link
-                      :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pool.tokenA_symbol}-${pool.tokenB_symbol}` } }"
-                      class="btn btn-primary inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition mr-2">
-                      Trade
-                    </router-link>
-                    <router-link
-                      :to="{ path: '/swap', query: { tokenIn: pool.tokenA_symbol, tokenOut: pool.tokenB_symbol } }"
-                      class="btn btn-primary inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition mt-2">
-                      Swap
-                    </router-link>
+
+                  <td class="px-4 py-4 text-right">
+                    <div class="font-semibold text-gray-900 dark:text-white">
+                      {{ getPool24hVolume(pool) }}
+                    </div>
+                  </td>
+
+                  <td class="px-4 py-4 text-right">
+                    <div class="font-semibold text-gray-900 dark:text-white">
+                      {{ getTvlUsd(pool) }}
+                    </div>
+                  </td>
+
+                  <td class="px-4 py-4 text-right">
+                    <div class="text-gray-900 dark:text-white">
+                      {{ getPool24hTrades(pool) }}
+                    </div>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <div class="flex items-center justify-center gap-2">
+                      <router-link
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pool.tokenA_symbol}-${pool.tokenB_symbol}` } }"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors">
+                        Trade
+                      </router-link>
+                      <router-link
+                        :to="{ path: '/swap', query: { tokenIn: pool.tokenA_symbol, tokenOut: pool.tokenB_symbol } }"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                        Swap
+                      </router-link>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -248,33 +647,46 @@ function getPoolApr(pool: any) {
 
       <!-- Sidebar -->
       <div class="flex flex-col gap-8">
-        <!-- Top Pools by TVL (Sidebar) -->
+        <!-- Top Pools by Volume (Sidebar) -->
         <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4">
-          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Top pools by TVL</h3>
+          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Top pools by volume</h3>
           <div v-for="pool in topPools" :key="pool.id"
-            class="flex items-center justify-between mb-3 p-2 rounded hover:bg-primary-50 dark:hover:bg-gray-800 transition">
-            <div>
-              <div class="font-semibold text-gray-900 dark:text-white">{{ pool.name || `${pool.tokenA_symbol || '?'} /
-                ${pool.tokenB_symbol || '?'}` }}</div>
-              <div class="text-xs text-gray-500 dark:text-gray-400 flex gap-2">
-                <span>{{ pool.feeTier / 1000 + '%' || '0.3%' }}</span>
-                <span v-if="pool.aprA !== undefined">APR A: {{ (pool.aprA * 100).toFixed(2) }}%</span>
-                <span v-if="pool.aprB !== undefined">APR B: {{ (pool.aprB * 100).toFixed(2) }}%</span>
-                <span v-if="pool.aprA !== undefined && pool.aprB !== undefined">Combined: {{ ((pool.aprA + pool.aprB) *
-                  100).toFixed(2) }}%</span>
+            class="flex items-center justify-between mb-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition border border-gray-100 dark:border-gray-700">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <div
+                  class="w-6 h-6 bg-gradient-to-r from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                  {{ pool.tokenA_symbol?.[0] || '?' }}{{ pool.tokenB_symbol?.[0] || '?' }}
+                </div>
+                <div class="font-semibold text-gray-900 dark:text-white text-sm">
+                  {{ pool.name || `${pool.tokenA_symbol || '?'} / ${pool.tokenB_symbol || '?'}` }}
+                </div>
+              </div>
+              <div class="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                <div class="flex items-center justify-between">
+                  <span>24h Volume:</span>
+                  <span class="font-semibold text-primary-500">{{ getPool24hVolume(pool) }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Price Change:</span>
+                  <span :class="['font-semibold', getPriceChangeColorClass(pool)]">
+                    {{ getPool24hPriceChange(pool) }}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Trades:</span>
+                  <span class="font-semibold text-gray-600 dark:text-gray-300">{{ getPool24hTrades(pool) }}</span>
+                </div>
               </div>
             </div>
-            <div class="text-right">
-              <div class="font-semibold text-primary-400">{{ pool.aprA !== undefined && pool.aprB !== undefined ?
-                ((pool.aprA + pool.aprB) * 100).toFixed(2) + '%' : '--' }}</div>
-            </div>
           </div>
-          <div class="mt-4 text-primary-400 text-sm cursor-pointer flex items-center gap-1">
-            <span>Explore more pools</span>
+          <router-link to="/pools"
+            class="mt-4 text-primary-500 hover:text-primary-600 text-sm cursor-pointer flex items-center gap-1 transition-colors">
+            <span>View all pools</span>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M9 5l7 7-7 7" />
             </svg>
-          </div>
+          </router-link>
         </div>
 
         <!-- Learn about liquidity provision -->

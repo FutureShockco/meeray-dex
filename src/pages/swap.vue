@@ -8,7 +8,7 @@ import { useTokenListStore } from '../stores/useTokenList';
 import { useAppStore } from '../stores/appStore';
 import SwapWidget from '../components/trade/SwapWidget.vue';
 import TradeWidget from '../components/trade/TradeWidget.vue';
-import PriceChart from '../components/trade/PriceChart.vue';
+import PoolVolumeChart from '../components/PoolVolumeChart.vue';
 import BigNumber from 'bignumber.js';
 
 const route = useRoute();
@@ -424,10 +424,11 @@ const setPriceFromOrderBook = (orderPrice: string) => {
           </select>
         </div>
 
-        <!-- Price Chart -->
-        <PriceChart 
+        <!-- Enhanced Price Chart -->
+        <PoolVolumeChart 
           :selected-pair="selectedPair"
           :api-service="api"
+          mode="price"
         />
 
         <!-- Market Stats -->
