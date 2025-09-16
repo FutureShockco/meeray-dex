@@ -15,7 +15,7 @@ export const useTokenListStore = defineStore('tokenList', () => {
     error.value = '';
     try {
       console.log('TokenList: Fetching tokens...');
-      const res = await api.getTokens();
+      const res = await api.getTokens({ limit: 1000 });
       console.log('TokenList: Tokens response:', res);
       tokens.value = Array.isArray(res.data) ? res.data : [];
       console.log('TokenList: Tokens loaded:', tokens.value.length);
