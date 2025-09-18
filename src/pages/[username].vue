@@ -223,15 +223,17 @@ const userCreatedTokens = computed(() => {
 const showCreateToken = ref(false);
 const createTokenLoading = ref(false);
 const createTokenError = ref('');
-
+const transferMode = ref<'transfer' | 'mint' | 'burn'>('transfer');
 const showTransferModal = ref(false);
+const transferUsername = ref('');
 const transferSymbol = ref('MRY');
 const showDepositModal = ref(false);
 const depositSymbol = ref('STEEM');
 const depositMode = ref<'deposit' | 'withdraw'>('deposit');
 
-function openTransfer(symbol: string) {
+function openTransfer(symbol: string, username: string = '') {
   transferSymbol.value = symbol;
+  transferUsername.value = username;
   showTransferModal.value = true;
 }
 
@@ -456,11 +458,11 @@ onMounted(async () => {
             <div v-else class="space-y-1">
               <div class="text-lg font-mono font-semibold text-gray-900 dark:text-white">
                 {{ steemBalances.primary.amount }} <span class="text-sm font-normal">{{ steemBalances.primary.symbol
-                  }}</span>
+                }}</span>
               </div>
               <div class="text-lg font-mono font-semibold text-gray-900 dark:text-white">
                 {{ steemBalances.secondary.amount }} <span class="text-sm font-normal">{{ steemBalances.secondary.symbol
-                  }}</span>
+                }}</span>
               </div>
             </div>
           </div>
@@ -519,7 +521,7 @@ onMounted(async () => {
                       </router-link>
                     </td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
-                      <span v-if="tokensLoaded">{{ $formatTokenBalance(t.amount, t.symbol) }}</span>
+                      <span v-if="tokensLoaded">{{ $formatNumber($formatTokenBalance(t.amount, t.symbol)) }}</span>
                       <span v-else>{{ $formatNumber(typeof t.amount === 'object' ? (t.amount.amount ||
                         t.amount.rawAmount
                         || '0') : (t.amount || 0)) }}</span>
@@ -542,15 +544,17 @@ onMounted(async () => {
                       <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"
                         class="p-2 py-1 mr-1 rounded bg-primary-400 text-white"
                         @click="openDeposit(t.symbol), depositMode = 'withdraw'">Withdraw</button>
-                      <button @click="openTransfer(t.symbol)"
+                      <button @click="openTransfer(t.symbol), transferMode = 'transfer'"
                         class="p-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
+                      <router-link :to="{ path: '/swap', query: { tokenIn: `${t.symbol}`, tokenOut: 'MRY' } }">
+                        <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Swap</button>
+                      </router-link>
                       <router-link
                         :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}-MRY` } }">
                         <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                       </router-link>
-                      <button class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
+                      <button @click="openTransfer(t.symbol, 'null'), transferMode = 'burn'" class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
                     </td>
-
                   </tr>
                 </tbody>
               </table>
@@ -568,7 +572,7 @@ onMounted(async () => {
             <div v-if="userCreatedTokens.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
               <div class="text-lg mb-2">No tokens created yet</div>
               <div class="text-sm">{{ isOwnAccount ? 'Create your first token' : 'This user has not created any tokens'
-                }}
+              }}
               </div>
             </div>
             <div v-else class="overflow-x-auto">
@@ -594,21 +598,24 @@ onMounted(async () => {
                       <span>{{ token.name }}</span>
                     </td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
-                      <span v-if="tokensLoaded">{{ $formatTokenBalance(token.totalSupply, token.symbol) }}</span>
+                      <span v-if="tokensLoaded">{{  $formatNumber($formatTokenBalance(token.rawCurrentSupply, token.symbol)) }}</span>
                       <span v-else>{{ $formatNumber(token.totalSupply) }}</span>
                     </td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ token.precision }}</td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ new
                       Date(token.createdAt).toLocaleDateString() }}</td>
                     <td v-if="isOwnAccount" class="py-2 px-2 text-right">
-                      <button v-if="isOwnAccount" @click="openTransfer(token.symbol)"
+                      <button v-if="isOwnAccount" @click="openTransfer(token.symbol) , transferMode = 'transfer'"
                         class="px-2 py-1 rounded bg-primary-400 text-white">Transfer</button>
+                      <router-link :to="{ path: '/swap', query: { tokenIn: `${token.symbol}`, tokenOut: 'MRY' } }">
+                        <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Swap</button>
+                      </router-link>
                       <router-link
                         :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }">
                         <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                       </router-link>
-                      <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
-                      <button v-if="isOwnAccount" class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
+                      <button v-if="isOwnAccount" @click="openTransfer(token.symbol), transferMode = 'mint'" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
+                      <button v-if="isOwnAccount" @click="openTransfer(token.symbol, 'null'), transferMode = 'burn'" class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
                     </td>
                   </tr>
                 </tbody>
@@ -650,10 +657,10 @@ onMounted(async () => {
                       <span>{{ pos.poolId.split('_')[0] }} / {{ pos.poolId.split('_')[1] }}</span>
                     </td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ pos.poolId.split('_')[2] / 1000
-                      }}%
+                    }}%
                     </td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">{{ $formatNumber(pos.lpTokenBalance)
-                      }}
+                    }}
                     </td>
                     <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                       <router-link
@@ -670,7 +677,7 @@ onMounted(async () => {
           <div v-if="createTokenLoading" class="mt-2 text-primary-400 font-semibold">Creating token...</div>
           <div v-if="createTokenError" class="mt-2 text-red-500 font-semibold">{{ createTokenError }}</div>
         </div>
-        <TransferModal :show="showTransferModal" :symbol="transferSymbol" @close="showTransferModal = false"
+        <TransferModal :show="showTransferModal" :mode="transferMode" :symbol="transferSymbol" :username="transferUsername" @close="showTransferModal = false"
           @transfer="handleTransfer" />
         <DepositModal :show="showDepositModal" :symbol="depositSymbol" :mode="depositMode"
           @close="showDepositModal = false" @deposit="handleDeposit" @withdraw="handleWithdraw" />

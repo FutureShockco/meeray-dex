@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, defineEmits, watch } from 'vue';
 
-const props = defineProps<{ show: boolean; symbol?: string; mode?: 'transfer' | 'mint' }>();
-const emit = defineEmits(['close', 'transfer', 'mint']);
+const props = defineProps<{ show: boolean; symbol?: string; username?: string; mode?: 'transfer' | 'mint' | 'burn' }>();
+const emit = defineEmits(['close', 'transfer', 'mint', 'burn']);
 
 const to = ref('');
 const amount = ref<number | null>(null);
@@ -11,10 +11,15 @@ const memo = ref('');
 const error = ref('');
 
 watch(
-  () => [props.show, props.symbol],
-  ([show, newSymbol]) => {
+  () => [props.show, props.symbol, props.username],
+  ([show, newSymbol, newUsername]) => {
     if (show && typeof newSymbol === 'string') {
       symbol.value = newSymbol;
+    }
+    if (show && typeof newUsername === 'string') {
+      to.value = newUsername;
+    } else {
+      to.value = '';
     }
   },
   { immediate: true }
@@ -46,6 +51,8 @@ async function handleTransfer() {
   };
   if (props.mode === 'mint') {
     emit('mint', payload);
+  } else if (props.mode === 'burn') {
+    emit('burn', payload);
   } else {
     emit('transfer', payload);
   }
@@ -61,7 +68,7 @@ function handleClose() {
     <div class="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6 relative">
       <button @click="handleClose" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl">&times;</button>
       <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
-        {{ props.mode === 'mint' ? 'Mint Tokens' : 'Transfer Tokens' }}
+        {{ props.mode === 'mint' ? 'Mint Tokens' : props.mode === 'burn' ? 'Burn Tokens' : 'Transfer Tokens' }}
       </h2>
       <form @submit.prevent="handleTransfer" class="flex flex-col gap-4">
         <div>
@@ -70,9 +77,10 @@ function handleClose() {
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-            {{ props.mode === 'mint' ? 'Amount to Mint' : 'Amount' }}
+            Amount
           </label>
-          <input v-model.number="amount" type="number" min="0.00000001" step="any" class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white" required :placeholder="props.mode === 'mint' ? 'Amount to mint' : 'Amount to transfer'" />
+          <input v-model.number="amount" type="number" min="0.00000001" step="any" class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white" required 
+          :placeholder="props.mode === 'mint' ? 'Amount to mint' : props.mode === 'burn' ? 'Amount to burn' : 'Amount to transfer'" />
         </div>
         <div v-if="symbol">
           <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Token Symbol</label>
