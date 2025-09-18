@@ -62,7 +62,7 @@ async function fetchPriceData() {
 
   try {
     console.log('Fetching price data for pair:', props.selectedPair);
-    const response = await api.getTradeHistory(props.selectedPair, 50);
+    const response = await api.getTradeHistory(props.selectedPair.replace('_', '-'), 50);
     console.log('Price chart trades response:', response);
 
     // Handle different API response formats
