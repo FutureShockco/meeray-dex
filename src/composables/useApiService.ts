@@ -34,11 +34,89 @@ export interface TokenHolders { /* ... */ }
 export interface TokenDistribution { /* ... */ }
 export interface NFTCollection { /* ... */ }
 export interface NFTInstance { /* ... */ }
-export interface MarketPair { /* ... */ }
-export interface MarketDetails { /* ... */ }
-export interface OrderBook { /* ... */ }
-export interface MarketHistory { /* ... */ }
-export interface AccountOrders { /* ... */ }
+// --- Market Trading Types (from DEX_API_SPECIFICATION.md) ---
+export interface MarketSource {
+  type: 'AMM' | 'ORDERBOOK';
+  id: string;
+  tokenA: string;
+  tokenB: string;
+  reserveA?: string;
+  reserveB?: string;
+  rawReserveA?: string;
+  rawReserveB?: string;
+  bestBid?: string;
+  bestAsk?: string;
+  rawBestBid?: string;
+  rawBestAsk?: string;
+  bidDepth?: string;
+  askDepth?: string;
+  rawBidDepth?: string;
+  rawAskDepth?: string;
+}
+export interface MarketSourcesResponse {
+  tokenA: string;
+  tokenB: string;
+  sources: MarketSource[];
+  totalSources: number;
+  ammSources: number;
+  orderbookSources: number;
+}
+
+export interface TradeQuoteRequest {
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+  maxSlippagePercent: number;
+}
+export interface TradeQuoteRoute {
+  type: 'AMM' | 'ORDERBOOK';
+  allocation: number;
+  amountIn: string;
+  amountOut: string;
+  rawAmountIn: string;
+  rawAmountOut: string;
+  details: any;
+}
+export interface TradeQuoteResponse {
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+  rawAmountIn: string;
+  amountOut: string;
+  rawAmountOut: string;
+  priceImpact: number;
+  routes: TradeQuoteRoute[];
+  estimatedGas: string;
+  recommendation: string;
+}
+
+export interface CompareLiquidityRequest {
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+}
+export interface CompareLiquidityResponse {
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+  rawAmountIn: string;
+  comparison: {
+    amm: {
+      available: boolean;
+      sources: number;
+      bestQuote: any;
+      totalLiquidity: number;
+    };
+    orderbook: {
+      available: boolean;
+      sources: number;
+      bestQuote: any;
+      totalDepth: number;
+    };
+    recommendation: string;
+  };
+  timestamp: string;
+}
 export interface StakingPool { /* ... */ }
 export interface StakingDetails { /* ... */ }
 export interface AccountStakes { /* ... */ }
@@ -102,6 +180,44 @@ export interface Token {
 }
 
 
+// --- Additional DEX API types ---
+export interface PoolsCountResponse {
+  count: number;
+}
+
+export interface FarmUserSummary {
+  farmId: string;
+  userId: string;
+  stakedAmount: string;
+  rawStakedAmount: string;
+  rewardsEarned: string;
+  rawRewardsEarned: string;
+  claimedRewards: string;
+  rawClaimedRewards: string;
+  pendingRewards: string;
+  rawPendingRewards: string;
+  stakeTime: string;
+  lastClaimTime: string;
+}
+
+export interface FarmEvent {
+  id: string;
+  type: string;
+  userId: string;
+  amount: string;
+  rawAmount: string;
+  timestamp: string;
+  blockNumber: number;
+  transactionId: string;
+}
+export interface FarmEventsResponse {
+  farmId: string;
+  events: FarmEvent[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 // Use globalThis.$fetch if available (Nuxt 3), otherwise fallback to fetch
 const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).$fetch === 'function'
   ? (url: string) => (globalThis as any).$fetch(url)
@@ -127,9 +243,24 @@ const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).
   };
 
 export function useApiService() {
-  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.meeray.com';
+  // --- DEX Market Endpoints (missing) ---
+  // 6. Get Orderbook
+  const getOrderBook = (pairId: string, depth: number = 20) =>
+    fetcher(`${API_BASE}/market/orderbook/${pairId}?depth=${depth}`);
 
-  // --- Config Endpoints ---
+  // 7. Get Pair Statistics
+  const getMarketStats = (pairId: string) =>
+    fetcher(`${API_BASE}/market/stats/${pairId}`);
+
+  // 8. Get Recent Trades
+  const getTradeHistory = (pairId: string, limit: number = 50) =>
+    fetcher(`${API_BASE}/market/trades/${pairId}?limit=${limit}`);
+
+  // 9. Get User Orders
+  const getUserOrders = (userId: string, status: string = 'ACTIVE', limit: number = 20) =>
+    fetcher(`${API_BASE}/market/orders/user/${userId}?status=${status}&limit=${limit}`);
+
+    // --- Config Endpoints ---
   const getConfig = () => fetcher(`${API_BASE}/config/current`) as Promise<any>;
 
   // --- Account Endpoints ---
@@ -162,6 +293,27 @@ export function useApiService() {
   const getTokenHolders = (symbol: string) => fetcher(`${API_BASE}/holders/${symbol}`) as Promise<TokenHolders>;
   const getTokenDistribution = (symbol: string) => fetcher(`${API_BASE}/distribution/${symbol}`) as Promise<TokenDistribution>;
   const getTokenList = () => fetcher(`${API_BASE}/token/list`) as Promise<{ tokens: any[]; total: number }>;
+  
+  // --- Pool Endpoints (for return object) ---
+  const getPoolsList = (params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/pools?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Pool[]; total: number; limit: number; skip: number }>;
+  const getPoolDetailsById = (poolId: string) => fetcher(`${API_BASE}/pools/${poolId}`) as Promise<Pool>;
+  const getPoolsByToken = (tokenSymbol: string, params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/pools/token/${tokenSymbol}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Pool[]; total: number; limit: number; skip: number }>;
+  const getUserLiquidityPositions = (userId: string, params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/pools/positions/user/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: UserLiquidityPosition[]; total: number; limit: number; skip: number }>;
+  const getPoolLiquidityPositions = (poolId: string, params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/pools/positions/pool/${poolId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: UserLiquidityPosition[]; total: number; limit: number; skip: number }>;
+  const getLiquidityPositionDetails = (positionId: string) => fetcher(`${API_BASE}/pools/positions/${positionId}`) as Promise<UserLiquidityPosition>;
+  const getUserLiquidityPositionInPool = (userId: string, poolId: string) => fetcher(`${API_BASE}/pools/positions/user/${userId}/pool/${poolId}`) as Promise<UserLiquidityPosition>;
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.meeray.com';
+
+  // --- Pool Endpoints ---
+  // (see below for single set of pool endpoint functions)
+    fetcher(`${API_BASE}/accounts/count`) as Promise<{ count: number }>;
+
+  // --- Farm Endpoints ---
+  // (see below for single set of farm endpoint functions)
 
   // --- NFT Endpoints ---
   const getNftCollections = (params: { limit?: number; offset?: number; creator?: string; allowDelegation?: boolean; createdAfter?: string; createdBefore?: string; nameSearch?: string; sortBy?: string; sortDirection?: string } = {}) =>
@@ -194,19 +346,39 @@ export function useApiService() {
     fetcher(`${API_BASE}/nfts/market/listings/collection/${collectionSymbol}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTMarketListing[]; total: number; limit: number; skip: number }>;
 
   // --- Market Endpoints ---
+  // 1. Get Liquidity Sources
+  const getMarketSources = (tokenA: string, tokenB: string) =>
+    fetcher(`${API_BASE}/market/sources/${tokenA}/${tokenB}`) as Promise<MarketSourcesResponse>;
+
+  // 2. Get Trade Quote
+  const getTradeQuote = (body: TradeQuoteRequest) =>
+    fetch(`${API_BASE}/market/quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(res => {
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      return res.json();
+    }) as Promise<TradeQuoteResponse>;
+
+  // 3. Compare Liquidity Sources
+  const compareLiquiditySources = (body: CompareLiquidityRequest) =>
+    fetch(`${API_BASE}/market/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(res => {
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      return res.json();
+    }) as Promise<CompareLiquidityResponse>;
+
+  // 4. Get Trading Pairs
   const getMarketPairs = (params: { limit?: number; offset?: number; status?: string } = {}) =>
-    fetcher(`${API_BASE}/markets/pairs?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
-  const getMarketPairDetails = (pairId: string) => fetcher(`${API_BASE}/markets/pairs/${pairId}`);
-  const getOrdersByPair = (pairId: string, params: { limit?: number; offset?: number; status?: string; side?: string; userId?: string } = {}) =>
-    fetcher(`${API_BASE}/markets/orders/pair/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
-  const getOrdersByUser = (userId: string, params: { limit?: number; offset?: number; pairId?: string; status?: string; side?: string } = {}) =>
-    fetcher(`${API_BASE}/markets/orders/user/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
-  const getOrderDetails = (orderId: string) => fetcher(`${API_BASE}/markets/orders/${orderId}`);
-  const getTradesByPair = (pairId: string, params: { limit?: number; offset?: number; fromTimestamp?: number; toTimestamp?: number } = {}) =>
-    fetcher(`${API_BASE}/markets/trades/pair/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
-  const getTradesByOrder = (orderId: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/markets/trades/order/${orderId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
-  const getTradeDetails = (tradeId: string) => fetcher(`${API_BASE}/markets/trades/${tradeId}`);
+    fetcher(`${API_BASE}/market/pairs?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
+  // 5. Get Trading Pair Details
+  const getMarketPairDetails = (pairId: string) => fetcher(`${API_BASE}/market/pairs/${pairId}`);
+  // 6-9. (see below for single definitions)
+  // 10. (other endpoints unchanged)
 
   // --- Transaction Endpoints ---
   const getTransaction = (txid: string) => fetcher(`${API_BASE}/tx/${txid}`) as Promise<TransactionDetails>;
@@ -241,21 +413,8 @@ export function useApiService() {
   const triggerMine = () => fetcher(`${API_BASE}/mine`);
 
   // --- Pool Endpoints ---
-  const getPoolsList = (params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/pools?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Pool[]; total: number; limit: number; skip: number }>;
-  const getPoolDetailsById = (poolId: string) => fetcher(`${API_BASE}/pools/${poolId}`) as Promise<Pool>;
-  const getPoolsByToken = (tokenSymbol: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/pools/token/${tokenSymbol}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Pool[]; total: number; limit: number; skip: number }>;
 
-  // User Liquidity Positions
-  const getUserLiquidityPositions = (userId: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/pools/positions/user/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: UserLiquidityPosition[]; total: number; limit: number; skip: number }>;
-  const getPoolLiquidityPositions = (poolId: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/pools/positions/pool/${poolId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: UserLiquidityPosition[]; total: number; limit: number; skip: number }>;
-  const getLiquidityPositionDetails = (positionId: string) => fetcher(`${API_BASE}/pools/positions/${positionId}`) as Promise<UserLiquidityPosition>;
-  const getUserLiquidityPositionInPool = (userId: string, poolId: string) => fetcher(`${API_BASE}/pools/positions/user/${userId}/pool/${poolId}`) as Promise<UserLiquidityPosition>;
-
-  // Swap Routing (Note: existing previewSwap, getPreviewSwapRoute, autoSwapRoute seem to cover parts of this or are newer. Keeping them for now)
+  // --- Swap Endpoints ---
   const getSwapRoute = (params: { fromTokenSymbol: string; toTokenSymbol: string; amountIn: number }) =>
     fetcher(`${API_BASE}/pools/route-swap?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ routes: TradeRoute[] }>;
 
@@ -301,53 +460,19 @@ export function useApiService() {
   const getFarmPosition = (positionId: string) => fetcher(`${API_BASE}/farms/positions/${positionId}`);
   const getUserFarmPositionInFarm = (userId: string, farmId: string) => fetcher(`${API_BASE}/farms/positions/user/${userId}/farm/${farmId}`);
 
-  // --- Launchpad Endpoints ---
-  const getLaunchpadsList = () => fetcher(`${API_BASE}/launchpad`);
-  const getLaunchpadDetails = (launchpadId: string) => fetcher(`${API_BASE}/launchpad/${launchpadId}`);
-  const getLaunchpadUserParticipation = (launchpadId: string, userId: string) => fetcher(`${API_BASE}/launchpad/${launchpadId}/user/${userId}`);
-  const getLaunchpadUserClaimable = (launchpadId: string, userId: string) => fetcher(`${API_BASE}/launchpad/${launchpadId}/user/${userId}/claimable`);
+  // --- Added: Get User Farm Summary ---
+  const getFarmUserSummary = (farmId: string, userId: string) =>
+    fetcher(`${API_BASE}/farms/${farmId}/user/${userId}/summary`) as Promise<FarmUserSummary>;
+
+  // --- Added: Get Farm Events ---
+  const getFarmEvents = (farmId: string, params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/farms/${farmId}/events?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<FarmEventsResponse>;
 
   // --- Market/Trading Endpoints ---
   const getTradingPairs = (params: { limit?: number; offset?: number; status?: string } = {}) =>
     fetcher(`${API_BASE}/market/pairs?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ pairs: any[]; total: number }>;
 
-  const getOrderBook = (pairId: string, params: { limit?: number } = {}) =>
-    fetcher(`${API_BASE}/market/orderbook/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ 
-      pairId: string;
-      timestamp: number;
-      bids: Array<{ price: number; quantity: number; total?: number }>; 
-      asks: Array<{ price: number; quantity: number; total?: number }>; 
-      spread?: number;
-      spreadPercent?: number;
-      depth?: { bids: number; asks: number };
-    }>;
-
-  const getTradeHistory = (pairId: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/market/trades/${pairId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data?: any[]; trades?: any[]; pairId?: string; total?: number; limit?: number; skip?: number }>;
-
-  const getUserOrders = (userId: string, params: { pairId?: string; status?: string; limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/market/orders/${userId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data?: any[]; orders?: any[]; total?: number; limit?: number; skip?: number; userId?: string; pairId?: string }>;
-
-  const getMarketStats = (pairId: string) =>
-    fetcher(`${API_BASE}/market/stats/${pairId}`) as Promise<{ 
-      pairId: string;
-      volume24h: string; 
-      rawVolume24h: string;
-      priceChange24h: string;
-      rawPriceChange24h: string;
-      priceChange24hPercent: number;
-      currentPrice: string;
-      rawCurrentPrice: string;
-      high24h?: string;
-      rawHigh24h?: string;
-      low24h?: string;
-      rawLow24h?: string;
-      highestBid?: string;
-      rawHighestBid?: string;
-      lowestAsk?: string;
-      rawLowestAsk?: string;
-      tradeCount24h: number;
-    }>;
+  // (removed duplicate getOrderBook, getTradeHistory, getUserOrders, getMarketStats)
 
   // --- Witnesses Endpoints ---
   const getTopWitnesses = (params: { limit?: number; offset?: number } = {}) =>
@@ -411,14 +536,17 @@ export function useApiService() {
     getNftMarketListingsBySeller,
     getNftMarketListingsByCollection,
     // Market
-    getMarketPairs,
-    getMarketPairDetails,
-    getOrdersByPair,
-    getOrdersByUser,
-    getOrderDetails,
-    getTradesByPair,
-    getTradesByOrder,
-    getTradeDetails,
+  getMarketSources,
+  getTradeQuote,
+  compareLiquiditySources,
+  getMarketPairs,
+  getMarketPairDetails,
+  getOrderBook,
+  getMarketStats,
+  getTradeHistory,
+  getUserOrders,
+  // getOrderBook, getMarketStats, getTradeHistory, getUserOrders are now defined above and exported above
+  // (other unchanged)
     // Transaction
     getTransaction,
     // Events
@@ -462,11 +590,6 @@ export function useApiService() {
     getFarmPositionsByFarm,
     getFarmPosition,
     getUserFarmPositionInFarm,
-    // Launchpad
-    getLaunchpadsList,
-    getLaunchpadDetails,
-    getLaunchpadUserParticipation,
-    getLaunchpadUserClaimable,
     // Witnesses
     getTopWitnesses,
     getWitnessDetails,
@@ -474,10 +597,7 @@ export function useApiService() {
     getVotersForWitness,
     // Market/Trading
     getTradingPairs,
-    getOrderBook,
-    getTradeHistory,
-    getUserOrders,
-    getMarketStats,
+  // getOrderBook, getTradeHistory, getUserOrders, getMarketStats already defined below
     // Analytics
     getPoolAnalytics,
   };

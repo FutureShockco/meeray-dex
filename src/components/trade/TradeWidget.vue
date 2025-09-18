@@ -58,6 +58,22 @@ const orderBook = ref<{
 const recentTrades = ref<any[]>([]);
 const userOrders = ref<any[]>([]);
 
+// --- Price per token display ---
+const pricePerToken = computed(() => {
+  // For BUY: price per 1 baseToken in quoteToken (e.g., 1 TESTS in MRY)
+  // For SELL: price per 1 quoteToken in baseToken (e.g., 1 MRY in TESTS)
+  if (!appStore.orderBook) return '';
+  if (orderSide.value === 'BUY' && appStore.orderBook.asks && appStore.orderBook.asks.length > 0) {
+    // Best ask price: how much quoteToken for 1 baseToken
+    return `1 ${baseToken.value} ≈ ${appStore.orderBook.asks[0].price} ${quoteToken.value}`;
+  }
+  if (orderSide.value === 'SELL' && appStore.orderBook.bids && appStore.orderBook.bids.length > 0) {
+    // Best bid price: how much quoteToken for 1 baseToken
+    return `1 ${baseToken.value} ≈ ${appStore.orderBook.bids[0].price} ${quoteToken.value}`;
+  }
+  return '';
+});
+
 // UI state
 const loading = ref(false);
 const error = ref('');
@@ -323,7 +339,7 @@ const fetchOrderBook = async () => {
 const fetchRecentTrades = async () => {
   if (!selectedPair.value) return;
   try {
-    const response = await api.getTradeHistory(selectedPair.value, { limit: 20 });
+    const response = await api.getTradeHistory(selectedPair.value, 20);
     recentTrades.value = response.data || [];
   } catch (e: any) {
     console.error('Failed to fetch recent trades:', e);
@@ -334,7 +350,7 @@ const fetchRecentTrades = async () => {
 const fetchUserOrders = async () => {
   if (!auth.state?.username || !selectedPair.value) return;
   try {
-    const response = await api.getUserOrders(auth.state.username, { pairId: selectedPair.value });
+    const response = await api.getUserOrders(auth.state.username);
     console.log('TradeWidget - User orders response:', response);
     
     // Handle the actual API response structure
@@ -837,6 +853,10 @@ onUnmounted(() => {
             <div class="flex justify-between text-sm">
               <span>Total Value:</span>
               <span class="text-gray-900 dark:text-white">{{ orderValue }} {{ quoteToken }}</span>
+            </div>
+            <div v-if="pricePerToken" class="flex justify-between text-xs mt-1">
+              <span>Price per {{ baseToken }}:</span>
+              <span class="text-gray-900 dark:text-white">{{ pricePerToken }}</span>
             </div>
           </div>
 

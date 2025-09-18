@@ -24,7 +24,7 @@ type Tab = 'swap' | 'advanced';
 const tab = ref<Tab>('swap');
 const selectedTab = ref<'orderbook' | 'trades' | 'orders'>('orderbook');
 const tradingPairs = ref<any[]>([]);
-const orderBook = ref<{ 
+const orderBook = ref<{
   pairId?: string;
   timestamp?: number;
   bids: any[];
@@ -97,7 +97,7 @@ const handleUrlParameters = () => {
   const tokenOut = route.query.tokenOut;
   const useTrade = route.query.useTradeWidget;
   const pair = route.query.pairId;
-  
+
   if (tokenIn && typeof tokenIn === 'string') {
     urlTokenIn.value = tokenIn;
   }
@@ -110,12 +110,12 @@ const handleUrlParameters = () => {
   if (pair && typeof pair === 'string') {
     pairId.value = pair;
   }
-  
+
   // If we have both tokens, switch to swap tab
   if (urlTokenIn.value && urlTokenOut.value) {
     tab.value = 'swap';
   }
-  
+
   // If we're using trade widget, switch to advanced tab
   if (useTradeWidget.value) {
     tab.value = 'advanced';
@@ -151,7 +151,7 @@ let refreshInterval: NodeJS.Timeout;
 onMounted(async () => {
   handleUrlParameters();
   loading.value = true;
-  
+
   try {
     // Ensure tokens are loaded first
     await tokenList.fetchTokens();
@@ -204,12 +204,12 @@ onUnmounted(() => {
 const fetchUserOrders = async () => {
   if (!auth.state?.username || !selectedPair.value) return;
   try {
-    const response = await api.getUserOrders(auth.state.username, { pairId: selectedPair.value });
+    const response = await api.getUserOrders(auth.state.username);
     console.log('User orders response:', response);
-    
+
     // Handle the actual API response structure
     const orders = response.orders || response.data || [];
-    
+
     // Map the API response to match the expected format
     userOrders.value = orders.map((order: any) => {
       const pair = tradingPairs.value.find(p => p._id === order.pairId);
@@ -228,7 +228,7 @@ const fetchUserOrders = async () => {
         ...order
       };
     });
-    
+
     console.log('Processed user orders:', userOrders.value);
   } catch (e: any) {
     console.error('Failed to fetch user orders:', e);
@@ -242,7 +242,7 @@ const fetchOrderBook = async () => {
   try {
     const response = await api.getOrderBook(selectedPair.value);
     console.log('Orderbook response (now includes human-readable values):', response);
-    
+
     // API now provides both human-readable and raw values
     // Use human-readable values directly for display
     const orderbookData = {
@@ -262,10 +262,10 @@ const fetchOrderBook = async () => {
         total: parseFloat(ask.total)
       }))
     };
-    
+
     console.log('Processed orderbook for display:', orderbookData);
     orderBook.value = orderbookData;
-    
+
     // Update appStore with formatted data for components
     const appStoreOrderBook = {
       asks: orderbookData.asks.map((ask: any) => ({
@@ -345,9 +345,9 @@ const fetchTradingPairs = async () => {
 const fetchRecentTrades = async () => {
   if (!selectedPair.value) return;
   try {
-    const response = await api.getTradeHistory(selectedPair.value, { limit: 20 });
+    const response = await api.getTradeHistory(selectedPair.value, 20);
     console.log('Recent trades response:', response);
-    
+
     // Handle the actual API response structure
     if (response.trades) {
       recentTrades.value = response.trades;
@@ -358,7 +358,7 @@ const fetchRecentTrades = async () => {
     } else {
       recentTrades.value = [];
     }
-    
+
     console.log('Recent trades processed:', recentTrades.value.length, 'trades');
   } catch (e: any) {
     console.error('Failed to fetch recent trades:', e);
@@ -402,10 +402,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div v-show="tab === 'swap' && !useTradeWidget">
-        <SwapWidget 
-          :initial-token-in="urlTokenIn"
-          :initial-token-out="urlTokenOut"
-        />
+        <SwapWidget :initial-token-in="urlTokenIn" :initial-token-out="urlTokenOut" />
       </div>
       <div v-show="tab === 'advanced' || useTradeWidget">
         <TradeWidget :pair-id="pairId" />
@@ -413,7 +410,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
       <!-- Middle Column: Order Book and Chart -->
       <div class=" grid-cols-1 lg:grid-cols-1 gap-6">
         <!-- Trading Pair Selector -->
-        <div v-if="tradingPairs.length > 0" 
+        <div v-if="tradingPairs.length > 0"
           class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trading Pair</label>
           <select v-model="selectedPair"
@@ -425,11 +422,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
         </div>
 
         <!-- Enhanced Price Chart -->
-        <PoolVolumeChart 
-          :selected-pair="selectedPair"
-          :api-service="api"
-          mode="price"
-        />
+        <PoolVolumeChart :selected-pair="selectedPair"  />
 
         <!-- Market Stats -->
         <div v-if="currentPair"
@@ -439,25 +432,30 @@ const setPriceFromOrderBook = (orderPrice: string) => {
             <div class="flex justify-between">
               <span class="text-gray-500">Current Price:</span>
               <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }} {{ quoteToken }}
+                {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }} {{
+                quoteToken }}
               </span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500">24h Change:</span>
-              <span :class="(marketStats.priceChange24hPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'" class="font-semibold">
-                {{ marketStats.priceChange24hPercent ? (marketStats.priceChange24hPercent >= 0 ? '+' : '') + marketStats.priceChange24hPercent.toFixed(2) : '0.00' }}%
+              <span :class="(marketStats.priceChange24hPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'"
+                class="font-semibold">
+                {{ marketStats.priceChange24hPercent ? (marketStats.priceChange24hPercent >= 0 ? '+' : '') +
+                  marketStats.priceChange24hPercent.toFixed(2) : '0.00' }}%
               </span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500">24h Volume:</span>
               <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.volume24h ? $formatNumber(parseFloat(marketStats.volume24h)) : '0.00000000' }} {{ quoteToken }}
+                {{ marketStats.volume24h ? $formatNumber(parseFloat(marketStats.volume24h)) : '0.00000000' }} {{
+                quoteToken }}
               </span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500">Highest Bid:</span>
               <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.highestBid ? $formatNumber(parseFloat(marketStats.highestBid)) + ' ' + quoteToken : '--' }}
+                {{ marketStats.highestBid ? $formatNumber(parseFloat(marketStats.highestBid)) + ' ' + quoteToken : '--'
+                }}
               </span>
             </div>
             <div class="flex justify-between">
@@ -524,7 +522,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
                       <span class="text-red-600">{{ $formatNumber(ask.price) }}</span>
                       <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }}</span>
                       <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(ask.price * ask.quantity)
-                        }}</span>
+                      }}</span>
                     </div>
                   </div>
                 </div>
@@ -546,7 +544,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
                       <span class="text-green-600">{{ $formatNumber(bid.price) }}</span>
                       <span class="text-gray-900 dark:text-white">{{ $formatNumber(bid.quantity) }}</span>
                       <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(bid.price * bid.quantity)
-                        }}</span>
+                      }}</span>
                     </div>
                   </div>
                 </div>
@@ -566,7 +564,8 @@ const setPriceFromOrderBook = (orderPrice: string) => {
                   <span>Time</span>
                   <span>Side</span>
                 </div>
-                <div v-for="trade in recentTrades" :key="trade.id || trade._id" class="grid grid-cols-4 gap-2 text-xs p-1">
+                <div v-for="trade in recentTrades" :key="trade.id || trade._id"
+                  class="grid grid-cols-4 gap-2 text-xs p-1">
                   <span :class="trade.side === 'buy' || trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
                     {{ trade.price ? $formatNumber(parseFloat(trade.price)) : '--' }}
                   </span>
@@ -601,11 +600,11 @@ const setPriceFromOrderBook = (orderPrice: string) => {
                 <div v-for="order in userOrders" :key="order.id || order._id"
                   class="grid grid-cols-6 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
                   <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
-                    }}</span>
+                  }}</span>
                   <span :class="order.side === 'buy' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
                   <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
                   <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price) : 'Market'
-                    }}</span>
+                  }}</span>
                   <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }}</span>
                   <button @click="cancelOrder(order.id || order._id)" class="text-red-600 hover:text-red-700 text-xs">
                     Cancel

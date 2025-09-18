@@ -45,6 +45,21 @@ let previewRequestId = 0;
 
 const tokenOptions = computed(() => tokensStore.tokens);
 
+// (removed duplicate script block and moved pricePerToken into the main <script setup> block)
+
+// --- Price per token display ---
+const pricePerToken = computed(() => {
+  if (routeData.value && routeData.value.bestRoute && amountIn.value && Number(amountIn.value) > 0) {
+    const amountInNum = Number(amountIn.value);
+    const amountOutNum = Number(routeData.value.bestRoute.finalAmountOutFormatted);
+    if (amountInNum > 0 && amountOutNum > 0) {
+      const price = amountInNum / amountOutNum;
+      return `1 ${toToken.value} ≈ ${price.toFixed(8)} ${fromToken.value}`;
+    }
+  }
+  return '';
+});
+
 // Initialize tokens from props if available
 onMounted(() => {
   if (props.initialTokenIn && !fromToken.value) {
@@ -246,6 +261,9 @@ function switchTokens() {
   }
 }
 
+
+// Expose computed to template
+defineExpose({ pricePerToken });
 </script>
 
 <template>
@@ -293,6 +311,7 @@ function switchTokens() {
             <input v-model="amountIn" type="number" min="0" step="any" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base" placeholder="Amount to swap" />
           </div>
         </div>
+        <div v-if="pricePerToken" class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ pricePerToken }}</div>
         <div v-if="previewLoading" class="text-primary-400 font-semibold mt-2">Previewing...</div>
         <div v-if="previewError" class="text-red-500 text-sm mt-2">{{ previewError }}</div>
         

@@ -270,7 +270,7 @@ function getPoolPairId(): string {
         <!-- Volume Chart -->
 
         <div>
-          <PoolVolumeChart :poolId="poolId" :marketStats="marketStats" />
+          <PoolVolumeChart :selectedPair="poolId.replace('_', '-') " />
         </div>
         <!-- Transactions Table -->
         <div>
