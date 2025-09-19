@@ -27,8 +27,8 @@ const hasVoted = (witnessName: string) => {
 };
 
 // Fetch witnesses data
-const fetchWitnesses = async () => {
-  loading.value = true;
+const fetchWitnesses = async (firstLoad: boolean) => {
+  loading.value = firstLoad;
   error.value = '';
   try {
     const response = await api.getTopWitnesses();
@@ -51,7 +51,7 @@ const voteCustomWitness = async () => {
     alert('Please enter a witness name');
     return;
   }
-  
+
   if (!auth.state?.username) {
     alert('Please login to vote for witnesses');
     return;
@@ -77,13 +77,13 @@ const voteCustomWitness = async () => {
 
     // Refresh account data to update voted witnesses
     await meeray.refreshAccount();
-    
+
     // Optionally refresh witnesses list to update vote counts
-    await fetchWitnesses();
-    
+    await fetchWitnesses(false);
+
     // Clear the input field on success
     customWitnessName.value = '';
-    
+
     alert(`Successfully voted for witness: ${witnessName}`);
   } catch (e: any) {
     error.value = e?.message || 'Failed to vote for witness';
@@ -120,9 +120,9 @@ const voteWitness = async (witnessName: string) => {
 
     // Refresh account data to update voted witnesses
     await meeray.refreshAccount();
-    
+
     // Optionally refresh witnesses list to update vote counts
-    await fetchWitnesses();
+    await fetchWitnesses(false);
   } catch (e: any) {
     error.value = e?.message || 'Failed to vote for witness';
     alert(error.value);
@@ -158,9 +158,9 @@ const unvoteWitness = async (witnessName: string) => {
 
     // Refresh account data to update voted witnesses
     await meeray.refreshAccount();
-    
+
     // Optionally refresh witnesses list to update vote counts
-    await fetchWitnesses();
+    await fetchWitnesses(false);
   } catch (e: any) {
     error.value = e?.message || 'Failed to unvote witness';
     alert(error.value);
@@ -176,14 +176,14 @@ const formatVoteWeight = (voteWeight: any) => {
 };
 
 onMounted(() => {
-  fetchWitnesses();
+  fetchWitnesses(true);
   // Refresh account data to get current voted witnesses
   if (auth.state?.username) {
     meeray.refreshAccount();
   }
   // Set interval to fetch witnesses every 5 seconds
   intervalId = setInterval(() => {
-    fetchWitnesses();
+    fetchWitnesses(false);
   }, 6000);
 });
 
@@ -204,34 +204,39 @@ onUnmounted(() => {
           MeeRay Network <span class="text-primary-500">Witnesses</span>
         </h1>
         <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          Vote for witnesses who secure and validate the Steem sidechain network. 
+          Vote for witnesses who secure and validate the Steem sidechain network.
           Your votes help determine which witnesses produce blocks and maintain the network.
         </p>
       </div>
 
       <!-- Stats Overview -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="rounded-xl shadow-lg p-6 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-center">
+        <div
+          class="rounded-xl shadow-lg p-6 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-center">
           <div class="text-3xl mb-3">👥</div>
           <div class="text-2xl font-bold text-primary-500 mb-1">{{ witnesses.length }}</div>
           <div class="text-gray-700 dark:text-gray-300 text-sm font-medium">Active Witnesses</div>
         </div>
-        <div class="rounded-xl shadow-lg p-6 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-center">
+        <div
+          class="rounded-xl shadow-lg p-6 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-center">
           <div class="text-3xl mb-3">🗳️</div>
           <div class="text-2xl font-bold text-primary-500 mb-1">{{ userVotedWitnesses.length }}</div>
           <div class="text-gray-700 dark:text-gray-300 text-sm font-medium">Your Votes</div>
         </div>
-        <div class="rounded-xl shadow-lg p-6 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-center">
+        <div
+          class="rounded-xl shadow-lg p-6 border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-center">
           <div class="text-3xl mb-3">⚡</div>
           <div class="text-2xl font-bold text-primary-500 mb-1">
-            {{ witnesses.reduce((sum, w) => sum + parseFloat(w.totalVoteWeight?.amount || '0'), 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
+            {{witnesses.reduce((sum, w) => sum + parseFloat(w.totalVoteWeight?.amount || '0'),
+              0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
           </div>
           <div class="text-gray-700 dark:text-gray-300 text-sm font-medium">Total Vote Weight</div>
         </div>
       </div>
 
       <!-- Error Message -->
-      <div v-if="error" class="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
+      <div v-if="error"
+        class="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
         <div class="text-red-800 dark:text-red-200">{{ error }}</div>
       </div>
 
@@ -239,22 +244,17 @@ onUnmounted(() => {
       <div class="mb-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg p-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Vote for Any Witness</h2>
         <p class="text-gray-600 dark:text-gray-300 mb-6">
-          Enter a witness name to vote for them, even if they're not listed below. This is useful for new witnesses or those not yet in the top rankings.
+          Enter a witness name to vote for them, even if they're not listed below. This is useful for new witnesses or
+          those not yet in the top rankings.
         </p>
-        
+
         <div class="flex flex-col sm:flex-row gap-4">
           <div class="flex-grow">
-            <input
-              v-model="customWitnessName"
-              type="text"
-              placeholder="Enter witness name (e.g., witness-name)"
+            <input v-model="customWitnessName" type="text" placeholder="Enter witness name (e.g., witness-name)"
               class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              :disabled="customVoteLoading || !auth.state?.username"
-              @keydown.enter="voteCustomWitness"
-            />
+              :disabled="customVoteLoading || !auth.state?.username" @keydown.enter="voteCustomWitness" />
           </div>
-          <button
-            @click="voteCustomWitness"
+          <button @click="voteCustomWitness"
             :disabled="!customWitnessName.trim() || customVoteLoading || !auth.state?.username"
             class="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium whitespace-nowrap min-w-[120px]">
             <span v-if="customVoteLoading">
@@ -263,7 +263,7 @@ onUnmounted(() => {
             <span v-else>Vote Witness</span>
           </button>
         </div>
-        
+
         <div v-if="!auth.state?.username" class="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Please login to vote for witnesses
         </div>
@@ -278,15 +278,16 @@ onUnmounted(() => {
       <!-- Witnesses List -->
       <div v-else class="space-y-4">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Top Witnesses</h2>
-        
+
         <div v-for="(witness, index) in witnesses" :key="witness.name"
           class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 hover:shadow-xl transition-shadow">
-          
+
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-6">
               <!-- Rank -->
               <div class="flex-shrink-0">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md">
+                <div
+                  class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md">
                   <span class="text-white font-bold text-lg">#{{ index + 1 }}</span>
                 </div>
               </div>
@@ -316,7 +317,7 @@ onUnmounted(() => {
                     </span>
                   </div>
                 </div>
-                
+
                 <!-- Public Key -->
                 <div class="mt-3">
                   <span class="text-gray-500 dark:text-gray-400 text-sm">Public Key:</span>
@@ -329,9 +330,7 @@ onUnmounted(() => {
 
             <!-- Vote Button -->
             <div class="flex-shrink-0 ml-6">
-              <button
-                v-if="!hasVoted(witness.name)"
-                @click="voteWitness(witness.name)"
+              <button v-if="!hasVoted(witness.name)" @click="voteWitness(witness.name)"
                 :disabled="votingLoading.has(witness.name) || !auth.state?.username"
                 class="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium min-w-[100px]">
                 <span v-if="votingLoading.has(witness.name)">
@@ -339,11 +338,8 @@ onUnmounted(() => {
                 </span>
                 <span v-else>Vote</span>
               </button>
-              
-              <button
-                v-else
-                @click="unvoteWitness(witness.name)"
-                :disabled="votingLoading.has(witness.name)"
+
+              <button v-else @click="unvoteWitness(witness.name)" :disabled="votingLoading.has(witness.name)"
                 class="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium min-w-[100px]">
                 <span v-if="votingLoading.has(witness.name)">
                   <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div>
@@ -356,7 +352,9 @@ onUnmounted(() => {
           <!-- Voted Indicator -->
           <div v-if="hasVoted(witness.name)" class="mt-4 flex items-center gap-2 text-green-600 dark:text-green-400">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clip-rule="evenodd" />
             </svg>
             <span class="font-medium">You voted for this witness</span>
           </div>
@@ -371,10 +369,12 @@ onUnmounted(() => {
       </div>
 
       <!-- Login Prompt -->
-      <div v-if="!auth.state?.username" class="mt-8 p-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl text-center">
+      <div v-if="!auth.state?.username"
+        class="mt-8 p-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl text-center">
         <div class="text-3xl mb-3">🔐</div>
         <h3 class="text-xl font-bold text-blue-900 dark:text-blue-100 mb-2">Login Required</h3>
-        <p class="text-blue-700 dark:text-blue-300">Please login to vote for witnesses and participate in network governance.</p>
+        <p class="text-blue-700 dark:text-blue-300">Please login to vote for witnesses and participate in network
+          governance.</p>
       </div>
     </div>
   </div>
