@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useApiService } from '../composables/useApiService';
@@ -40,6 +40,9 @@ const fetchWitnesses = async () => {
     loading.value = false;
   }
 };
+
+// Interval for auto-refresh
+let intervalId: ReturnType<typeof setInterval> | null = null;
 
 // Vote for a custom witness by name
 const voteCustomWitness = async () => {
@@ -177,6 +180,17 @@ onMounted(() => {
   // Refresh account data to get current voted witnesses
   if (auth.state?.username) {
     meeray.refreshAccount();
+  }
+  // Set interval to fetch witnesses every 5 seconds
+  intervalId = setInterval(() => {
+    fetchWitnesses();
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
   }
 });
 </script>
