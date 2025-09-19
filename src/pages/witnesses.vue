@@ -184,7 +184,7 @@ onMounted(() => {
   // Set interval to fetch witnesses every 5 seconds
   intervalId = setInterval(() => {
     fetchWitnesses();
-  }, 5000);
+  }, 6000);
 });
 
 onUnmounted(() => {
