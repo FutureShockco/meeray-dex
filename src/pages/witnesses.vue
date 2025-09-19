@@ -178,9 +178,10 @@ const formatVoteWeight = (voteWeight: any) => {
 onMounted(() => {
   fetchWitnesses(true);
   // Refresh account data to get current voted witnesses
-  if (auth.state?.username) {
-    meeray.refreshAccount();
-  }
+  setTimeout(() => {
+      meeray.refreshAccount();
+  }, 500);
+
   // Set interval to fetch witnesses every 5 seconds
   intervalId = setInterval(() => {
     fetchWitnesses(false);
@@ -228,7 +229,7 @@ onUnmounted(() => {
           <div class="text-3xl mb-3">⚡</div>
           <div class="text-2xl font-bold text-primary-500 mb-1">
             {{witnesses.reduce((sum, w) => sum + parseFloat(w.totalVoteWeight?.amount || '0'),
-              0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
+              0).toLocaleString(undefined, { maximumFractionDigits: 2 })}}
           </div>
           <div class="text-gray-700 dark:text-gray-300 text-sm font-medium">Total Vote Weight</div>
         </div>
@@ -282,13 +283,13 @@ onUnmounted(() => {
         <div v-for="(witness, index) in witnesses" :key="witness.name"
           class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg p-6 hover:shadow-xl transition-shadow">
 
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-6">
+          <div class="flex justify-between">
+            <div class="flex gap-6">
               <!-- Rank -->
               <div class="flex-shrink-0">
                 <div
-                  class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md">
-                  <span class="text-white font-bold text-lg">#{{ index + 1 }}</span>
+                  class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md">
+                  <span class="text-white font-bold text-lg">{{ index + 1 }}</span>
                 </div>
               </div>
 
@@ -322,7 +323,7 @@ onUnmounted(() => {
                 <div class="mt-3">
                   <span class="text-gray-500 dark:text-gray-400 text-sm">Public Key:</span>
                   <code class="ml-2 px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono">
-                    {{ witness.witnessPublicKey }}
+                    {{ witness.witnessPublicKey.substring(0, 5) }}...{{ witness.witnessPublicKey.slice(-5) }}
                   </code>
                 </div>
               </div>
