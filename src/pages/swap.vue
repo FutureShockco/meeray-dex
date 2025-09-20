@@ -417,11 +417,14 @@ function handleQuickSwapClick() {
 function handleAdvancedClick() {
   tab.value = 'advanced';
   useTradeWidget.value = true;
-  pairId.value = selectedPair.value;
-  router.replace({
-    path: route.path,
-    query: { useTradeWidget: 'true', pairId: pairId.value }
-  });
+  const pair = tradingPairs.value.find(p => p._id === selectedPair.value);
+  if (pair) {
+    pairId.value = selectedPair.value;
+    router.replace({
+      path: route.path,
+      query: { useTradeWidget: 'true', pairId: pairId.value }
+    });
+  }
 }
 
 </script>
