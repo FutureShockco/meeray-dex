@@ -9,13 +9,14 @@ import { useAppStore } from '../../stores/appStore';
 import BigNumber from 'bignumber.js';
 
 // Props
-interface Props {
-  pairId?: string;
-}
 
-const props = withDefaults(defineProps<Props>(), {
-  pairId: ''
+// Props for v-model:selected-pair and tradingPairs
+const props = defineProps({
+  tradingPairs: { type: Array, default: () => [] },
+  selectedPair: { type: String, default: '' },
 });
+
+const emit = defineEmits(['update:selectedPair']);
 
 const route = useRoute();
 
@@ -33,10 +34,24 @@ function getStringParam(val: any): string {
 }
 
 // Get pairId from props or URL parameter
-const pairIdFromUrl = computed(() => props.pairId || getStringParam(route.query.pairId) || getStringParam(route.params.pairId));
+const pairIdFromUrl = computed(() => props.selectedPair || getStringParam(route.query.pairId) || getStringParam(route.params.pairId));
 
 // Trading state
-const selectedPair = ref<string>('');
+const selectedPair = ref<string>(props.selectedPair);
+
+// Sync selectedPair with prop
+watch(() => props.selectedPair, (newVal) => {
+  if (newVal && newVal !== selectedPair.value) {
+    selectedPair.value = newVal;
+  }
+});
+
+// Emit when changed internally
+watch(selectedPair, (newVal) => {
+  if (newVal && newVal !== props.selectedPair) {
+    emit('update:selectedPair', newVal);
+  }
+});
 const baseToken = ref<string>('MRY');
 const quoteToken = ref<string>('STEEM');
 const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
@@ -757,8 +772,9 @@ onUnmounted(() => {
           <div class="text-xs text-gray-500 mb-2">
             Debug: {{ tradingPairs.length }} pairs loaded, selected: {{ selectedPair }}
           </div>
+          <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Select pair</label>
           <select v-model="selectedPair"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition pr-10">
             <option value="">Select pair...</option>
             <option v-for="pair in tradingPairs" :key="pair._id" :value="pair._id">
               {{ pair.baseAssetSymbol }}/{{ pair.quoteAssetSymbol }}
@@ -785,9 +801,9 @@ onUnmounted(() => {
 
           <!-- Order Type -->
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trade Type</label>
+            <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Trade Type</label>
             <select v-model="orderType"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+              class="form-select w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition pr-10">
               <option value="LIMIT">Limit Trade (target price)</option>
               <option value="MARKET">Market Trade (immediate)</option>
             </select>
@@ -804,7 +820,7 @@ onUnmounted(() => {
 
           <!-- Price (for LIMIT orders) -->
           <div v-if="orderType === 'LIMIT'" class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">
               Target Price ({{ quoteToken }})
             </label>
             <div class="flex gap-2">
@@ -823,7 +839,7 @@ onUnmounted(() => {
           <!-- Quantity -->
           <div class="mb-4">
             <div class="flex justify-between items-center mb-2">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">
                 Quantity ({{ baseToken }})
               </label>
               <button @click="setMaxQuantity" class="text-xs text-primary-500 hover:text-primary-600">

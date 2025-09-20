@@ -9,7 +9,7 @@ import { useAppStore } from '../stores/appStore';
 import SwapWidget from '../components/trade/SwapWidget.vue';
 import TradeWidget from '../components/trade/TradeWidget.vue';
 import PoolVolumeChart from '../components/PoolVolumeChart.vue';
-import BigNumber from 'bignumber.js';
+import router from '../router';
 
 const route = useRoute();
 
@@ -37,7 +37,7 @@ const recentTrades = ref<any[]>([]);
 const userOrders = ref<any[]>([]);
 const marketStats = ref<any>({});
 
-// Trading state
+// Trading state (shared)
 const selectedPair = ref<string>('');
 const baseToken = ref<string>('MRY');
 const quoteToken = ref<string>('STEEM');
@@ -45,6 +45,13 @@ const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
 const orderSide = ref<'BUY' | 'SELL'>('BUY');
 const price = ref<string>('');
 const quantity = ref<string>('');
+
+// Handler to update selectedPair from child widgets
+function handlePairChange(newPairId: string) {
+  if (newPairId && newPairId !== selectedPair.value) {
+    selectedPair.value = newPairId;
+  }
+}
 
 // URL parameters for swap
 const urlTokenIn = ref<string>('');
@@ -95,6 +102,7 @@ const cancelOrder = async (orderId: string) => {
 const handleUrlParameters = () => {
   const tokenIn = route.query.tokenIn;
   const tokenOut = route.query.tokenOut;
+  selectedPair.value = tokenIn + '-' + tokenOut;
   const useTrade = route.query.useTradeWidget;
   const pair = route.query.pairId;
 
@@ -130,10 +138,16 @@ watch(selectedPair, async (newPairId) => {
   if (newPairId) {
     const pair = tradingPairs.value.find(p => p._id === newPairId);
     if (pair) {
+      router.replace({
+        path: route.path,
+        query: { ...route.query, tokenIn: pair.baseAssetSymbol, tokenOut: pair.quoteAssetSymbol }
+      });
       baseToken.value = pair.baseAssetSymbol;
       quoteToken.value = pair.quoteAssetSymbol;
       // Reset market stats to ensure clean state
       marketStats.value = {};
+      // Update pairId for TradeWidget
+      pairId.value = newPairId;
       // Refresh data for new pair
       await Promise.all([
         fetchOrderBook(),
@@ -382,47 +396,67 @@ const fetchMarketStats = async () => {
 const setPriceFromOrderBook = (orderPrice: string) => {
   price.value = orderPrice;
 };
+
+
+function handleQuickSwapClick() {
+  tab.value = 'swap';
+  useTradeWidget.value = false;
+  const pair = tradingPairs.value.find(p => p._id === selectedPair.value);
+  if (pair) {
+    urlTokenIn.value = pair.baseAssetSymbol;
+    urlTokenOut.value = pair.quoteAssetSymbol;
+    // Remove useTradeWidget and pairId from query if present
+    const { useTradeWidget, pairId, ...rest } = route.query;
+    router.replace({
+      path: route.path,
+      query: { tokenIn: pair.baseAssetSymbol, tokenOut: pair.quoteAssetSymbol }
+    });
+  }
+}
+
+function handleAdvancedClick() {
+  tab.value = 'advanced';
+  useTradeWidget.value = true;
+  pairId.value = selectedPair.value;
+  router.replace({
+    path: route.path,
+    query: { useTradeWidget: 'true', pairId: pairId.value }
+  });
+}
+
 </script>
+
+
 
 <template>
   <div class="min-h-screen md:px-0 container mx-auto mt-16 max-w-6xl py-8">
     <div class="mb-6 text-center">
       <div class="inline-flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-        <button @click="tab = 'swap'"
+        <button @click="handleQuickSwapClick"
           :class="['px-4 py-2 text-sm font-medium', tab === 'swap' ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300']">
           Quick Swap
         </button>
-        <button @click="tab = 'advanced'"
+        <button @click="handleAdvancedClick"
           :class="['px-4 py-2 text-sm font-medium', tab === 'advanced' ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300']">
           Advanced
         </button>
-
       </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div v-show="tab === 'swap' && !useTradeWidget">
-        <SwapWidget :initial-token-in="urlTokenIn" :initial-token-out="urlTokenOut" />
+        <SwapWidget :trading-pairs="tradingPairs" v-model:selected-pair="selectedPair"
+          @update:selected-pair="handlePairChange" />
       </div>
       <div v-show="tab === 'advanced' || useTradeWidget">
-        <TradeWidget :pair-id="pairId" />
+        <TradeWidget :trading-pairs="tradingPairs" v-model:selected-pair="selectedPair"
+          @update:selected-pair="handlePairChange" />
       </div>
       <!-- Middle Column: Order Book and Chart -->
       <div class=" grid-cols-1 lg:grid-cols-1 gap-6">
-        <!-- Trading Pair Selector -->
-        <div v-if="tradingPairs.length > 0"
-          class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trading Pair</label>
-          <select v-model="selectedPair"
-            class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-            <option v-for="pair in tradingPairs" :key="pair._id" :value="pair._id">
-              {{ pair.baseAssetSymbol }}/{{ pair.quoteAssetSymbol }}
-            </option>
-          </select>
-        </div>
 
         <!-- Enhanced Price Chart -->
-        <PoolVolumeChart :selected-pair="selectedPair"  />
+        <PoolVolumeChart v-if="currentPair" :selected-pair="selectedPair" />
 
         <!-- Market Stats -->
         <div v-if="currentPair"
@@ -433,7 +467,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
               <span class="text-gray-500">Current Price:</span>
               <span class="text-gray-900 dark:text-white font-mono">
                 {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }} {{
-                quoteToken }}
+                  quoteToken }}
               </span>
             </div>
             <div class="flex justify-between">
@@ -448,7 +482,7 @@ const setPriceFromOrderBook = (orderPrice: string) => {
               <span class="text-gray-500">24h Volume:</span>
               <span class="text-gray-900 dark:text-white font-mono">
                 {{ marketStats.volume24h ? $formatNumber(parseFloat(marketStats.volume24h)) : '0.00000000' }} {{
-                quoteToken }}
+                  quoteToken }}
               </span>
             </div>
             <div class="flex justify-between">

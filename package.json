@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/forms": "^0.5.10",
     "bignumber.js": "^9.3.1",
     "chart.js": "^4.5.0",
     "dsteem": "^0.11.3",
