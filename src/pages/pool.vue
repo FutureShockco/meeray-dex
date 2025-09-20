@@ -7,12 +7,13 @@ import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import BigNumber from 'bignumber.js';
+import { createTokenHelpers } from '../utils/tokenHelpers';
 
 const route = useRoute();
 const api = useApiService();
 const coinPrices = useCoinPricesStore();
 const tokenList = useTokenListStore();
-
+const tokenHelpers = createTokenHelpers();
 function getStringParam(val: any): string {
   if (Array.isArray(val)) return val[0] || '';
   return typeof val === 'string' ? val : '';
@@ -37,12 +38,12 @@ onMounted(async () => {
     }
 
     pool.value = await api.getPoolDetails(poolId.value);
-    
+
     // Fetch market stats for the pool
     if (pool.value) {
       await fetchMarketStats();
     }
-    
+
     // Fetch pool events after pool details are loaded
     await fetchPoolEvents();
   } catch (e) {
@@ -177,13 +178,13 @@ const tokenUsdPriceMap = computed(() => {
 
 function getTvlUsd(pool: any) {
   if (!pool) return '--';
-  
+
   // Try to use market stats TVL first if available
   if (marketStats.value?.tvl) {
     const tvl = parseFloat(marketStats.value.tvl);
     return tvl > 0 ? `$${tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '--';
   }
-  
+
   // Fallback to calculated TVL
   const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
   const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
@@ -249,7 +250,10 @@ function getPoolPairId(): string {
       <div class="lg:col-span-2 flex flex-col gap-8">
         <div class="flex items-center justify-between gap-6 mb-6">
           <div class="flex items-center gap-2">
-            <span class="font-bold text-2xl text-gray-900 dark:text-white">{{ poolName }}</span>
+            <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol })"
+              :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol })" /> <span
+              class="font-bold text-2xl text-gray-900 dark:text-white">{{ poolName }}</span>
+
           </div>
           <div class="flex gap-3">
             <router-link v-if="pool"
@@ -333,9 +337,10 @@ function getPoolPairId(): string {
         <!-- Stats Card -->
         <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 mb-4">
           <div class="text-gray-500 dark:text-gray-400 text-xs mb-3">Pool Stats</div>
-          
+
           <!-- Pool balances -->
           <div v-if="pool" class="mb-3">
+
             <span class="font-semibold text-gray-900 dark:text-white">Pool balances</span>
             <div class="flex gap-1 mt-2">
               <span class="font-mono text-gray-900 dark:text-white">{{ token0Balance }} {{ pool.tokenA_symbol }} -
@@ -343,17 +348,17 @@ function getPoolPairId(): string {
               <span class="font-mono text-gray-900 dark:text-white">{{ token1Balance }} {{ pool.tokenB_symbol }}</span>
             </div>
           </div>
-          
+
           <!-- TVL -->
           <div class="mb-3 flex items-center justify-between">
             <span class="font-semibold text-gray-900 dark:text-white">TVL:</span>
             <span class="font-bold text-gray-900 dark:text-white">{{ getTvlUsd(pool) }}</span>
           </div>
-          
+
           <!-- Market Stats from API -->
           <div v-if="marketStats" class="space-y-2 mb-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <div class="text-gray-500 dark:text-gray-400 text-xs mb-2">24h Market Data</div>
-            
+
             <!-- 24h Volume -->
             <div v-if="marketStats.volume24h" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Volume:</span>
@@ -361,20 +366,21 @@ function getPoolPairId(): string {
                 ${{ parseFloat(marketStats.volume24h).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
               </span>
             </div>
-            
+
             <!-- 24h Price Change -->
             <div v-if="marketStats.priceChange24hPercent !== undefined" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Price Change:</span>
               <span :class="[
                 'font-semibold',
-                marketStats.priceChange24hPercent >= 0 
-                  ? 'text-green-600 dark:text-green-400' 
+                marketStats.priceChange24hPercent >= 0
+                  ? 'text-green-600 dark:text-green-400'
                   : 'text-red-600 dark:text-red-400'
               ]">
-                {{ marketStats.priceChange24hPercent >= 0 ? '+' : '' }}{{ marketStats.priceChange24hPercent.toFixed(2) }}%
+                {{ marketStats.priceChange24hPercent >= 0 ? '+' : '' }}{{ marketStats.priceChange24hPercent.toFixed(2)
+                }}%
               </span>
             </div>
-            
+
             <!-- Trade Count -->
             <div v-if="marketStats.tradeCount24h" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Trades:</span>
@@ -382,7 +388,7 @@ function getPoolPairId(): string {
                 {{ marketStats.tradeCount24h.toLocaleString() }}
               </span>
             </div>
-            
+
             <!-- Current Price -->
             <div v-if="marketStats.currentPrice" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Current Price:</span>
@@ -391,7 +397,7 @@ function getPoolPairId(): string {
               </span>
             </div>
           </div>
-          
+
           <!-- Fee Growth Global fields -->
           <div class="pt-3 border-t border-gray-200 dark:border-gray-700">
             <div v-if="pool && pool.feeGrowthGlobalA" class="mb-1 flex items-center justify-between">
@@ -407,9 +413,10 @@ function getPoolPairId(): string {
               </span>
             </div>
           </div>
-          
+
           <!-- 24h Fees fields -->
-          <div v-if="pool && (pool.fees24hA || pool.fees24hB)" class="pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div v-if="pool && (pool.fees24hA || pool.fees24hB)"
+            class="pt-3 border-t border-gray-200 dark:border-gray-700">
             <div class="text-gray-500 dark:text-gray-400 text-xs mb-2">24h Fees Collected</div>
             <div v-if="pool.fees24hA" class="mb-1 flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">{{ pool.tokenA_symbol }}:</span>

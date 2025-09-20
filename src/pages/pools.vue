@@ -478,9 +478,9 @@ function addTestLpPosition() {
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                       <!-- Pool Icon -->
-                      <div
-                        class="w-10 h-10 bg-gradient-to-r from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {{ position.tokenA?.[0] || '?' }}{{ position.tokenB?.[0] || '?' }}
+                      <div class="flex text-white font-bold text-sm">
+                        <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: position.tokenA })"
+                          :src2="tokenHelpers.getTokenIcon({ symbol: position.tokenB })" />
                       </div>
 
                       <!-- Pool Info -->
@@ -654,8 +654,9 @@ function addTestLpPosition() {
             <div class="flex-1">
               <div class="flex items-center gap-2 mb-1">
                 <div
-                  class="w-6 h-6 bg-gradient-to-r from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                  {{ pool.tokenA_symbol?.[0] || '?' }}{{ pool.tokenB_symbol?.[0] || '?' }}
+                  class="flex items-center justify-center text-white font-bold text-xs">
+                  <PairIcon :size="8" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol })"
+                    :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol })" />
                 </div>
                 <div class="font-semibold text-gray-900 dark:text-white text-sm">
                   {{ pool.name || `${pool.tokenA_symbol || '?'} / ${pool.tokenB_symbol || '?'}` }}

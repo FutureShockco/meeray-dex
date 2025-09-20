@@ -1,7 +1,7 @@
 <template>
   <div class="flex items-center">
-    <img class="w-8 h-8 min-w-8 min-h-8 rounded-full" :src="currentSrc" @error="onError" :alt="alt">
-    <img class="w-8 h-8 min-w-8 min-h-8 rounded-full -ml-2" :src="currentSrc2" @error="onError2" :alt="alt">
+    <img :class="'w-' + size, 'h-' + size" class="min-w-8 min-h-8 rounded-full" :src="currentSrc" @error="onError" :alt="alt">
+    <img :class="'w-' + size, 'h-' + size" class="min-w-8 min-h-8 rounded-full -ml-2" :src="currentSrc2" @error="onError2" :alt="alt">
   </div>
 </template>
 
@@ -12,7 +12,8 @@ const props = defineProps({
   src1: { type: String, required: true },
   src2: { type: String, required: true },
   fallback: { type: String, default: "/icons/na.svg" },
-  alt: { type: String, default: "" }
+  alt: { type: String, default: "" },
+  size: { type: Number, default: 8 }
 })
 
 const currentSrc = ref(props.src1)

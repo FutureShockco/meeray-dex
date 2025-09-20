@@ -4,12 +4,14 @@ import AppButton from '../components/AppButton.vue';
 import StakeModal from '../components/StakeModal.vue';
 import { useApiService } from '../composables/useApiService';
 import { useTokenListStore } from '../stores/useTokenList';
+import { createTokenHelpers } from '../utils/tokenHelpers';
 
 const api = useApiService();
 const tokenList = useTokenListStore();
 const farms = ref<any[]>([]);
 const loading = ref(false);
 const error = ref('');
+const tokenHelpers = createTokenHelpers();
 
 // Modal state
 const showStakeModal = ref(false);
@@ -21,7 +23,7 @@ const formatTokenAmount = (rawAmount: string, symbol: string) => {
   try {
     const precision = tokenList.getTokenPrecision(symbol);
     const amount = Number(rawAmount) / Math.pow(10, precision);
-    return amount.toLocaleString(undefined, { 
+    return amount.toLocaleString(undefined, {
       maximumFractionDigits: Math.min(precision, 6),
       minimumFractionDigits: 0
     });
@@ -48,12 +50,12 @@ const getTimeRemaining = (endTime: string) => {
     const end = new Date(endTime);
     const now = new Date();
     const diff = end.getTime() - now.getTime();
-    
+
     if (diff <= 0) return 'Ended';
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) return `${days}d ${hours}h`;
     return `${hours}h`;
   } catch {
@@ -78,9 +80,9 @@ const getStatusColor = (status: string) => {
 // Helper function to extract pair name from staking token
 const getPairName = (stakingToken: any) => {
   if (!stakingToken?.symbol) return 'Unknown';
-  
 
-  
+
+
   return stakingToken.symbol;
 };
 
@@ -100,13 +102,13 @@ const closeStakeModal = () => {
 const retryLoadFarms = async () => {
   loading.value = true;
   error.value = '';
-  
+
   try {
     // Ensure tokens are loaded for formatting
     if (!tokenList.tokens.length) {
       await tokenList.fetchTokens();
     }
-    
+
     const res = await api.getFarmsList();
     farms.value = Array.isArray(res.data) ? res.data : [];
   } catch (err: any) {
@@ -154,9 +156,9 @@ onMounted(async () => {
 
       <!-- Farms Grid -->
       <div v-else-if="farms.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div v-for="farm in farms" :key="farm._id" 
+        <div v-for="farm in farms" :key="farm._id"
           class="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-6 flex flex-col relative">
-          
+
           <!-- Status Badge -->
           <div class="absolute top-4 left-4">
             <span :class="['px-3 py-1 rounded-full text-white text-xs font-bold shadow', getStatusColor(farm.status)]">
@@ -165,19 +167,24 @@ onMounted(async () => {
           </div>
 
           <!-- Farm Header -->
-          <div class="mt-6 mb-4 flex flex-col items-center">
-            <div class="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center mb-3 border-4 border-primary-500">
-              <svg class="w-10 h-10 text-primary-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M8 12h8m-4-4v8"/>
-              </svg>
-            </div>
-            <div class="text-lg font-semibold text-gray-900 dark:text-white text-center">
+          <div class="mt-6 mb-4 flex flex-col items-center text-center">
+            <div v-if="farm && farm.stakingToken && getPairName(farm.stakingToken).includes('_')"
+              class="text-lg font-semibold text-gray-900 dark:text-white text-center">
+              <PairIcon class="ml-3" :size="16"
+                :src1="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken).split('_')[0] })"
+                :src2="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken).split('_')[1] })" />
               {{ farm.name || getPairName(farm.stakingToken) }}
+            </div>
+            <div v-else class="text-lg font-semibold text-gray-900 dark:text-white text-center">
+              <TokenIcon :size="16" :src="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken) }) || ''"
+                :alt="getPairName(farm.stakingToken)" />
             </div>
             <div class="text-xs text-primary-400 text-center">Stake {{ getPairName(farm.stakingToken) }}</div>
             <div class="text-xs text-gray-500 dark:text-gray-400 text-center">
-              Earn <span class="font-bold text-primary-400">{{ farm.rewardToken?.symbol || 'Unknown' }}</span>
+              Earn <span class="font-bold text-primary-400">
+                {{ farm.rewardToken?.symbol || 'Unknown' }}</span>
+              <TokenIcon :size="12" :src="tokenHelpers.getTokenIcon({ symbol: farm.rewardToken?.symbol }) || ''"
+                :alt="farm.rewardToken?.symbol" />
             </div>
           </div>
 
@@ -211,7 +218,7 @@ onMounted(async () => {
             <div class="flex justify-between items-center">
               <span class="text-xs text-gray-500 dark:text-gray-400">Stake Range:</span>
               <span class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ formatTokenAmount(farm.rawMinStakeAmount, farm.stakingToken?.symbol || 'LP') }} - 
+                {{ formatTokenAmount(farm.rawMinStakeAmount, farm.stakingToken?.symbol || 'LP') }} -
                 {{ formatTokenAmount(farm.rawMaxStakeAmount, farm.stakingToken?.symbol || 'LP') }}
               </span>
             </div>
@@ -225,7 +232,8 @@ onMounted(async () => {
             </div>
 
             <!-- Start/End Time -->
-            <div class="text-xs text-gray-500 dark:text-gray-400 text-center pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div
+              class="text-xs text-gray-500 dark:text-gray-400 text-center pt-2 border-t border-gray-200 dark:border-gray-700">
               <div>Start: {{ formatTime(farm.startTime) }}</div>
               <div>End: {{ formatTime(farm.endTime) }}</div>
             </div>
@@ -233,25 +241,15 @@ onMounted(async () => {
 
           <!-- Action Buttons -->
           <div class="mt-auto space-y-2">
-            <AppButton 
-              v-if="farm.status === 'active'" 
-              class="w-full" 
-              variant="primary" 
-              size="lg" 
-              @click="openStakeModal(farm)"
-            >
+            <AppButton v-if="farm.status === 'active'" class="w-full" variant="primary" size="lg"
+              @click="openStakeModal(farm)">
               Stake Now
             </AppButton>
-            
-            <AppButton 
-              v-else 
-              class="w-full" 
-              variant="secondary" 
-              size="lg"
-            >
+
+            <AppButton v-else class="w-full" variant="secondary" size="lg">
               {{ farm.status === 'ended' ? 'Farm Ended' : 'Coming Soon' }}
             </AppButton>
-            
+
             <!-- Additional Info -->
             <div class="text-xs text-gray-500 dark:text-gray-400 text-center">
               Farm ID: {{ farm._id?.substring(0, 20) }}...
@@ -274,10 +272,6 @@ onMounted(async () => {
     </div>
 
     <!-- Stake Modal -->
-    <StakeModal
-      :show="showStakeModal"
-      :farm="selectedFarm"
-      @close="closeStakeModal"
-    />
+    <StakeModal :show="showStakeModal" :farm="selectedFarm" @close="closeStakeModal" />
   </div>
-</template> 
+</template>
