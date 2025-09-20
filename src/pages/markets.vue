@@ -46,7 +46,6 @@ const showMintModal = ref(false);
 const mintSymbol = ref('');
 
 
-// Map of token symbol to composable result (so each token price is only fetched once)
 const tokenUsdPriceMap = computed(() => {
   const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
   for (const token of tokensStore.tokens) {
@@ -56,7 +55,6 @@ const tokenUsdPriceMap = computed(() => {
   return map;
 });
 
-// Create token helper functions
 const tokenHelpers = createTokenHelpers();
 
 function openMintModal(symbol: string) {

@@ -61,9 +61,7 @@ async function fetchPriceData() {
   error.value = '';
 
   try {
-    console.log('Fetching price data for pair:', props.selectedPair);
     const response = await api.getTradeHistory(props.selectedPair.replace('_', '-'), 50);
-    console.log('Price chart trades response:', response);
 
     // Handle different API response formats
     if (response.trades) {
@@ -76,15 +74,14 @@ async function fetchPriceData() {
       trades.value = [];
     }
 
-    console.log('Raw trades data:', trades.value.slice(0, 3)); // Log first 3 trades
 
     // Transform trades to price data points
     priceData.value = trades.value.map((trade: any, index: number) => {
+      const quoteSymbol = props.selectedPair?.split('_')[1] || 'USD';
       const price = parseFloat(trade.price);
       const volume = parseFloat(trade.volume || 0);
       const timestamp = trade.timestamp;
 
-      console.log(`Trade ${index}:`, { price, volume, timestamp, originalTrade: trade });
 
       return {
         timestamp,
@@ -94,8 +91,6 @@ async function fetchPriceData() {
       };
     });
 
-    console.log('Transformed price data:', priceData.value.slice(0, 3)); // Log first 3 transformed points
-    console.log('Price chart data processed:', priceData.value.length, 'points');
   } catch (e: any) {
     error.value = e?.message || 'Failed to fetch price data';
     console.error('Failed to fetch price data:', e);
@@ -115,8 +110,6 @@ const chartData = computed(() => {
   let data: number[] = [];
   let labels: string[] = [];
 
-  console.log('Price mode - building chart data for metric:', selectedMetric.value);
-  console.log('Price data available:', priceData.value.length, 'points');
 
   if (selectedMetric.value === 'price') {
     data = priceData.value.map((point: any) => point.price);
@@ -130,7 +123,6 @@ const chartData = computed(() => {
     labels = priceData.value.map((point: any) => new Date(point.timestamp).toLocaleString());
   }
 
-  console.log('Chart data for price mode:', { dataLength: data.length, sampleData: data.slice(0, 3) });
 
   return {
     labels,
@@ -309,7 +301,6 @@ const priceChangeDirection = computed(() => {
   const current = priceData.value[0]?.price || 0;
   const previous = priceData.value[priceData.value.length - 1]?.price || 0;
   const direction = current >= previous ? 'up' : 'down';
-  console.log('Price Direction Debug:', { current, previous, direction, priceDataLength: priceData.value.length });
   return direction;
 });
 
@@ -368,7 +359,6 @@ const svgChartData = computed(() => {
   let data: number[] = [];
   let labels: string[] = [];
 
-  console.log('Processing price data:', priceData.value.slice(0, 3)); // Log first 3 items
 
   if (selectedMetric.value === 'price') {
     data = priceData.value.map(point => point.price);

@@ -222,7 +222,6 @@ export interface FarmEventsResponse {
 const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).$fetch === 'function'
   ? (url: string) => (globalThis as any).$fetch(url)
   : async (url: string) => {
-    console.log('[ApiService] Fetching:', url);
     try {
       const res = await fetch(url);
       if (!res.ok) {
@@ -234,7 +233,6 @@ const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).
         throw new Error(`API error: ${res.status}`);
       }
       const data = await res.json();
-      console.log('[ApiService] Response data:', data);
       return data;
     } catch (error) {
       console.error('[ApiService] Fetch error:', error);

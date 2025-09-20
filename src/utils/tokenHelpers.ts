@@ -50,6 +50,11 @@ export function createTokenHelpers() {
      * Format token price with proper precision
      */
     getTokenPrice(token: any, tokenUsdPriceMap: any): number {
+
+      if (coinPricesStore.prices === undefined) return 0;
+      if (coinPricesStore.prices[token.symbol] !== undefined) {
+        return coinPricesStore.prices[token.symbol];
+      };
       if (!tokenUsdPriceMap[token.symbol]) return 0;
 
       const price = tokenUsdPriceMap[token.symbol].value;

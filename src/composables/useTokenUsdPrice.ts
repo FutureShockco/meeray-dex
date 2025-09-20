@@ -63,7 +63,6 @@ export function useTokenUsdPrice(symbol: string) {
         usdPrice.value = 0.0;
         error.value = 'No pool found for token, defaulting to 0 USD';
       }
-            console.log('Determined USD price for', symbol, ':', usdPrice.value, 'Found via pool:', found);
 
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch price';

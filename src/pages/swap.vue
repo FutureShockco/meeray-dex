@@ -10,15 +10,27 @@ import SwapWidget from '../components/trade/SwapWidget.vue';
 import TradeWidget from '../components/trade/TradeWidget.vue';
 import PoolVolumeChart from '../components/PoolVolumeChart.vue';
 import router from '../router';
+import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
+import { createTokenHelpers } from '../utils/tokenHelpers';
 
 const route = useRoute();
 
 // Store instances
 const meeray = useMeerayAccountStore();
 const api = useApiService();
-const tokenList = useTokenListStore();
+const tokensStore = useTokenListStore();
 const appStore = useAppStore();
 const auth = useAuthStore();
+const tokenHelpers = createTokenHelpers();
+
+const tokenUsdPriceMap = computed(() => {
+  const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
+  for (const token of tokensStore.tokens) {
+    console.log('Processing token for USD price:', token.symbol, useTokenUsdPrice(token.symbol));
+    if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
+  }
+  return map;
+});
 
 type Tab = 'swap' | 'advanced';
 const tab = ref<Tab>('swap');
@@ -168,8 +180,8 @@ onMounted(async () => {
 
   try {
     // Ensure tokens are loaded first
-    await tokenList.fetchTokens();
-    console.log('Tokens loaded:', tokenList.tokens.length, 'tokens');
+    await tokensStore.fetchTokens();
+    console.log('Tokens loaded:', tokensStore.tokens.length, 'tokens');
 
     await fetchTradingPairs();
 
@@ -255,7 +267,6 @@ const fetchOrderBook = async () => {
   console.log('Fetching order book for pair:', selectedPair.value);
   try {
     const response = await api.getOrderBook(selectedPair.value);
-    console.log('Orderbook response (now includes human-readable values):', response);
 
     // API now provides both human-readable and raw values
     // Use human-readable values directly for display
@@ -360,7 +371,6 @@ const fetchRecentTrades = async () => {
   if (!selectedPair.value) return;
   try {
     const response = await api.getTradeHistory(selectedPair.value, 20);
-    console.log('Recent trades response:', response);
 
     // Handle the actual API response structure
     if (response.trades) {
@@ -373,7 +383,6 @@ const fetchRecentTrades = async () => {
       recentTrades.value = [];
     }
 
-    console.log('Recent trades processed:', recentTrades.value.length, 'trades');
   } catch (e: any) {
     console.error('Failed to fetch recent trades:', e);
   }
@@ -468,8 +477,10 @@ function handleAdvancedClick() {
             <div class="flex justify-between">
               <span class="text-gray-500">Current Price:</span>
               <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }} {{
-                  quoteToken }}
+                {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }}
+                {{ quoteToken }} -
+                ${{ Number(tokenHelpers.getTokenPrice({ symbol: quoteToken }, tokenUsdPriceMap)) *
+                  Number(marketStats.currentPrice || 0) }}
               </span>
             </div>
             <div class="flex justify-between">

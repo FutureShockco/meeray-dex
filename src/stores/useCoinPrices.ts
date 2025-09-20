@@ -37,7 +37,7 @@ export const useCoinPricesStore = defineStore('coinPrices', {
         const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=${FIAT}&include_24hr_change=true&include_market_cap=true`;
         const res = await fetch(url);
         const data = await res.json();
-        // data is like { steem: { usd: 0.15, usd_24h_change: -2.34, usd_market_cap: 123456 }, ... }
+        console.log('CoinGecko price data:', data);
         this.prices = {};
         this.changes = {};
         this.marketCaps = {};
@@ -52,9 +52,9 @@ export const useCoinPricesStore = defineStore('coinPrices', {
             this.changes['TBD'] = Number(data[id]?.[`${FIAT}_24h_change`] ?? 0);
             this.marketCaps['TBD'] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
           }
-          this.prices[symbol] = Number(data[id]?.[FIAT] ?? 0);
-          this.changes[symbol] = Number(data[id]?.[`${FIAT}_24h_change`] ?? 0);
-          this.marketCaps[symbol] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
+          this.prices[symbol.toUpperCase()] = Number(data[id]?.[FIAT] ?? 0);
+          this.changes[symbol.toUpperCase()] = Number(data[id]?.[`${FIAT}_24h_change`] ?? 0);
+          this.marketCaps[symbol.toUpperCase()] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
 
         }
         console.log('Fetched coin prices:', this.prices, this.changes, this.marketCaps);

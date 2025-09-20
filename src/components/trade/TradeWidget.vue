@@ -284,71 +284,6 @@ const fetchTradingPairs = async () => {
   }
 };
 
-// Fetch order book
-const fetchOrderBook = async () => {
-  if (!selectedPair.value) return;
-  console.log('Fetching order book for pair:', selectedPair.value);
-  try {
-    const response = await api.getOrderBook(selectedPair.value);
-    console.log('Raw orderbook response:', response);
-    
-    // Get current pair data for token precision
-    const currentPairData = currentPair.value;
-    if (!currentPairData) {
-      console.warn('No current pair data available for orderbook conversion');
-      orderBook.value = response;
-      return;
-    }
-    
-    // Get token precisions
-    const baseTokenPrecision = tokenList.getTokenPrecision(currentPairData.baseAssetSymbol);
-    const quoteTokenPrecision = tokenList.getTokenPrecision(currentPairData.quoteAssetSymbol);
-    
-    console.log('Token precisions for orderbook:', {
-      baseToken: currentPairData.baseAssetSymbol,
-      basePrecision: baseTokenPrecision,
-      quoteToken: currentPairData.quoteAssetSymbol,
-      quotePrecision: quoteTokenPrecision
-    });
-    
-    // Convert raw values to human-readable format
-    const convertedResponse = {
-      ...response,
-      bids: (response.bids || []).map((bid: any) => ({
-        ...bid,
-        price: new BigNumber(bid.price).dividedBy(new BigNumber(10).pow(quoteTokenPrecision)).toNumber(),
-        quantity: new BigNumber(bid.quantity).dividedBy(new BigNumber(10).pow(baseTokenPrecision)).toNumber(),
-        total: bid.total ? new BigNumber(bid.total).dividedBy(new BigNumber(10).pow(quoteTokenPrecision + baseTokenPrecision)).toNumber() : undefined
-      })),
-      asks: (response.asks || []).map((ask: any) => ({
-        ...ask,
-        price: new BigNumber(ask.price).dividedBy(new BigNumber(10).pow(quoteTokenPrecision)).toNumber(),
-        quantity: new BigNumber(ask.quantity).dividedBy(new BigNumber(10).pow(baseTokenPrecision)).toNumber(),
-        total: ask.total ? new BigNumber(ask.total).dividedBy(new BigNumber(10).pow(quoteTokenPrecision + baseTokenPrecision)).toNumber() : undefined
-      }))
-    };
-    
-    console.log('Converted orderbook:', convertedResponse);
-    orderBook.value = convertedResponse;
-    
-    // Update appStore with converted data for OrderBook component
-    const appStoreOrderBook = {
-      asks: convertedResponse.asks.map((ask: any) => ({
-        price: ask.price.toFixed(8),
-        amount: ask.quantity.toFixed(8),
-        total: (ask.price * ask.quantity).toFixed(8)
-      })),
-      bids: convertedResponse.bids.map((bid: any) => ({
-        price: bid.price.toFixed(8),
-        amount: bid.quantity.toFixed(8),
-        total: (bid.price * bid.quantity).toFixed(8)
-      }))
-    };
-    appStore.setOrderBook(appStoreOrderBook);
-  } catch (e: any) {
-    console.error('Failed to fetch order book:', e);
-  }
-};
 
 // Fetch recent trades
 const fetchRecentTrades = async () => {
@@ -607,7 +542,7 @@ const placeOrder = async () => {
     // Clear form and refresh data
     quantity.value = '';
     if (orderType.value === 'LIMIT') price.value = '';
-    await Promise.all([fetchUserOrders(), fetchOrderBook(), fetchRecentTrades(), meeray.refreshAccount()]);
+    await Promise.all([fetchUserOrders(),  fetchRecentTrades(), meeray.refreshAccount()]);
 
   } catch (e: any) {
     error.value = e?.message || 'Failed to place order';
@@ -660,7 +595,6 @@ watch(selectedPair, (newPairId) => {
     price.value = '';
     quantity.value = '';
     // Refresh data
-    fetchOrderBook();
     fetchRecentTrades();
     fetchUserOrders();
   }
@@ -691,7 +625,6 @@ watch([quantity, orderType, orderSide], () => {
     quantityRefreshTimeout = setTimeout(() => {
       if (selectedPair.value) {
         console.log('Refreshing orderbook due to quantity/order type change');
-        fetchOrderBook();
       }
     }, 500); // 500ms debounce
   }
@@ -723,7 +656,6 @@ onMounted(async () => {
   // Set up auto-refresh
   refreshInterval = setInterval(() => {
     if (selectedPair.value) {
-      fetchOrderBook();
       fetchRecentTrades();
     }
   }, 5000);
