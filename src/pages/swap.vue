@@ -479,8 +479,8 @@ function handleAdvancedClick() {
               <span class="text-gray-900 dark:text-white font-mono">
                 {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }}
                 {{ quoteToken }} -
-                ${{ Number(tokenHelpers.getTokenPrice({ symbol: quoteToken }, tokenUsdPriceMap)) *
-                  Number(marketStats.currentPrice || 0) }}
+                ${{ $formatNumber(Number(tokenHelpers.getTokenPrice({ symbol: quoteToken }, tokenUsdPriceMap)) *
+                  Number(marketStats.currentPrice || 0), '$', '0.0000') }}
               </span>
             </div>
             <div class="flex justify-between">

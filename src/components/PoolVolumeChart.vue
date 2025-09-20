@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { Bar } from 'vue-chartjs';
 import {
   Chart as ChartJS,
   BarElement,
@@ -49,21 +48,24 @@ const hoveredBarIndex = ref<number | null>(null);
 const showBarTooltipFlag = ref(false);
 const barTooltipX = ref(0);
 const barTooltipY = ref(0);
+const quoteToken = computed(() => {
+  return props.selectedPair?.split('-')[1] || 'USD';
+});
 
-
-async function fetchPriceData() {
+async function fetchPriceData(firstLoad = false) {
   if (!props.selectedPair || !api) {
     console.log('Missing required props for price data:', { selectedPair: props.selectedPair });
     return;
   }
 
-  loading.value = true;
+  loading.value = firstLoad;
   error.value = '';
 
   try {
     const response = await api.getTradeHistory(props.selectedPair.replace('_', '-'), 50);
-
+    console.log('Fetched trade history:', response);
     // Handle different API response formats
+
     if (response.trades) {
       trades.value = response.trades;
     } else if (response.data) {
@@ -99,11 +101,24 @@ async function fetchPriceData() {
   }
 }
 
+let refreshInterval: NodeJS.Timeout;
+onMounted(async () => {
+  // Set up auto-refresh for market data
+  refreshInterval = setInterval(() => {
+    if (props.selectedPair) {
+      fetchPriceData(false);
+    }
+  }, 6000);
+});
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
+});
 
 
-// Example usage: resizeChart('600px', '400px') or resizeChart('80vw', '50vh')
-
-watch([() => props.selectedPair, () => props.selectedPair, selectedTimeframe], fetchPriceData, { immediate: true });
+watch([() => props.selectedPair, () => props.selectedPair, selectedTimeframe], () => fetchPriceData(true), { immediate: true });
 
 const chartData = computed(() => {
   // Handle price mode
@@ -146,113 +161,11 @@ const isDark = computed(() => {
   return document.documentElement.classList.contains('dark');
 });
 
-const chartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false, // Allow the chart to fill the container
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      backgroundColor: isDark.value ? '#18181b' : '#fff',
-      titleColor: isDark.value ? '#fff' : '#18181b',
-      bodyColor: isDark.value ? '#fff' : '#18181b',
-      borderColor: '#14b8a6',
-      borderWidth: 1,
-      padding: 12,
-      displayColors: false,
-      callbacks: {
-        label: (ctx: any) => {
-          const value = Number(ctx.parsed.y);
-          if (selectedMetric.value === 'price') {
-            return ` $${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
-          } else if (selectedMetric.value === 'volume') {
-            return ` $${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-          } else if (selectedMetric.value === 'trades') {
-            return ` ${value.toLocaleString()} trades`;
-          }
-
-          return ` $${value.toLocaleString()}`;
-        },
-      },
-      caretSize: 6,
-      cornerRadius: 8,
-      titleFont: { weight: 'bold' as const, size: 14 },
-      bodyFont: { weight: 'bold' as const, size: 16 },
-    },
-  },
-  scales: {
-    x: {
-      grid: { display: false },
-      ticks: {
-        color: isDark.value ? '#fff' : '#18181b',
-        font: { weight: 'bold' as const, size: 13 },
-      },
-    },
-    y: {
-      grid: { display: false },
-      ticks: {
-        color: isDark.value ? '#fff' : '#18181b',
-        font: { weight: 'bold' as const, size: 13 },
-        callback: (v: any) => {
-          const value = Number(v);
-          if (selectedMetric.value === 'price') {
-            return `$${value.toFixed(2)}`;
-          } else if (selectedMetric.value === 'volume') {
-            return value >= 1000000 ? `$${(value / 1_000_000).toFixed(1)}M` : `$${value.toLocaleString()}`;
-          } else if (selectedMetric.value === 'trades') {
-            return value.toString();
-          }
-
-          return `$${(value / 1_000_000).toFixed(1)}M`;
-        },
-        maxTicksLimit: 6,
-      },
-    },
-  },
-  animation: {
-    duration: 700,
-    easing: 'easeOutQuart' as const,
-  },
-}));
-
-
-// Helper function for time formatting
-const formatTimeAgo = (timestamp: string | number | undefined): string => {
-  if (!timestamp) return '';
-
-  try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  } catch {
-    return '';
-  }
-};
-
 const totalVolume = computed(() => {
   // Price mode - sum volumes from trades
   if (priceData.value.length === 0) return 0;
   return priceData.value.reduce((sum, trade) => sum + trade.volume, 0);
 
-});
-
-const totalFees = computed(() => {
-  if (!analytics.value) return 0;
-  if (Array.isArray(analytics.value.timeSeries) && analytics.value.timeSeries.length > 0) {
-    return analytics.value.timeSeries.reduce(
-      (sum: number, point: any) => sum + Number(point.feesA || 0) + Number(point.feesB || 0),
-      0
-    );
-  }
-  return Number(analytics.value.totalFeesA || 0) + Number(analytics.value.totalFeesB || 0);
 });
 
 // Price chart specific computed properties
@@ -271,28 +184,6 @@ const priceChange = computed(() => {
 
 const totalTrades = computed(() => {
   return trades.value.length;
-});
-
-// Line color based on recent price trend (last 3 points)
-const lineColor = computed(() => {
-  if (!priceChartData.value.length) return '#3b82f6';
-
-  if (priceChartData.value.length < 2) return '#3b82f6'; // neutral if not enough data
-
-  // Look at the trend of the most recent few points instead of overall
-  const recentPoints = priceChartData.value.slice(0, Math.min(3, priceChartData.value.length));
-  const firstRecent = recentPoints[0].value; // most recent
-  const lastRecent = recentPoints[recentPoints.length - 1].value; // oldest of recent
-
-  console.log('Line Color Debug (Recent):', {
-    firstRecent,
-    lastRecent,
-    isUp: firstRecent >= lastRecent,
-    recentPointsLength: recentPoints.length,
-    allDataLength: priceChartData.value.length
-  });
-
-  return firstRecent >= lastRecent ? '#10b981' : '#ef4444'; // green if up, red if down
 });
 
 // Price trend for dynamic coloring
@@ -346,74 +237,6 @@ const timeframeLabel = computed(() => {
     case 'year': return 'Past year';
     default: return tf?.label || '';
   }
-});
-
-// SVG Chart data transformation
-const svgChartData = computed(() => {
-
-  if (!priceData.value.length) {
-    console.log('No price data available for SVG chart');
-    return [];
-  }
-
-  let data: number[] = [];
-  let labels: string[] = [];
-
-
-  if (selectedMetric.value === 'price') {
-    data = priceData.value.map(point => point.price);
-    labels = priceData.value.map(point => {
-      const date = new Date(point.timestamp);
-      return selectedTimeframe.value === 'hour'
-        ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    });
-  } else if (selectedMetric.value === 'volume') {
-    data = priceData.value.map(point => point.volume);
-    labels = priceData.value.map(point => {
-      const date = new Date(point.timestamp);
-      return selectedTimeframe.value === 'hour'
-        ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    });
-  } else if (selectedMetric.value === 'trades') {
-    // Aggregate trades by time period
-    data = [priceData.value.length];
-    labels = ['Total Trades'];
-  }
-
-  console.log('Price mode - processed data:', { dataLength: data.length, maxValue: Math.max(...data), labels: labels.slice(0, 3) });
-
-  if (data.length === 0) {
-    console.log('No data after processing');
-    return [];
-  }
-
-  const maxValue = Math.max(...data);
-  const chartWidth = 520;
-  const chartHeight = 260;
-  const barWidth = Math.min(40, (chartWidth - 20) / data.length);
-  const spacing = data.length > 1 ? (chartWidth - (barWidth * data.length)) / Math.max(data.length - 1, 1) : 0;
-
-  const result = data.map((value, index) => {
-    const x = 60 + index * (barWidth + spacing) + barWidth / 2;
-    // Ensure minimum height for visibility
-    const normalizedHeight = maxValue > 0 ? Math.max(10, (value / maxValue) * chartHeight) : 10;
-    const y = 300 - normalizedHeight;
-
-    return {
-      x,
-      y,
-      width: barWidth,
-      value,
-      label: labels[index] || `${index + 1}`,
-      normalizedHeight
-    };
-  });
-
-  console.log('Price mode - final SVG data:', { resultLength: result.length, sampleBar: result[0] });
-  return result;
-
 });
 
 // Y-axis labels
@@ -490,51 +313,6 @@ const priceChartData = computed(() => {
   });
 });
 
-// Analytics chart data for candlestick visualization (same format as price chart)
-const analyticsChartData = computed(() => {
-  if (!svgChartData.value.length) return [];
-
-  // Convert svgChartData to the same format as priceChartData for consistent rendering
-  return svgChartData.value.map((bar, index) => {
-    const isUp = index === 0 ? true : bar.value >= (svgChartData.value[index - 1]?.value || 0);
-
-    return {
-      x: bar.x,
-      y: bar.y,
-      value: bar.value,
-      isUp,
-      label: bar.label,
-      timestamp: Date.now() - (index * 60 * 60 * 1000) // Sample timestamp
-    };
-  });
-});
-
-// Analytics area path (similar to price area path)
-const analyticsAreaPath = computed(() => {
-  if (!analyticsChartData.value.length) return '';
-
-  // Create a simple area path for analytics
-  const points = analyticsChartData.value;
-  if (points.length === 1) {
-    const point = points[0];
-    return `M ${point.x} ${point.y} L ${point.x} 300 Z`;
-  }
-
-  let path = `M ${points[0].x} ${points[0].y}`;
-
-  for (let i = 1; i < points.length; i++) {
-    const curr = points[i];
-    path += ` L ${curr.x} ${curr.y}`;
-  }
-
-  // Close the path at the bottom
-  const lastPoint = points[points.length - 1];
-  const firstPoint = points[0];
-  path += ` L ${lastPoint.x} 300 L ${firstPoint.x} 300 Z`;
-
-  return path;
-});
-
 // Smooth line path using SVG curves for price chart
 const priceLinePath = computed(() => {
   if (!priceChartData.value.length) return '';
@@ -596,16 +374,6 @@ const updateBarTooltipPosition = (event: MouseEvent) => {
   }
 };
 
-// Formatting functions
-const formatBarValue = (value: number): string => {
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
-  } else {
-    return value.toFixed(0);
-  }
-};
 
 const formatAxisValue = (value: number): string => {
   if (value >= 1_000_000) {
@@ -653,13 +421,13 @@ const getMetricColor = (variant: number = 1): string => {
           <div class="text-3xl md:text-4xl font-extrabold text-primary-500">
             <!-- Price mode display -->
             <span v-if="selectedMetric === 'price' && lastPrice">
-              ${{ lastPrice.toLocaleString(undefined, { maximumFractionDigits: 4 }) }}
+              {{ quoteToken }} {{ lastPrice.toLocaleString(undefined, { maximumFractionDigits: 4 }) }}
             </span>
             <span v-else-if="selectedMetric === 'volume'">
-              ${{ totalVolume.toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
+              {{ quoteToken }} {{ totalVolume.toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
             </span>
             <span v-else-if="selectedMetric === 'trades'">
-              {{ totalTrades.toLocaleString() }}
+              Trade {{ totalTrades.toLocaleString() }}
             </span>
             <span v-else class="text-gray-400">--</span>
             <!-- Analytics mode display -->
@@ -735,9 +503,6 @@ const getMetricColor = (variant: number = 1): string => {
             <div class="text-gray-500 dark:text-gray-400">No data available</div>
           </div>
         </div>
-
-        <!-- Chart.js Bar Chart -->
-        <Bar v-else :data="chartData" :options="chartOptions" />
 
         <div v-else
           class="relative h-full w-full bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden">
