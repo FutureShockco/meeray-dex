@@ -171,8 +171,8 @@ onMounted(async () => {
             <div v-if="farm && farm.stakingToken && getPairName(farm.stakingToken).includes('_')"
               class="text-lg font-semibold text-gray-900 dark:text-white text-center">
               <PairIcon class="ml-3" :size="16"
-                :src1="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken).split('_')[0] })"
-                :src2="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken).split('_')[1] })" />
+                :src1="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken).split('_')[0] }) || ''"
+                :src2="tokenHelpers.getTokenIcon({ symbol: getPairName(farm.stakingToken).split('_')[1] }) || ''" />
               {{ farm.name || getPairName(farm.stakingToken) }}
             </div>
             <div v-else class="text-lg font-semibold text-gray-900 dark:text-white text-center">

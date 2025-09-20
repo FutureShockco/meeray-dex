@@ -250,8 +250,8 @@ function getPoolPairId(): string {
       <div class="lg:col-span-2 flex flex-col gap-8">
         <div class="flex items-center justify-between gap-6 mb-6">
           <div class="flex items-center gap-2">
-            <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol })"
-              :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol })" /> <span
+            <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol }) || ''"
+              :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol }) || ''" /> <span
               class="font-bold text-2xl text-gray-900 dark:text-white">{{ poolName }}</span>
 
           </div>

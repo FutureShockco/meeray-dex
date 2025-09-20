@@ -479,8 +479,8 @@ function addTestLpPosition() {
                     <div class="flex items-center gap-3">
                       <!-- Pool Icon -->
                       <div class="flex text-white font-bold text-sm">
-                        <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: position.tokenA })"
-                          :src2="tokenHelpers.getTokenIcon({ symbol: position.tokenB })" />
+                        <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: position.tokenA }) || ''"
+                          :src2="tokenHelpers.getTokenIcon({ symbol: position.tokenB }) || ''" />
                       </div>
 
                       <!-- Pool Info -->
@@ -579,8 +579,8 @@ function addTestLpPosition() {
                     <router-link :to="{ path: '/pool', query: { poolId: pool.id } }"
                       class="block w-full text-inherit no-underline">
                       <div class="flex items-center gap-3">
-                        <PairIcon :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol })"
-                          :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol })" />
+                        <PairIcon :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol }) || ''"
+                          :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol }) || ''" />
                         <div>
                           <div class="font-semibold text-gray-900 dark:text-white">
                             {{ pool.name || `${pool.tokenA_symbol || '?'}/${pool.tokenB_symbol || '?'}` }}
@@ -653,10 +653,9 @@ function addTestLpPosition() {
             class="flex items-center justify-between mb-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition border border-gray-100 dark:border-gray-700">
             <div class="flex-1">
               <div class="flex items-center gap-2 mb-1">
-                <div
-                  class="flex items-center justify-center text-white font-bold text-xs">
-                  <PairIcon :size="8" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol })"
-                    :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol })" />
+                <div class="flex items-center justify-center text-white font-bold text-xs">
+                  <PairIcon :size="8" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol }) || ''"
+                    :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol }) || ''" />
                 </div>
                 <div class="font-semibold text-gray-900 dark:text-white text-sm">
                   {{ pool.name || `${pool.tokenA_symbol || '?'} / ${pool.tokenB_symbol || '?'}` }}
