@@ -1,9 +1,5 @@
 <template>
-  <img
-    :src="currentSrc"
-    @error="onError"
-    :alt="alt"
-  >
+  <img :src="currentSrc" @error="onError" :alt="alt">
 </template>
 
 <script setup>
@@ -18,7 +14,7 @@ const props = defineProps({
 const currentSrc = ref(props.src)
 
 function onError() {
-    console
+  console.log("Error loading image:", currentSrc.value);
   currentSrc.value = props.fallback
 }
 </script>

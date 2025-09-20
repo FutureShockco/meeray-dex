@@ -1,11 +1,12 @@
 import { useCoinPricesStore } from '../stores/useCoinPrices';
-
+import { useTokenListStore } from '../stores/useTokenList';
 /**
  * Factory function that creates token helper functions with store access
  * Call this inside your component setup to get the helpers
  */
 export function createTokenHelpers() {
   const coinPricesStore = useCoinPricesStore();
+  const tokenListStore = useTokenListStore();
 
   return {
     /**
@@ -22,7 +23,7 @@ export function createTokenHelpers() {
       const coingeckoCap = coinPricesStore.marketCaps[token.symbol];
       const price = tokenUsdPriceMap[token.symbol].value;
       const supply = token.supply || token.totalSupply || token.circulatingSupply || token.currentSupply;
-      console.log(  'Calculating market cap for', token.symbol, { coingeckoCap, price, supply, currentSupply: token.currentSupply });
+      console.log('Calculating market cap for', token.symbol, { coingeckoCap, price, supply, currentSupply: token.currentSupply });
       // First priority: Use CoinGecko market cap if available
       if (coingeckoCap !== undefined && coingeckoCap !== null) {
         return coingeckoCap;
@@ -93,6 +94,7 @@ export function createTokenHelpers() {
      */
     getTokenIcon(token: any): string | false {
       if (token.symbol === 'MRY') return '/icons/mry.svg';
+      if (token.symbol === 'ECH') return '/icons/mry.svg';
       if (token.symbol === 'STEEM') return '/icons/steem.svg';
       if (token.symbol === 'SBD') return '/icons/sbd.svg';
       if (token.symbol === 'TESTS') return '/icons/steem.svg';
@@ -102,8 +104,14 @@ export function createTokenHelpers() {
       if (token.symbol === 'BTC') return '/icons/btc.svg';
       if (token.symbol === 'ETH') return '/icons/eth.svg';
       if (token.symbol === 'BNB') return '/icons/bnb.svg';
-
-      return false;
+      if (token.symbol === 'USD') return '/icons/usd.svg';
+      tokenListStore.tokens.find(t => {
+        if (t.symbol === token.symbol && t.logoUrl) {
+          token.logoUrl = token.logoUrl.replace('http://', 'https://');
+          return token.logoUrl;
+        }
+      })
+      return '/icons/na.svg';
     },
 
     /**

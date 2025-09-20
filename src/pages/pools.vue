@@ -5,6 +5,7 @@ import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
+import { createTokenHelpers } from '../utils/tokenHelpers';
 import BigNumber from 'bignumber.js';
 
 const api = useApiService();
@@ -12,7 +13,7 @@ const pools = ref<any[]>([]);
 const marketStats = ref<Record<string, any>>({});
 const loading = ref(true);
 const error = ref('');
-
+const tokenHelpers = createTokenHelpers();
 const meeray = useMeerayAccountStore();
 const coinPrices = useCoinPricesStore();
 const tokenList = useTokenListStore();
@@ -441,7 +442,7 @@ function addTestLpPosition() {
                 <div>Has balances: {{ !!meeray.account?.balances }}</div>
                 <div>Total tokens: {{ Object.keys(meeray.account?.balances || {}).length }}</div>
                 <div>LP tokens found: {{Object.keys(meeray.account?.balances || {}).filter(s =>
-                  s.startsWith('LP_')).length }}</div>
+                  s.startsWith('LP_')).length}}</div>
                 <div v-if="Object.keys(meeray.account?.balances || {}).filter(s => s.startsWith('LP_')).length > 0">
                   LP Tokens: {{Object.keys(meeray.account?.balances || {}).filter(s => s.startsWith('LP_')).join(', ')
                   }}
@@ -578,10 +579,8 @@ function addTestLpPosition() {
                     <router-link :to="{ path: '/pool', query: { poolId: pool.id } }"
                       class="block w-full text-inherit no-underline">
                       <div class="flex items-center gap-3">
-                        <div
-                          class="w-8 h-8 bg-gradient-to-r from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                          {{ pool.tokenA_symbol?.[0] || '?' }}{{ pool.tokenB_symbol?.[0] || '?' }}
-                        </div>
+                        <PairIcon :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol })"
+                          :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol })" />
                         <div>
                           <div class="font-semibold text-gray-900 dark:text-white">
                             {{ pool.name || `${pool.tokenA_symbol || '?'}/${pool.tokenB_symbol || '?'}` }}
