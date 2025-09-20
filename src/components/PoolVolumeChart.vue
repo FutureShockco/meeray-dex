@@ -31,7 +31,7 @@ const PRICE_METRICS = [
 ];
 
 const selectedTimeframe = ref('day');
-const selectedMetric = ref('volume');
+const selectedMetric = ref('price');
 const analytics = ref<any>(null);
 const loading = ref(false);
 const error = ref('');

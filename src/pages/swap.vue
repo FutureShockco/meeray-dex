@@ -405,7 +405,6 @@ function handleQuickSwapClick() {
   if (pair) {
     urlTokenIn.value = pair.baseAssetSymbol;
     urlTokenOut.value = pair.quoteAssetSymbol;
-    // Remove useTradeWidget and pairId from query if present
     const { useTradeWidget, pairId, ...rest } = route.query;
     router.replace({
       path: route.path,
