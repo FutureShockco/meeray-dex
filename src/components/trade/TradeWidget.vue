@@ -748,7 +748,7 @@ onUnmounted(() => {
           <div class="mb-4">
             <div class="flex justify-between items-center mb-2">
               <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">
-                Quantity ({{ orderSide === 'BUY' ? quoteToken : baseToken }})
+                Quantity ({{ orderSide === 'BUY' && orderType === "MARKET" ? quoteToken : baseToken }})
               </label>
               <button @click="setMaxQuantity" class="text-xs text-primary-500 hover:text-primary-600">
                 Max
