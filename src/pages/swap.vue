@@ -331,7 +331,6 @@ const fetchTradingPairs = async () => {
         if (urlPair) {
           baseToken.value = urlPair.baseAssetSymbol;
           quoteToken.value = urlPair.quoteAssetSymbol;
-          selectedPair.value = generatePoolId(pairId.baseAssetSymbol, pairId.quoteAssetSymbol);
 
           console.log('Selected pair from URL:', selectedPair.value);
           return;
