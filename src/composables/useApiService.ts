@@ -86,7 +86,6 @@ export interface TradeQuoteResponse {
   rawAmountOut: string;
   priceImpact: number;
   routes: TradeQuoteRoute[];
-  estimatedGas: string;
   recommendation: string;
 }
 
@@ -258,7 +257,7 @@ export function useApiService() {
   const getUserOrders = (userId: string, status: string = 'active', limit: number = 20) =>
     fetcher(`${API_BASE}/market/orders/user/${userId}?status=${status}&limit=${limit}`);
 
-    // --- Config Endpoints ---
+  // --- Config Endpoints ---
   const getConfig = () => fetcher(`${API_BASE}/config/current`) as Promise<any>;
 
   // --- Account Endpoints ---
@@ -291,7 +290,7 @@ export function useApiService() {
   const getTokenHolders = (symbol: string) => fetcher(`${API_BASE}/holders/${symbol}`) as Promise<TokenHolders>;
   const getTokenDistribution = (symbol: string) => fetcher(`${API_BASE}/distribution/${symbol}`) as Promise<TokenDistribution>;
   const getTokenList = () => fetcher(`${API_BASE}/token/list`) as Promise<{ tokens: any[]; total: number }>;
-  
+
   // --- Pool Endpoints (for return object) ---
   const getPoolsList = (params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/pools?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Pool[]; total: number; limit: number; skip: number }>;
@@ -308,7 +307,17 @@ export function useApiService() {
 
   // --- Pool Endpoints ---
   // (see below for single set of pool endpoint functions)
-    fetcher(`${API_BASE}/accounts/count`) as Promise<{ count: number }>;
+  fetcher(`${API_BASE}/accounts/count`) as Promise<{ count: number }>;
+
+  // --- Trade Quote Endpoint ---
+  /**
+   * Get a trade quote (hybrid AMM + orderbook)
+   * @param tokenIn Symbol of the input token
+   * @param tokenOut Symbol of the output token
+   * @param amountIn Amount of input token (string or number)
+   * @param maxSlippagePercent Max slippage percent (number)
+   * @returns Promise<any> (API response)
+   */
 
   // --- Farm Endpoints ---
   // (see below for single set of farm endpoint functions)
@@ -538,13 +547,13 @@ export function useApiService() {
   getTradeQuote,
   compareLiquiditySources,
   getMarketPairs,
-  getMarketPairDetails,
-  getOrderBook,
-  getMarketStats,
-  getTradeHistory,
-  getUserOrders,
-  // getOrderBook, getMarketStats, getTradeHistory, getUserOrders are now defined above and exported above
-  // (other unchanged)
+    getMarketPairDetails,
+    getOrderBook,
+    getMarketStats,
+    getTradeHistory,
+    getUserOrders,
+    // getOrderBook, getMarketStats, getTradeHistory, getUserOrders are now defined above and exported above
+    // (other unchanged)
     // Transaction
     getTransaction,
     // Events
@@ -595,7 +604,7 @@ export function useApiService() {
     getVotersForWitness,
     // Market/Trading
     getTradingPairs,
-  // getOrderBook, getTradeHistory, getUserOrders, getMarketStats already defined below
+    // getOrderBook, getTradeHistory, getUserOrders, getMarketStats already defined below
     // Analytics
     getPoolAnalytics,
   };

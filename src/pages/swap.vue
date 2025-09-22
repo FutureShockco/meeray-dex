@@ -221,8 +221,7 @@ onUnmounted(() => {
 const fetchUserOrders = async () => {
   if (!auth.state?.username || !baseToken.value || !quoteToken.value) return;
   try {
-    const poolId = generatePoolId(baseToken.value, quoteToken.value);
-    const response = await api.getUserOrders(auth.state.username, poolId);
+    const response = await api.getUserOrders(auth.state.username, 'active');
     console.log('User orders response:', response);
 
     // Handle the actual API response structure
@@ -337,22 +336,13 @@ const fetchTradingPairs = async () => {
         }
       }
 
-      // Second priority: Find MRY/STEEM pair or use first available
-      const mrySteemPair = tradingPairs.value.find(p =>
-        (p.baseAssetSymbol === 'MRY' && p.quoteAssetSymbol === 'STEEM') ||
-        (p.baseAssetSymbol === 'STEEM' && p.quoteAssetSymbol === 'MRY')
-      );
-      if (mrySteemPair) {
-        selectedPair.value = mrySteemPair._id;
-        baseToken.value = mrySteemPair.baseAssetSymbol;
-        quoteToken.value = mrySteemPair.quoteAssetSymbol;
-      } else {
-        selectedPair.value = tradingPairs.value[0]._id;
-        baseToken.value = tradingPairs.value[0].baseAssetSymbol;
-        quoteToken.value = tradingPairs.value[0].quoteAssetSymbol;
-      }
-      console.log('Selected default pair:', selectedPair.value);
+
+      selectedPair.value = tradingPairs.value[0]._id;
+      baseToken.value = tradingPairs.value[0].baseAssetSymbol;
+      quoteToken.value = tradingPairs.value[0].quoteAssetSymbol;
     }
+    console.log('Selected default pair:', selectedPair.value);
+
   } catch (e: any) {
     console.error('Failed to fetch trading pairs:', e);
     error.value = e?.message || 'Failed to fetch trading pairs';
@@ -616,13 +606,13 @@ function handleAdvancedClick() {
                 <div v-for="trade in recentTrades" :key="trade.id || trade._id"
                   class="grid grid-cols-5 gap-2 text-xs p-1">
                   <span :class="trade.side === 'buy' || trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
-                    {{ trade.price ? $formatNumber(parseFloat(trade.price)) : '--' }} {{ quoteToken }}
+                    {{ trade.price ? $formatNumber(parseFloat(trade.price), null, '0,0.000') : '--' }} {{ quoteToken }}
                   </span>
                   <span class="text-gray-900 dark:text-white">
                     {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
                   </span>
                   <span class="text-gray-900 dark:text-white">
-                    {{ trade.volume ? $formatNumber(parseFloat(trade.volume)) : '--' }}
+                    {{ trade.volume ? $formatNumber(parseFloat(trade.volume)) : '--' }}  {{ quoteToken }}
                   </span>
                   <span class="text-gray-600 dark:text-gray-400">
                     {{ trade.timestamp ? $formatDate(trade.timestamp, 'HH:mm:ss') : '--' }}
@@ -655,7 +645,7 @@ function handleAdvancedClick() {
                   }}</span>
                   <span :class="order.side === 'buy' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
                   <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
-                  <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price) : 'Market'
+                  <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null, '0,0.000') : 'Market'
                   }}</span>
                   <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }}</span>
                   <button @click="cancelOrder(order.id || order._id)" class="text-red-600 hover:text-red-700 text-xs">
