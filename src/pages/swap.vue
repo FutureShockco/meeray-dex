@@ -612,7 +612,7 @@ function handleAdvancedClick() {
                     {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
                   </span>
                   <span class="text-gray-900 dark:text-white">
-                    {{ trade.volume ? $formatNumber(parseFloat(trade.volume)) : '--' }}  {{ quoteToken }}
+                    {{ trade.volume ? $formatNumber(parseFloat(trade.total)) : '--' }}  {{ quoteToken }}
                   </span>
                   <span class="text-gray-600 dark:text-gray-400">
                     {{ trade.timestamp ? $formatDate(trade.timestamp, 'HH:mm:ss') : '--' }}
