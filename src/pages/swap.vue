@@ -50,9 +50,9 @@ const userOrders = ref<any[]>([]);
 const marketStats = ref<any>({});
 
 // Trading state (shared)
-const selectedPair = ref<string>('');
-const baseToken = ref<string>('');
-const quoteToken = ref<string>('');
+const selectedPair = ref<string>('MRY_TESTS');
+const baseToken = ref<string>('MRY');
+const quoteToken = ref<string>('TESTS');
 const price = ref<string>('');
 
 // Handler to update selectedPair from child widgets
@@ -112,12 +112,12 @@ const handleUrlParameters = () => {
     quoteToken.value = selectedPair.value.split('_')[1];
     pairId.value = selectedPair.value;
   }
-  else if (route.query.useTradeWidget !== undefined) {
+  else if (route.query.useTradeWidget !== undefined && route.query.pairId) {
     tab.value = 'advanced';
     useTradeWidget.value = true;
     baseToken.value = selectedPair.value.split('_')[0];
     quoteToken.value = selectedPair.value.split('_')[1];
-    selectedPair.value = generatePoolId(baseToken.value, quoteToken.value);
+    selectedPair.value = route.query.pairId as string || selectedPair.value;
     pairId.value = selectedPair.value;
   }
 };
@@ -612,7 +612,7 @@ function handleAdvancedClick() {
                     {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
                   </span>
                   <span class="text-gray-900 dark:text-white">
-                    {{ trade.volume ? $formatNumber(parseFloat(trade.total)) : '--' }}  {{ quoteToken }}
+                    {{ trade.volume ? $formatNumber(parseFloat(trade.total)) : '--' }} {{ quoteToken }}
                   </span>
                   <span class="text-gray-600 dark:text-gray-400">
                     {{ trade.timestamp ? $formatDate(trade.timestamp, 'HH:mm:ss') : '--' }}
@@ -645,8 +645,9 @@ function handleAdvancedClick() {
                   }}</span>
                   <span :class="order.side === 'buy' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
                   <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
-                  <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null, '0,0.000') : 'Market'
-                  }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null,
+                    '0,0.000') : 'Market'
+                    }}</span>
                   <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }}</span>
                   <button @click="cancelOrder(order.id || order._id)" class="text-red-600 hover:text-red-700 text-xs">
                     Cancel

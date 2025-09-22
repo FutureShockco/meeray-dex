@@ -52,8 +52,8 @@ watch(selectedPair, (newVal) => {
     emit('update:selectedPair', newVal);
   }
 });
-const baseToken = ref<string>('');
-const quoteToken = ref<string>('');
+const baseToken = ref<string>('MRY');
+const quoteToken = ref<string>('TESTS');
 const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
 const orderSide = ref<'BUY' | 'SELL'>('BUY');
 const price = ref<string>('');
@@ -580,6 +580,7 @@ watch(selectedPair, (newPairId) => {
 watch(pairIdFromUrl, (newPairId) => {
   if (newPairId && tradingPairs.value.length > 0) {
     const urlPair = tradingPairs.value.find(p => p._id === newPairId);
+    console.log('URL pairId changed:', newPairId, 'Found pair:', urlPair);
     if (urlPair && selectedPair.value !== newPairId) {
       console.log('URL pairId changed, updating selected pair:', newPairId);
       selectedPair.value = newPairId;
@@ -684,7 +685,7 @@ onUnmounted(() => {
             class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition pr-10">
             <option value="">Select pair...</option>
             <option v-for="pair in tradingPairs" :key="pair._id" :value="pair._id">
-              {{ pair.baseAssetSymbol }}/{{ pair.quoteAssetSymbol }}
+              {{ pair.baseAssetSymbol }}_{{ pair.quoteAssetSymbol }}
             </option>
           </select>
 
