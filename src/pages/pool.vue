@@ -364,7 +364,7 @@ function getPoolPairId(): string {
             <div v-if="marketStats.volume24h" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Volume:</span>
               <span class="font-semibold text-gray-900 dark:text-white">
-                ${{ parseFloat(marketStats.volume24h).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}
+                {{ parseFloat(marketStats.volume24h).toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ pool.tokenB_symbol }}
               </span>
             </div>
 

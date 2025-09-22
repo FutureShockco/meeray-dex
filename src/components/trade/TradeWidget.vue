@@ -61,15 +61,7 @@ const quantity = ref<string>('');
 
 // Market data
 const tradingPairs = ref<any[]>([]);
-const orderBook = ref<{ 
-  pairId?: string;
-  timestamp?: number;
-  bids: any[];
-  asks: any[];
-  spread?: number;
-  spreadPercent?: number;
-  depth?: { bids: number; asks: number };
-}>({ bids: [], asks: [] });
+
 const recentTrades = ref<any[]>([]);
 const userOrders = ref<any[]>([]);
 
@@ -261,6 +253,7 @@ const fetchTradingPairs = async () => {
 
     if (tradingPairs.value.length > 0 && !selectedPair.value) {
       // First priority: Use pairId from URL if provided
+      console.log('Selecting initial trading pair. URL pairId:', pairIdFromUrl.value);
       if (pairIdFromUrl.value) {
         const urlPair = tradingPairs.value.find(p => p._id === pairIdFromUrl.value);
         if (urlPair) {
@@ -638,7 +631,6 @@ onMounted(async () => {
   try {
     // Ensure tokens are loaded first before fetching account data
     await tokenList.fetchTokens();
-    console.log('Tokens loaded:', tokenList.tokens.length, 'tokens');
 
     await fetchTradingPairs();
 

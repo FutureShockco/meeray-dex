@@ -37,7 +37,6 @@ export const useCoinPricesStore = defineStore('coinPrices', {
         const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=${FIAT}&include_24hr_change=true&include_market_cap=true`;
         const res = await fetch(url);
         const data = await res.json();
-        console.log('CoinGecko price data:', data);
         this.prices = {};
         this.changes = {};
         this.marketCaps = {};
@@ -57,7 +56,6 @@ export const useCoinPricesStore = defineStore('coinPrices', {
           this.marketCaps[symbol.toUpperCase()] = Number(data[id]?.[`${FIAT}_market_cap`] ?? 0);
 
         }
-        console.log('Fetched coin prices:', this.prices, this.changes, this.marketCaps);
       } catch (e: any) {
         this.error = e.message || 'Unknown error';
       } finally {

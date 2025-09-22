@@ -32,7 +32,6 @@ export function useTokenUsdPrice(symbol: string) {
         loading.value = false;
         return;
       }
-      console.log('Fetching pools to determine USD price for', symbol);
       const poolsResult = await api.getPoolsList({ limit: 1000 });
       const pools = poolsResult.data as Pool[];
       let found = false;

@@ -12,6 +12,7 @@ import PoolVolumeChart from '../components/PoolVolumeChart.vue';
 import router from '../router';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import { generatePoolId } from '../utils/idUtils';
 
 const route = useRoute();
 
@@ -26,7 +27,6 @@ const tokenHelpers = createTokenHelpers();
 const tokenUsdPriceMap = computed(() => {
   const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
   for (const token of tokensStore.tokens) {
-    console.log('Processing token for USD price:', token.symbol, useTokenUsdPrice(token.symbol));
     if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
   }
   return map;
@@ -51,12 +51,9 @@ const marketStats = ref<any>({});
 
 // Trading state (shared)
 const selectedPair = ref<string>('');
-const baseToken = ref<string>('MRY');
-const quoteToken = ref<string>('STEEM');
-const orderType = ref<'LIMIT' | 'MARKET'>('LIMIT');
-const orderSide = ref<'BUY' | 'SELL'>('BUY');
+const baseToken = ref<string>('');
+const quoteToken = ref<string>('');
 const price = ref<string>('');
-const quantity = ref<string>('');
 
 // Handler to update selectedPair from child widgets
 function handlePairChange(newPairId: string) {
@@ -74,12 +71,7 @@ const pairId = ref<string>('');
 // UI state
 const loading = ref(false);
 const error = ref('');
-const orderLoading = ref(false);
 
-// Computed properties
-const currentPair = computed(() => {
-  return tradingPairs.value.find(p => p._id === selectedPair.value);
-});
 
 // Cancel order
 const cancelOrder = async (orderId: string) => {
@@ -112,33 +104,21 @@ const cancelOrder = async (orderId: string) => {
 
 // Handle URL parameters for swap
 const handleUrlParameters = () => {
-  const tokenIn = route.query.tokenIn;
-  const tokenOut = route.query.tokenOut;
-  selectedPair.value = tokenIn + '_' + tokenOut;
-  const useTrade = route.query.useTradeWidget;
-  const pair = route.query.pairId;
-
-  if (tokenIn && typeof tokenIn === 'string') {
-    urlTokenIn.value = tokenIn;
-  }
-  if (tokenOut && typeof tokenOut === 'string') {
-    urlTokenOut.value = tokenOut;
-  }
-  if (useTrade !== undefined) {
-    useTradeWidget.value = useTrade === 'true' || useTrade === '';
-  }
-  if (pair && typeof pair === 'string') {
-    pairId.value = pair;
-  }
-
-  // If we have both tokens, switch to swap tab
-  if (urlTokenIn.value && urlTokenOut.value) {
+  console.log('Handling URL parameters:', route.query);
+  if (route.query.tokenIn && route.query.tokenOut) {
     tab.value = 'swap';
+    selectedPair.value = generatePoolId(route.query.tokenIn, route.query.tokenOut);
+    baseToken.value = selectedPair.value.split('_')[0];
+    quoteToken.value = selectedPair.value.split('_')[1];
+    pairId.value = selectedPair.value;
   }
-
-  // If we're using trade widget, switch to advanced tab
-  if (useTradeWidget.value) {
+  else if (route.query.useTradeWidget !== undefined) {
     tab.value = 'advanced';
+    useTradeWidget.value = true;
+    baseToken.value = selectedPair.value.split('_')[0];
+    quoteToken.value = selectedPair.value.split('_')[1];
+    selectedPair.value = generatePoolId(baseToken.value, quoteToken.value);
+    pairId.value = selectedPair.value;
   }
 };
 
@@ -148,25 +128,37 @@ watch(() => route.query, handleUrlParameters, { immediate: true });
 // Watch for selectedPair changes
 watch(selectedPair, async (newPairId) => {
   if (newPairId) {
+    console.log('Selected pair changed to:', newPairId);
+    // Find the pair by id, then always use order-insensitive lookup for all logic
     const pair = tradingPairs.value.find(p => p._id === newPairId);
     if (pair) {
-      router.replace({
-        path: route.path,
-        query: { ...route.query, tokenIn: pair.baseAssetSymbol, tokenOut: pair.quoteAssetSymbol }
-      });
+      // Set base/quote tokens from the found pair
       baseToken.value = pair.baseAssetSymbol;
       quoteToken.value = pair.quoteAssetSymbol;
-      // Reset market stats to ensure clean state
-      marketStats.value = {};
-      // Update pairId for TradeWidget
-      pairId.value = newPairId;
-      // Refresh data for new pair
-      await Promise.all([
-        fetchOrderBook(),
-        fetchRecentTrades(),
-        fetchUserOrders(),
-        fetchMarketStats()
-      ]);
+      // Always get the pair order-insensitively
+      const detPair = tradingPairs.value.find(
+        p =>
+          (p.baseAssetSymbol === baseToken.value && p.quoteAssetSymbol === quoteToken.value) ||
+          (p.baseAssetSymbol === quoteToken.value && p.quoteAssetSymbol === baseToken.value)
+      );
+      if (detPair) {
+        // Always use the same order in the URL (e.g., baseAssetSymbol first)
+        router.replace({
+          path: route.path,
+          query: { ...route.query, tokenIn: detPair.baseAssetSymbol, tokenOut: detPair.quoteAssetSymbol }
+        });
+        // Reset market stats to ensure clean state
+        marketStats.value = {};
+        // Update pairId for TradeWidget
+        pairId.value = detPair._id;
+        // Refresh data for new pair
+        await Promise.all([
+          fetchOrderBook(),
+          fetchRecentTrades(),
+          fetchUserOrders(),
+          fetchMarketStats()
+        ]);
+      }
     }
   }
 });
@@ -181,7 +173,6 @@ onMounted(async () => {
   try {
     // Ensure tokens are loaded first
     await tokensStore.fetchTokens();
-    console.log('Tokens loaded:', tokensStore.tokens.length, 'tokens');
 
     await fetchTradingPairs();
 
@@ -228,9 +219,10 @@ onUnmounted(() => {
 
 // Fetch user orders
 const fetchUserOrders = async () => {
-  if (!auth.state?.username || !selectedPair.value) return;
+  if (!auth.state?.username || !baseToken.value || !quoteToken.value) return;
   try {
-    const response = await api.getUserOrders(auth.state.username);
+    const poolId = generatePoolId(baseToken.value, quoteToken.value);
+    const response = await api.getUserOrders(auth.state.username, poolId);
     console.log('User orders response:', response);
 
     // Handle the actual API response structure
@@ -263,10 +255,11 @@ const fetchUserOrders = async () => {
 
 // Fetch order book
 const fetchOrderBook = async () => {
-  if (!selectedPair.value) return;
-  console.log('Fetching order book for pair:', selectedPair.value);
+  if (!baseToken.value || !quoteToken.value) return;
+  const poolId = generatePoolId(baseToken.value, quoteToken.value);
+  console.log('Fetching order book for pool:', poolId);
   try {
-    const response = await api.getOrderBook(selectedPair.value);
+    const response = await api.getOrderBook(poolId);
 
     // API now provides both human-readable and raw values
     // Use human-readable values directly for display
@@ -336,9 +329,10 @@ const fetchTradingPairs = async () => {
       if (pairId.value) {
         const urlPair = tradingPairs.value.find(p => p._id === pairId.value);
         if (urlPair) {
-          selectedPair.value = urlPair._id;
           baseToken.value = urlPair.baseAssetSymbol;
           quoteToken.value = urlPair.quoteAssetSymbol;
+          selectedPair.value = generatePoolId(pairId.baseAssetSymbol, pairId.quoteAssetSymbol);
+
           console.log('Selected pair from URL:', selectedPair.value);
           return;
         }
@@ -368,9 +362,10 @@ const fetchTradingPairs = async () => {
 
 // Fetch recent trades
 const fetchRecentTrades = async () => {
-  if (!selectedPair.value) return;
+  if (!baseToken.value || !quoteToken.value) return;
+  const poolId = generatePoolId(baseToken.value, quoteToken.value);
   try {
-    const response = await api.getTradeHistory(selectedPair.value, 20);
+    const response = await api.getTradeHistory(poolId, 20);
 
     // Handle the actual API response structure
     if (response.trades) {
@@ -391,9 +386,10 @@ const fetchRecentTrades = async () => {
 
 // Fetch market stats
 const fetchMarketStats = async () => {
-  if (!selectedPair.value) return;
+  if (!baseToken.value || !quoteToken.value) return;
+  const poolId = generatePoolId(baseToken.value, quoteToken.value);
   try {
-    const response = await api.getMarketStats(selectedPair.value);
+    const response = await api.getMarketStats(poolId);
     console.log('Market stats response:', response);
     marketStats.value = response;
   } catch (e: any) {
@@ -418,7 +414,10 @@ function handleQuickSwapClick() {
     router.replace({
       path: route.path,
       query: { tokenIn: pair.baseAssetSymbol, tokenOut: pair.quoteAssetSymbol }
+    }).then(() => {
+      handleUrlParameters();
     });
+
   }
 }
 
@@ -427,11 +426,14 @@ function handleAdvancedClick() {
   useTradeWidget.value = true;
   const pair = tradingPairs.value.find(p => p._id === selectedPair.value);
   if (pair) {
-    pairId.value = selectedPair.value;
+    const { useTradeWidget, pairId, ...rest } = route.query;
     router.replace({
       path: route.path,
-      query: { useTradeWidget: 'true', pairId: pairId.value }
+      query: { useTradeWidget: 'true', pairId: selectedPair.value }
+    }).then(() => {
+      handleUrlParameters();
     });
+
   }
 }
 
@@ -467,10 +469,10 @@ function handleAdvancedClick() {
       <div class=" grid-cols-1 lg:grid-cols-1 gap-6">
 
         <!-- Enhanced Price Chart -->
-        <PoolVolumeChart v-if="currentPair" :selected-pair="selectedPair" />
+        <PoolVolumeChart v-if="selectedPair" :selected-pair="selectedPair" />
 
         <!-- Market Stats -->
-        <div v-if="currentPair"
+        <div v-if="selectedPair"
           class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Market Stats</h3>
           <div class="space-y-2 text-sm">
@@ -605,19 +607,23 @@ function handleAdvancedClick() {
                 No recent trades
               </div>
               <div v-else class="space-y-1">
-                <div class="grid grid-cols-4 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <div class="grid grid-cols-5 gap-2 text-xs text-gray-500 dark:text-gray-400">
                   <span>Price</span>
                   <span>Quantity</span>
+                  <span>Total</span>
                   <span>Time</span>
                   <span>Side</span>
                 </div>
                 <div v-for="trade in recentTrades" :key="trade.id || trade._id"
-                  class="grid grid-cols-4 gap-2 text-xs p-1">
+                  class="grid grid-cols-5 gap-2 text-xs p-1">
                   <span :class="trade.side === 'buy' || trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
-                    {{ trade.price ? $formatNumber(parseFloat(trade.price)) : '--' }}
+                    {{ trade.price ? $formatNumber(parseFloat(trade.price)) : '--' }} {{ quoteToken }}
                   </span>
                   <span class="text-gray-900 dark:text-white">
-                    {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }}
+                    {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
+                  </span>
+                  <span class="text-gray-900 dark:text-white">
+                    {{ trade.volume ? $formatNumber(parseFloat(trade.volume)) : '--' }}
                   </span>
                   <span class="text-gray-600 dark:text-gray-400">
                     {{ trade.timestamp ? $formatDate(trade.timestamp, 'HH:mm:ss') : '--' }}

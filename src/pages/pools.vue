@@ -282,13 +282,7 @@ function getPool24hVolume(pool: any) {
   const stats = getPoolMarketStats(pool);
   if (stats?.volume24h) {
     const volume = parseFloat(stats.volume24h);
-    if (volume >= 1_000_000) {
-      return `$${(volume / 1_000_000).toFixed(2)}M`;
-    } else if (volume >= 1_000) {
-      return `$${(volume / 1_000).toFixed(2)}K`;
-    } else {
-      return `$${volume.toFixed(2)}`;
-    }
+    return `${volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${pool.tokenB_symbol}`;
   }
   return '--';
 }
@@ -493,12 +487,12 @@ function getPositionValue(position: any) {
                         {{ position.amount.toLocaleString(undefined, { maximumFractionDigits: 6 }) }}
                       </div>
                       <div class="text-sm text-gray-500 dark:text-gray-400">LP Tokens</div>
-
                       <!-- Pool Stats if available -->
                       <div v-if="position.pool" class="mt-2 space-y-1">
                         <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
                           <span>24h Volume:</span>
-                          <span class="font-semibold text-primary-500">{{ getPool24hVolume(position.pool) }}</span>
+                          <span class="font-semibold text-primary-500 ml-1">{{ getPool24hVolume(position.pool) }}
+                          </span>
                         </div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
                           <span>Price Change:</span>

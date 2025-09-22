@@ -49,7 +49,6 @@ const mintSymbol = ref('');
 const tokenUsdPriceMap = computed(() => {
   const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
   for (const token of tokensStore.tokens) {
-    console.log('Processing token for USD price:', token.symbol,  useTokenUsdPrice(token.symbol));
     if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
   }
   return map;

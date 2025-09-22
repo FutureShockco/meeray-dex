@@ -39,7 +39,6 @@ export default {
     ) => {
 
       if (tokenListStore.tokens.length === 0) {
-        console.log('Filter: No tokens loaded, using fallback formatting');
         const value = typeof balanceData === 'object'
           ? balanceData.amount || balanceData.rawAmount || '0'
           : balanceData;

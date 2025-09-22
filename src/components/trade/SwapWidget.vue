@@ -239,7 +239,7 @@ async function handleSwap() {
 }
 
 function getBalance(symbol: string) {
-  return meeray.account?.balances?.[symbol] ?? '--';
+  return meeray.account?.balances?.[symbol].amount ?? '--';
 }
 
 const route = useRoute();
@@ -282,9 +282,12 @@ function switchTokens() {
   }
 }
 
+function setMaxAmountIn() {
+  if (!fromToken.value) return;
+  const bal = meeray.account?.balances?.[fromToken.value]?.amount;
+  if (bal) amountIn.value = bal;
+}
 
-// Expose computed to template
-defineExpose({ pricePerToken });
 </script>
 
 <template>
@@ -323,11 +326,16 @@ defineExpose({ pricePerToken });
         <div class="flex items-center gap-2 mt-4">
           <div class="flex-1">
             <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Amount In</label>
-            <input v-model="amountIn" type="number" min="0" step="any"
-              class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base"
-              placeholder="Amount to swap" />
+            <div class="flex gap-2">
+              <input v-model="amountIn" type="number" min="0" step="any"
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base"
+                placeholder="Amount to swap" />
+              <button type="button" @click="setMaxAmountIn"
+                class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600">Max</button>
+            </div>
           </div>
         </div>
+
         <div v-if="pricePerToken" class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ pricePerToken }}</div>
         <div v-if="previewLoading" class="text-primary-400 font-semibold mt-2">Previewing...</div>
         <div v-if="previewError" class="text-red-500 text-sm mt-2">{{ previewError }}</div>
@@ -380,7 +388,7 @@ defineExpose({ pricePerToken });
                 <div class="text-gray-500 dark:text-gray-400">
                   <span>Min Output:</span>
                   <span class="font-mono text-gray-900 dark:text-white ml-1">{{ route.minFinalAmountOutFormatted
-                    }}</span>
+                  }}</span>
                 </div>
                 <div class="text-gray-500 dark:text-gray-400">
                   <span>Hops:</span>
