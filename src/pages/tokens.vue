@@ -112,7 +112,7 @@ onMounted(() => {
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <router-link
-              :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${selectedToken.symbol}-MRY` } }"
+              :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${selectedToken.symbol}_MRY` } }"
               class="block">
               <button
                 class="w-full p-6 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
@@ -214,7 +214,7 @@ onMounted(() => {
 
               <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex gap-2">
-                  <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }"
+                  <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}_MRY` } }"
                     class="block">
                     <button
                       class="w-full px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium">

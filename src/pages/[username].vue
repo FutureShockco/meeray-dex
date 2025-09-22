@@ -550,7 +550,7 @@ onMounted(async () => {
                         <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Swap</button>
                       </router-link>
                       <router-link
-                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}-MRY` } }">
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${t.symbol}_MRY` } }">
                         <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                       </router-link>
                       <button @click="openTransfer(t.symbol, 'null'), transferMode = 'burn'" class="px-2 py-1 ml-1 rounded bg-red-500 text-white">Burn</button>
@@ -611,7 +611,7 @@ onMounted(async () => {
                         <button class="px-2 py-1 my-1 ml-1 rounded bg-primary-400 text-white">Swap</button>
                       </router-link>
                       <router-link
-                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}-MRY` } }">
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}_MRY` } }">
                         <button class="px-2 py-1 ml-1 rounded bg-primary-400 text-white">Trade</button>
                       </router-link>
                       <button v-if="isOwnAccount" @click="openTransfer(token.symbol), transferMode = 'mint'" class="px-2 py-1 ml-1 rounded bg-yellow-500 text-white">Mint</button>
@@ -664,7 +664,7 @@ onMounted(async () => {
                     </td>
                     <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                       <router-link
-                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId.split('_')[0]}-${pos.poolId.split('_')[1]}` } }">
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pos.poolId}` } }">
                         <button class="px-2 py-1 rounded bg-primary-400 text-white">Trade</button>
                       </router-link>
                     </td>

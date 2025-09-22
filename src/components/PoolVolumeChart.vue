@@ -49,7 +49,7 @@ const showBarTooltipFlag = ref(false);
 const barTooltipX = ref(0);
 const barTooltipY = ref(0);
 const quoteToken = computed(() => {
-  return props.selectedPair?.split('-')[1] || 'USD';
+  return props.selectedPair?.split('_')[1] || 'USD';
 });
 
 async function fetchPriceData(firstLoad = false) {
@@ -62,7 +62,7 @@ async function fetchPriceData(firstLoad = false) {
   error.value = '';
 
   try {
-    const response = await api.getTradeHistory(props.selectedPair.replace('_', '-'), 50);
+    const response = await api.getTradeHistory(props.selectedPair, 50);
     console.log('Fetched trade history:', response);
     // Handle different API response formats
 

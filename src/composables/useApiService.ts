@@ -255,7 +255,7 @@ export function useApiService() {
     fetcher(`${API_BASE}/market/trades/${pairId}?limit=${limit}`);
 
   // 9. Get User Orders
-  const getUserOrders = (userId: string, status: string = 'ACTIVE', limit: number = 20) =>
+  const getUserOrders = (userId: string, status: string = 'active', limit: number = 20) =>
     fetcher(`${API_BASE}/market/orders/user/${userId}?status=${status}&limit=${limit}`);
 
     // --- Config Endpoints ---

@@ -8,6 +8,7 @@ import { useTokenListStore } from '../stores/useTokenList';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import BigNumber from 'bignumber.js';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import { generatePoolId } from '../utils/idUtils';
 
 const route = useRoute();
 const api = useApiService();
@@ -78,7 +79,7 @@ async function fetchMarketStats() {
   if (!pool.value) return;
 
   try {
-    const pairId = `${pool.value.tokenA_symbol}-${pool.value.tokenB_symbol}`;
+    const pairId = generatePoolId(pool.value.tokenA_symbol, pool.value.tokenB_symbol);
     marketStats.value = await api.getMarketStats(pairId);
     console.log('Market stats loaded:', marketStats.value);
   } catch (e: any) {
@@ -239,7 +240,7 @@ function getPoolPairId(): string {
 
   // Create a pair ID in the format expected by the trading API
   // Based on the API response: "MRY-STEEM"
-  return `${pool.value.tokenA_symbol}-${pool.value.tokenB_symbol}`;
+  return generatePoolId(pool.value.tokenA_symbol, pool.value.tokenB_symbol);
 }
 </script>
 

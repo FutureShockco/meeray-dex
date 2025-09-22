@@ -14,17 +14,19 @@ export default {
     app.config.globalProperties.$moment = moment;
 
     app.config.globalProperties.$formatNumber = (value: string | number, symbol?: string, format: string = '0,0.00') => {
-      if (symbol && tokenListStore.tokens.length > 0) {
+      const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18, LP_TOKEN: 18 };
+      let precision: number | undefined;
+      if (symbol) {
         const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
-        if (token && typeof token.precision === 'number') {
-          try {
-            const human = new BigNumber(value)
-              .dividedBy(new BigNumber(10).pow(token.precision));
-            const decimalPlaces = Math.min(token.precision, 8);
-            return human.toFixed(decimalPlaces);
-          } catch (e) {
-            console.warn('format error:', e);
-          }
+        precision = token?.precision ?? defaultPrecisions[symbol];
+      }
+      if (typeof precision === 'number') {
+        try {
+          const human = new BigNumber(value).dividedBy(new BigNumber(10).pow(precision));
+          const decimalPlaces = Math.min(precision, 8);
+          return human.toFixed(decimalPlaces);
+        } catch (e) {
+          console.warn('format error:', e);
         }
       }
       return numeral(value).format(format);
@@ -35,7 +37,7 @@ export default {
       symbol: string,
       format: string = '0,0.00'
     ) => {
-      
+
       if (tokenListStore.tokens.length === 0) {
         console.log('Filter: No tokens loaded, using fallback formatting');
         const value = typeof balanceData === 'object'
@@ -45,7 +47,7 @@ export default {
       }
 
       const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
-      
+
       const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18, LP_TOKEN: 18 };
       const precision = token?.precision ?? defaultPrecisions[symbol] ?? 8;
 
@@ -104,7 +106,7 @@ export default {
       return Number(price);
     };
 
-    app.config.globalProperties.$formatUsdValue = (value: number | string,  format: string = '0,0.00') => {
+    app.config.globalProperties.$formatUsdValue = (value: number | string, format: string = '0,0.00') => {
       return numeral(Number(value)).format(format);
     };
   }

@@ -114,7 +114,7 @@ const cancelOrder = async (orderId: string) => {
 const handleUrlParameters = () => {
   const tokenIn = route.query.tokenIn;
   const tokenOut = route.query.tokenOut;
-  selectedPair.value = tokenIn + '-' + tokenOut;
+  selectedPair.value = tokenIn + '_' + tokenOut;
   const useTrade = route.query.useTradeWidget;
   const pair = route.query.pairId;
 

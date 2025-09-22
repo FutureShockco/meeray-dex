@@ -18,10 +18,11 @@ export function generateDeterministicId(...components: string[]): string {
   return validComponents.sort().join('_');
 }
 
-export function generatePoolId(tokenA_symbol: string, tokenB_symbol: string): string {
-  const [token1, token2] = [tokenA_symbol, tokenB_symbol].sort();
-  return `${token1}_${token2}`;
-}
+export function generatePoolId(tokenA_symbol, tokenB_symbol) {
+    // Ensure canonical order to prevent duplicate pools (e.g., A-B vs B-A)
+    const [token1, token2] = [tokenA_symbol, tokenB_symbol].sort();
+    return `${token1}_${token2}`;
+  }
 
 export function toString(value: bigint, padLength: number = MAX_INTEGER_LENGTH): string {
     const str = value.toString();

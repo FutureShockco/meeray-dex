@@ -7,6 +7,7 @@ import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import BigNumber from 'bignumber.js';
+import { generatePoolId } from '../utils/idUtils';
 
 const api = useApiService();
 const pools = ref<any[]>([]);
@@ -61,12 +62,12 @@ onMounted(async () => {
 async function fetchMarketStatsForPools() {
   const statsPromises = pools.value.map(async (pool) => {
     try {
-      const pairId = `${pool.tokenA_symbol}-${pool.tokenB_symbol}`;
+      const pairId = generatePoolId(pool.tokenA_symbol, pool.tokenB_symbol);
       const stats = await api.getMarketStats(pairId);
       marketStats.value[pairId] = stats;
       return stats;
     } catch (e) {
-      console.log(`Failed to fetch stats for ${pool.tokenA_symbol}-${pool.tokenB_symbol}:`, e);
+      console.log(`Failed to fetch stats for ${pool.tokenA_symbol}_${pool.tokenB_symbol}:`, e);
       return null;
     }
   });
@@ -272,7 +273,7 @@ function getPoolApr(pool: any) {
 
 // Get market stats for a specific pool
 function getPoolMarketStats(pool: any) {
-  const pairId = `${pool.tokenA_symbol}-${pool.tokenB_symbol}`;
+  const pairId = generatePoolId(pool.tokenA_symbol, pool.tokenB_symbol);
   return marketStats.value[pairId] || null;
 }
 
@@ -352,16 +353,7 @@ function getPositionValue(position: any) {
   }
 }
 
-// Helper function to simulate LP positions for testing (remove in production)
-function addTestLpPosition() {
-  if (!meeray.account?.balances) return;
 
-  // Simulate adding an LP token
-  const testLpToken = 'LP_STEEM_SBD_300';
-  meeray.account.balances[testLpToken] = { amount: '1000.123456', rawAmount: '1000123456000000000000' };
-
-  console.log('Added test LP position:', testLpToken);
-}
 </script>
 
 <template>
@@ -448,10 +440,7 @@ function addTestLpPosition() {
                   }}
                 </div>
               </div>
-              <button @click="addTestLpPosition"
-                class="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600">
-                Add Test LP Position
-              </button>
+
             </div>
             <div v-else class="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded text-xs">
               <div class="text-yellow-700 dark:text-yellow-300">Account not loaded or user not authenticated</div>
@@ -626,7 +615,7 @@ function addTestLpPosition() {
                   <td class="px-4 py-4">
                     <div class="flex items-center justify-center gap-2">
                       <router-link
-                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${pool.tokenA_symbol}-${pool.tokenB_symbol}` } }"
+                        :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${generatePoolId(pool.tokenA_symbol, pool.tokenB_symbol)}` } }"
                         class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600 transition-colors">
                         Trade
                       </router-link>
