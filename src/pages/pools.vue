@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useApiService } from '../composables/useApiService';
+import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import { useCoinPricesStore } from '../stores/useCoinPrices';
@@ -15,12 +16,16 @@ const marketStats = ref<Record<string, any>>({});
 const loading = ref(true);
 const error = ref('');
 const tokenHelpers = createTokenHelpers();
+const auth = useAuthStore();
 const meeray = useMeerayAccountStore();
 const coinPrices = useCoinPricesStore();
 const tokenList = useTokenListStore();
 
 onMounted(async () => {
   try {
+    if (auth.state.username) {
+      await meeray.loadAccount(auth.state.username);
+    }
     // Fetch tokens first to get precision data
     if (!tokenList.tokens.length) {
       await tokenList.fetchTokens();
