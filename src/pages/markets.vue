@@ -6,6 +6,7 @@ import TransferModal from '../components/TransferModal.vue';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import BigNumber from 'bignumber.js';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import { useMeerayAccountStore } from '../stores/meerayAccount';
 
 const mainTabs = [
   { label: 'Markets Overview' },
@@ -23,9 +24,9 @@ const activeSubTab = ref(1);
 
 
 const hotCoins = [
-  { symbol: 'BNB', price: '$597.22', change: -0.81, icon: '/icons/bnb.svg' },
-  { symbol: 'BTC', price: '$94.03K', change: -0.89, icon: '/icons/btc.svg' },
-  { symbol: 'ETH', price: '$1.76K', change: -2.86, icon: '/icons/eth.svg' },
+  { symbol: 'BNB', change: -0.81, icon: '/icons/bnb.svg' },
+  { symbol: 'BTC', change: -0.89, icon: '/icons/btc.svg' },
+  { symbol: 'ETH', change: -2.86, icon: '/icons/eth.svg' },
 ];
 
 const topGainers = [
@@ -34,9 +35,9 @@ const topGainers = [
   { symbol: 'VOXEL', price: '$0.1205', change: 48.58 },
 ];
 const topVolume = [
-  { symbol: 'BTC', price: '$94.03K', change: -0.89, icon: '/icons/btc.svg' },
-  { symbol: 'ETH', price: '$1.76K', change: -2.86, icon: '/icons/eth.svg' },
-  { symbol: 'XRP', price: '$2.16', change: -5.51, icon: '/icons/xrp.svg' },
+  { symbol: 'BTC', change: -0.89, icon: '/icons/btc.svg' },
+  { symbol: 'ETH', change: -2.86, icon: '/icons/eth.svg' },
+  { symbol: 'USDT', change: -5.51, icon: '/icons/usdt.svg' },
 ];
 
 
@@ -44,6 +45,7 @@ const tokensStore = useTokenListStore();
 const auth = useAuthStore();
 const showMintModal = ref(false);
 const mintSymbol = ref('');
+const meeray = useMeerayAccountStore();
 
 
 const tokenUsdPriceMap = computed(() => {
@@ -93,16 +95,9 @@ async function handleMint(payload: any) {
   }
 }
 
+onMounted(async () => {
+  if (auth.state.username) await meeray.loadAccount(auth.state.username);
 
-
-
-
-
-
-
-
-
-onMounted(() => {
   if (!tokensStore.tokens.length) tokensStore.fetchTokens();
 });
 </script>
@@ -130,7 +125,8 @@ onMounted(() => {
             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}
+          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(coin,
+            tokenUsdPriceMap)) }}
           </div>
           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
         </div>
@@ -173,7 +169,8 @@ onMounted(() => {
             <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}
+          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(coin,
+            tokenUsdPriceMap)) }}
           </div>
           <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
         </div>
@@ -226,7 +223,7 @@ onMounted(() => {
               </router-link>
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap)
-              }}</td>
+            }}</td>
             <td class="px-4 py-2" :class="tokenHelpers.getTokenChangeClass(token)">
               {{ tokenHelpers.getTokenChange(token) }}
             </td>
@@ -253,7 +250,8 @@ onMounted(() => {
     <div class="max-w-7xl mx-auto mb-4">
       <div class="flex items-center justify-between">
         <router-link to="/tokens"
-          class="text-primary-500 hover:text-primary-600 font-medium transition-colors w-full mt-6 text-center"> View all
+          class="text-primary-500 hover:text-primary-600 font-medium transition-colors w-full mt-6 text-center"> View
+          all
           tokens</router-link>
       </div>
     </div>
@@ -261,11 +259,3 @@ onMounted(() => {
       @mint="handleMint" />
   </div>
 </template>
-
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-
-* {
-  font-family: 'Inter', 'Satoshi', 'Montserrat', 'Segoe UI', Arial, sans-serif;
-}
-</style>

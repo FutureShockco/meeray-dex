@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 
 import './assets/css/tailwind.css';
 import './assets/css/steemauth.css';
+import './assets/css/theme.css';
 
 import filters from './plugins/filters';
 
