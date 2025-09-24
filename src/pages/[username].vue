@@ -420,7 +420,7 @@ onMounted(async () => {
     <!-- Estimated Balance -->
     <div class="mb-8">
       <div
-        class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
+        class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-6 flex items-center justify-between">
         <div class="flex-1">
           <div class="text-xs text-gray-500 dark:text-gray-400">Estimated Balance</div>
 
@@ -474,7 +474,7 @@ onMounted(async () => {
               Token</button>
           </div>
 
-          <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
+          <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-6">
             <div class="flex items-center justify-between mb-4">
               <div class="text-lg font-semibold text-gray-900 dark:text-white">Markets</div>
               <div class="flex gap-2 text-xs">
@@ -546,7 +546,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 mb-4 mt-4">
+          <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-6 mb-4 mt-4">
             <div class="flex items-center justify-between mb-4">
               <div class="text-lg font-semibold text-gray-900 dark:text-white">{{ isOwnAccount ? 'Your tokens' :
                 `${username}'s tokens` }}</div>
@@ -608,7 +608,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
+          <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-6">
             <div class="flex items-center justify-between mb-4">
               <div class="text-lg font-semibold text-gray-900 dark:text-white">Liquidity Positions</div>
               <div v-if="isOwnAccount" class="flex gap-2 text-xs">

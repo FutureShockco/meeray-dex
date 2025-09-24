@@ -191,14 +191,14 @@ onMounted(async () => {
 
     <!-- Market Table -->
     <div
-      class="max-w-7xl mx-auto rounded-xl shadow border overflow-x-auto bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
+      class="max-w-7xl mx-auto rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto shadow">
       <div class="p-4 border-b border-gray-200 dark:border-gray-800">
         <div class="font-bold text-lg text-gray-900 dark:text-white mb-1">Top Tokens by Market Capitalization</div>
         <div class="text-gray-500 dark:text-gray-400 text-sm mb-2">Get a comprehensive snapshot of all cryptocurrencies
           available. This page displays the latest prices, 24-hour trading volume, price changes, and market
           capitalizations for all tokens.</div>
       </div>
-      <table class="w-full text-sm text-left">
+      <table class="w-full text-sm text-left ">
         <thead class="text-gray-500 dark:text-gray-400">
           <tr>
             <th class="px-4 py-2 font-semibold">Name</th>
@@ -212,7 +212,7 @@ onMounted(async () => {
         </thead>
         <tbody>
           <tr
-            class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition align-items-center"
+            class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition align-items-center "
             v-for="token in tokensStore.tokens" :key="token.symbol">
 
             <td class="px-4 py-2 flex items-center space-x-2">

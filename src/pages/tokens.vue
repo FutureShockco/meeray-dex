@@ -34,8 +34,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <div class="max-w-7xl mx-auto px-4 py-8">
+  <div class="min-h-screen bg-white dark:bg-gray-950 py-10 px-2 mx-auto mt-16">
+    <div class="max-w-7xl mx-auto px-4">
       <!-- Single Token View -->
       <div v-if="symbol && selectedToken" class="space-y-8">
         <!-- Back Navigation -->
@@ -48,7 +48,7 @@ onMounted(() => {
         </div>
 
         <!-- Token Header -->
-        <div class="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-8">
+        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-8">
           <div class="flex items-start justify-between mb-6">
             <div class="flex items-center gap-6">
               <div
@@ -108,7 +108,7 @@ onMounted(() => {
         </div>
 
         <!-- Token Actions -->
-        <div class="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-8">
+        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-8">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <router-link
@@ -177,7 +177,7 @@ onMounted(() => {
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <router-link v-for="token in tokens" :key="token.symbol" :to="`/tokens?symbol=${token.symbol}`"
-              class="group rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl p-6 transition-all duration-300 hover:-translate-y-1">
+              class="group rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto hover:shadow-xl p-6 transition-all duration-300 hover:-translate-y-1">
               <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center gap-4">
                   <div class="w-12 h-12 rounded-full group-hover:shadow-lg transition-shadow">
