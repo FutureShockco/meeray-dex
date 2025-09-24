@@ -225,13 +225,38 @@ const tokenUsdPriceMap = computed(() => {
   return map;
 });
 
-function getTvlUsd(pool: any) {
-  const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
-  const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
-  const reserve0 = Number(pool.tokenA_reserve) || 0;
-  const reserve1 = Number(pool.tokenB_reserve) || 0;
-  const tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
-  return tvl > 0 ? tvl : 0;
+function getTvlUsd(pool: any, position?: any) {
+  let tvl = 0;
+  if (pool) {
+    const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
+    const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
+    const reserve0 = Number(pool.tokenA_reserve) || 0;
+    const reserve1 = Number(pool.tokenB_reserve) || 0;
+    tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
+  }
+  if (pool && position) {
+    console.log(tvl, 'Calculating TVL for position - not implemented yet');
+    const tvlUsd = tvl;
+    let totalLpSupply = Number(position.pool.rawTotalLpTokens) / Math.pow(10, 18);
+
+    if (totalLpSupply > 0) {
+      const estimatedValue = (position.amount / totalLpSupply) * tvlUsd;
+      tvl = estimatedValue;
+    }
+  }
+  return tvl
+}
+
+function getPoolPercentage(pool: any, position?: any) {
+  if (pool && position) {
+    let totalLpSupply = Number(position.pool.rawTotalLpTokens) / Math.pow(10, 18);
+
+    if (totalLpSupply > 0) {
+      return (position.amount / totalLpSupply);
+    }
+  }
+  else return 0
+
 }
 
 // Calculate pool APR based on trading volume, fee rate, and TVL
@@ -483,7 +508,15 @@ function getPositionValue(position: any) {
                     <!-- Position Details -->
                     <div class="text-right">
                       <div class="font-bold text-gray-900 dark:text-white">
-                        {{ position.amount.toLocaleString(undefined, { maximumFractionDigits: 6 }) }}
+                        ${{ $formatNumber(getTvlUsd(position.pool, position)) }}
+                        <div>
+                          {{
+                            position.amount.toLocaleString(undefined, {
+                              maximumFractionDigits: 6
+                            }) }} {{ position.symbol }}</div>
+                        <div>
+                          {{ getPoolPercentage(position.pool, position) ?
+                            `${(getPoolPercentage(position.pool, position) * 100).toFixed(3)}%` : '' }}</div>
                       </div>
                       <div class="text-sm text-gray-500 dark:text-gray-400">LP Tokens</div>
                       <!-- Pool Stats if available -->
