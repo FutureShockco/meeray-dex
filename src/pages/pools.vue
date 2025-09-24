@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useApiService } from '../composables/useApiService';
+import { usePoolsStore } from '../stores/usePoolList';
+import { storeToRefs } from 'pinia';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
@@ -11,7 +13,8 @@ import BigNumber from 'bignumber.js';
 import { generatePoolId } from '../utils/idUtils';
 
 const api = useApiService();
-const pools = ref<any[]>([]);
+const poolsStore = usePoolsStore();
+const { userPositionsByPool } = storeToRefs(poolsStore);
 const marketStats = ref<Record<string, any>>({});
 const loading = ref(true);
 const error = ref('');
@@ -21,26 +24,11 @@ const meeray = useMeerayAccountStore();
 
 onMounted(async () => {
   try {
-    const res = await api.getPoolsList();
-    pools.value = Array.isArray(res.data) ? res.data : [];
-    await fetchMarketStatsForPools();
-    try {
-      const aprs = await api.getPoolsApr();
-      if (Array.isArray(aprs)) {
-        for (const pool of pools.value) {
-          const aprObj = aprs.find((a: any) =>
-            a.tokenA_symbol === pool.tokenA_symbol &&
-            a.tokenB_symbol === pool.tokenB_symbol &&
-            a.feeTier === pool.feeTier
-          );
-          if (aprObj) {
-            pool.apiApr = aprObj.apr; // Store API APR separately
-          }
-        }
-      }
-    } catch (aprError) {
-      console.log('Failed to fetch APR data:', aprError);
+    if (poolsStore.pools.length === 0) {
+      await poolsStore.fetchPools();
     }
+
+    await fetchMarketStatsForPools();
   } catch (e) {
     error.value = 'Failed to load pools';
   } finally {
@@ -64,18 +52,14 @@ async function fetchMarketStatsForPools() {
   await Promise.allSettled(statsPromises);
 }
 
+const pools = computed(() => Array.from(poolsStore.pools.values()));
 const topPools = computed(() => pools.value.slice(0, 6));
 
+
 const lpPositions = computed(() => {
-  if (!meeray.account?.balances) {
-    console.log('No meeray account or balances found');
-    return [];
-  }
+  if (!meeray.account?.balances) return [];
   const tokens = meeray.account.balances;
-  const lpTokens = Object.entries(tokens).filter(([symbol, amount]) => {
-    const isLpToken = symbol.startsWith('LP_');
-    return isLpToken;
-  });
+  const lpTokens = Object.entries(tokens).filter(([symbol]) => symbol.startsWith('LP_'));
   return lpTokens
     .map(([symbol, balanceData]) => {
       let amount = 0;
@@ -96,23 +80,30 @@ const lpPositions = computed(() => {
       if (parts.length >= 3) {
         tokenA = parts[1];
         tokenB = parts[2];
-        feeTier = parts[3] || '300'; // Default fee tier
+        feeTier = parts[3] || '300';
       }
       const matchingPool = pools.value.find(pool =>
         (pool.tokenA_symbol === tokenA && pool.tokenB_symbol === tokenB) ||
         (pool.tokenA_symbol === tokenB && pool.tokenB_symbol === tokenA)
       );
+      // Get user position for this pool
+      let userPosition = null;
+      if (matchingPool && userPositionsByPool.value[matchingPool.id]) {
+        userPosition = userPositionsByPool.value[matchingPool.id];
+      }
       return {
         symbol,
         amount,
         tokenA,
         tokenB,
         feeTier,
-        pool: matchingPool
+        pool: matchingPool,
+        unclaimedFeesA: userPosition?.unclaimedFeesA,
+        unclaimedFeesB: userPosition?.unclaimedFeesB
       };
     })
-    .filter(position => position !== null) // Remove null entries
-    .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+    .filter(position => position !== null)
+    .sort((a, b) => b.amount - a.amount);
 });
 
 const totalLpValue = computed(() => {
@@ -206,40 +197,13 @@ function getPoolPercentage(pool: any, position?: any) {
 
 // Calculate pool APR based on trading volume, fee rate, and TVL
 function calculatePoolApr(pool: any) {
-  // Get TVL in USD
   const tvlUsd = getTvlUsd(pool);
-
   if (tvlUsd <= 0) return null;
-
-  // Get 24h trading volume (in USD)
   const volume24h = pool.volume24h || pool.volume || 0;
-
-  // Get fee rate (convert from basis points to decimal)
   const feeRate = (pool.feeTier || 300) / 1000000; // 300 basis points = 0.003 (0.3%)
-
-  // Calculate daily fees
   const dailyFees = volume24h * feeRate;
-
-  // Calculate APR: (Daily Fees × 365) / TVL × 100
   const apr = (dailyFees * 365) / tvlUsd * 100;
-
   return isFinite(apr) && apr > 0 ? apr : null;
-}
-
-// Get formatted APR display
-function getPoolApr(pool: any) {
-  // First priority: Use API-provided APR if available
-  if (pool.apiApr !== undefined && pool.apiApr !== null) {
-    return `${Number(pool.apiApr).toFixed(2)}%`;
-  }
-
-  // Second priority: Calculate APR from volume and TVL
-  const calculatedApr = calculatePoolApr(pool);
-  if (calculatedApr !== null) {
-    return `${calculatedApr.toFixed(2)}%`;
-  }
-
-  return '--';
 }
 
 // Get market stats for a specific pool
@@ -298,25 +262,6 @@ function getPriceChangeColorClass(pool: any) {
   }
   return 'text-gray-500 dark:text-gray-400';
 }
-
-// Get estimated USD value for a single LP position
-function getPositionValue(position: any) {
-  if (!position.pool) return '$0.00';
-
-  const tvlUsd = getTvlUsd(position.pool);
-
-  // Simplified calculation - assumes position.amount is a percentage of total supply
-  const estimatedValue = (position.amount / 1000000) * tvlUsd;
-
-  if (estimatedValue >= 1_000_000) {
-    return `$${(estimatedValue / 1_000_000).toFixed(2)}M`;
-  } else if (estimatedValue >= 1_000) {
-    return `$${(estimatedValue / 1_000).toFixed(2)}K`;
-  } else {
-    return `$${estimatedValue.toFixed(2)}`;
-  }
-}
-
 
 </script>
 
@@ -410,8 +355,11 @@ function getPositionValue(position: any) {
               <div class="text-yellow-700 dark:text-yellow-300">Account not loaded or user not authenticated</div>
             </div>
           </div>
-          <div v-else class="space-y-3">
+          {{ lpPositions.length > 0 ? '' : 'No active positions' }}
+
+          <div class="space-y-3">
             <!-- LP Positions Summary -->
+
             <div
               class="rounded-lg dark:from-primary-900/20 dark:to-blue-900/20 border border-primary-200 dark:border-primary-700 p-4">
               <div class="flex items-center justify-between mb-3">
@@ -444,6 +392,13 @@ function getPositionValue(position: any) {
                         </div>
                         <div class="text-sm text-gray-500 dark:text-gray-400">
                           <span>Token Symbol: {{ position.symbol }}</span>
+                        </div>
+                        <div v-if="position.unclaimedFeesA || position.unclaimedFeesB"
+                          class="text-xs text-yellow-700 dark:text-yellow-300 mt-2 mb-2">
+                          <span v-if="position.unclaimedFeesA">Unclaimed Fees: {{
+                            $formatRawNumber(position.unclaimedFeesA, position.tokenA, '0,0.0000') }}
+                            {{ position.tokenA }} - {{ $formatRawNumber(position.unclaimedFeesB,
+                            position.tokenB, '0,0.0000') }} {{ position.tokenB }}</span>
                         </div>
                         <div v-if="position.feeTier" class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
                           {{ (Number(position.feeTier) / 10000).toFixed(2) }}% fees from pool & market
@@ -534,7 +489,7 @@ function getPositionValue(position: any) {
                 <tr v-else-if="error">
                   <td colspan="7" class="text-center py-8 text-red-500">{{ error }}</td>
                 </tr>
-                <tr v-else v-for="(pool, i) in pools" :key="pool.id || i"
+                <tr v-else v-for="(pool, i) in Array.from(pools.values())" :key="pool.id || i"
                   class="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
                   <td class="px-4 py-4">
                     <router-link :to="{ path: '/pool', query: { poolId: pool.id } }"

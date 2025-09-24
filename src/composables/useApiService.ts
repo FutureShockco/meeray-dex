@@ -163,7 +163,9 @@ export interface Trade { /* ... */ }
 export interface NFTHistoryEntry { /* ... */ }
 export interface NFTDelegation { /* ... */ }
 export interface NFTMarketListing { /* ... */ }
-export interface UserLiquidityPosition { /* ... */ }
+export interface UserLiquidityPosition {
+  poolId: string;
+}
 export interface TradeRoute { /* ... */ }
 export interface Token {
   symbol: string;
@@ -304,11 +306,6 @@ export function useApiService() {
   const getLiquidityPositionDetails = (positionId: string) => fetcher(`${API_BASE}/pools/positions/${positionId}`) as Promise<UserLiquidityPosition>;
   const getUserLiquidityPositionInPool = (userId: string, poolId: string) => fetcher(`${API_BASE}/pools/positions/user/${userId}/pool/${poolId}`) as Promise<UserLiquidityPosition>;
   const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.meeray.com';
-
-  // --- Pool Endpoints ---
-  // (see below for single set of pool endpoint functions)
-  fetcher(`${API_BASE}/accounts/count`) as Promise<{ count: number }>;
-
   // --- Trade Quote Endpoint ---
   /**
    * Get a trade quote (hybrid AMM + orderbook)
@@ -543,10 +540,10 @@ export function useApiService() {
     getNftMarketListingsBySeller,
     getNftMarketListingsByCollection,
     // Market
-  getMarketSources,
-  getTradeQuote,
-  compareLiquiditySources,
-  getMarketPairs,
+    getMarketSources,
+    getTradeQuote,
+    compareLiquiditySources,
+    getMarketPairs,
     getMarketPairDetails,
     getOrderBook,
     getMarketStats,

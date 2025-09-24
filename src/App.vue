@@ -28,7 +28,12 @@ onMounted(() => {
   steemPriceHistory.fetchPriceHistory();
   coinPrices.fetchPrices();
   if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();
-  if (!poolsStore.pools.length) poolsStore.fetchPools();
+  // Always fetch pools, then user positions if logged in
+  poolsStore.fetchPools().then(() => {
+    if (auth.state.username) {
+      poolsStore.fetchUserPositionsForPools(auth.state.username);
+    }
+  });
   //useWsService();
   apiService.getConfig().then((response) => {
     if (response && response.config) {

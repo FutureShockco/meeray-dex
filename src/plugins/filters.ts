@@ -76,15 +76,17 @@ export default {
 
     app.config.globalProperties.$formatRawNumber = (value: string | number, symbol: string, format: string = '0,0.00') => {
       const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
-      if (!token || typeof token.precision !== 'number') return numeral(value).format(format);
+      const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18, LP_TOKEN: 18 };
+      const precision = token?.precision ?? defaultPrecisions[symbol] ?? 8;
+      // Build format string based on precision, e.g. '0,0.00000000' for 8 decimals
+      const dynamicFormat = `0,0.${'0'.repeat(Math.min(precision, 8))}`;
       try {
         const human = new BigNumber(value)
-          .dividedBy(new BigNumber(10).pow(token.precision));
-        const decimalPlaces = Math.min(token.precision, 8);
-        return human.toFixed(decimalPlaces);
+          .dividedBy(new BigNumber(10).pow(precision));
+        return numeral(human.toFixed(Math.min(precision, 8))).format(dynamicFormat);
       } catch (e) {
         console.warn('format error:', e);
-        return numeral(value).format(format);
+        return numeral(value).format(dynamicFormat);
       }
     };
 
