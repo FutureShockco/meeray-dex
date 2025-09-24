@@ -245,18 +245,6 @@ function openDeposit(symbol: string) {
 const transferLoading = ref(false);
 const transferError = ref('');
 
-async function reloadAccount() {
-  try {
-    console.log('Manually reloading account for:', username.value);
-    await meeray.loadAccount(username.value);
-    console.log('Account reloaded:', meeray.publicAccount);
-    console.log('Public account balances:', meeray.publicAccount?.balances);
-  } catch (e: any) {
-    console.error('Error reloading account:', e);
-    error.value = e?.message || 'Failed to reload account';
-  }
-}
-
 async function handleTransfer(transferData: { to: string; amount: number; symbol: string; memo: string }) {
   transferError.value = '';
   transferLoading.value = true;
@@ -364,9 +352,6 @@ onMounted(async () => {
     } else {
       console.log('Tokens already loaded:', tokenList.tokens.length);
     }
-
-    // Load account data for the specific username
-    await meeray.loadAccount(username.value);
 
     // Fetch Steem account data
     await fetchSteemAccount();

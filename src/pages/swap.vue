@@ -17,11 +17,12 @@ import { generatePoolId } from '../utils/idUtils';
 const route = useRoute();
 
 // Store instances
+const auth = useAuthStore();
 const meeray = useMeerayAccountStore();
 const api = useApiService();
 const tokensStore = useTokenListStore();
 const appStore = useAppStore();
-const auth = useAuthStore();
+
 const tokenHelpers = createTokenHelpers();
 
 const tokenUsdPriceMap = computed(() => {
@@ -175,13 +176,6 @@ onMounted(async () => {
     await tokensStore.fetchTokens();
 
     await fetchTradingPairs();
-
-    // Load account data if user is authenticated
-    if (auth.state.username) {
-      await meeray.loadAccount(auth.state.username);
-      console.log('Account refreshed with balances:', meeray.account?.balances);
-    }
-
     // Initial data fetch
     if (selectedPair.value) {
       await Promise.all([

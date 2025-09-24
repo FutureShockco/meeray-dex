@@ -6,7 +6,11 @@ import { useTokenListStore } from './stores/useTokenList';
 import { useAppStore } from './stores/appStore';
 import { useApiService } from './composables/useApiService';
 import { usePoolsStore } from './stores/usePoolList';
+import { useAuthStore } from 'steem-auth-vue';
+import { useMeerayAccountStore } from './stores/meerayAccount';
 
+const auth = useAuthStore();
+const meeray = useMeerayAccountStore();
 const steemPriceHistory = useSteemPriceHistoryStore();
 const coinPrices = useCoinPricesStore();
 const tokenListStore = useTokenListStore();
@@ -16,6 +20,11 @@ const poolsStore = usePoolsStore();
 const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length);
 
 onMounted(() => {
+  if (auth.state.username) {
+    meeray.loadAccount(auth.state.username).catch((error) => {
+      console.error('Failed to load Meeray account:', error);
+    });
+  }
   steemPriceHistory.fetchPriceHistory();
   coinPrices.fetchPrices();
   if (!tokenListStore.tokens.length) tokenListStore.fetchTokens();

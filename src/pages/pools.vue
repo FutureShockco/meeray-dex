@@ -16,28 +16,14 @@ const marketStats = ref<Record<string, any>>({});
 const loading = ref(true);
 const error = ref('');
 const tokenHelpers = createTokenHelpers();
-const auth = useAuthStore();
 const meeray = useMeerayAccountStore();
-const coinPrices = useCoinPricesStore();
-const tokenList = useTokenListStore();
+
 
 onMounted(async () => {
   try {
-    if (auth.state.username) {
-      await meeray.loadAccount(auth.state.username);
-    }
-    // Fetch tokens first to get precision data
-    if (!tokenList.tokens.length) {
-      await tokenList.fetchTokens();
-    }
-
     const res = await api.getPoolsList();
     pools.value = Array.isArray(res.data) ? res.data : [];
-
-    // Fetch market stats for each pool
     await fetchMarketStatsForPools();
-
-    // Fetch APR data and merge into pools
     try {
       const aprs = await api.getPoolsApr();
       if (Array.isArray(aprs)) {
@@ -54,7 +40,6 @@ onMounted(async () => {
       }
     } catch (aprError) {
       console.log('Failed to fetch APR data:', aprError);
-      // Continue without APR data, will use calculated APR
     }
   } catch (e) {
     error.value = 'Failed to load pools';
@@ -63,7 +48,6 @@ onMounted(async () => {
   }
 });
 
-// Fetch market statistics for all pools
 async function fetchMarketStatsForPools() {
   const statsPromises = pools.value.map(async (pool) => {
     try {
@@ -87,67 +71,37 @@ const lpPositions = computed(() => {
     console.log('No meeray account or balances found');
     return [];
   }
-
   const tokens = meeray.account.balances;
-  console.log('All user balances:', tokens);
-
-  // Filter for LP tokens
   const lpTokens = Object.entries(tokens).filter(([symbol, amount]) => {
     const isLpToken = symbol.startsWith('LP_');
-    if (isLpToken) {
-      console.log('Found LP token:', symbol, amount);
-    }
     return isLpToken;
   });
-
-  console.log('LP tokens found:', lpTokens);
-
   return lpTokens
     .map(([symbol, balanceData]) => {
-      // Handle different balance formats
       let amount = 0;
       if (typeof balanceData === 'object' && balanceData !== null) {
         if ('amount' in balanceData) {
           amount = Number((balanceData as any).amount) || 0;
         } else if ('rawAmount' in balanceData) {
-          // Convert raw amount to human readable (LP tokens typically use 18 decimal places)
           amount = Number((balanceData as any).rawAmount) / Math.pow(10, 18) || 0;
         }
       } else {
         amount = Number(balanceData) || 0;
       }
-
-      // Only include positions with non-zero amounts
       if (amount <= 0) return null;
-
-      // Parse LP token symbol to extract pool information
-      // Expected format: LP_TOKEN1_TOKEN2_FEETIER or similar
       const parts = symbol.split('_');
       let tokenA = '';
       let tokenB = '';
       let feeTier = '';
-
       if (parts.length >= 3) {
         tokenA = parts[1];
         tokenB = parts[2];
         feeTier = parts[3] || '300'; // Default fee tier
       }
-
-      // Find matching pool for this LP token
       const matchingPool = pools.value.find(pool =>
         (pool.tokenA_symbol === tokenA && pool.tokenB_symbol === tokenB) ||
         (pool.tokenA_symbol === tokenB && pool.tokenB_symbol === tokenA)
       );
-
-      console.log('LP Position processed:', {
-        symbol,
-        amount,
-        tokenA,
-        tokenB,
-        feeTier,
-        hasMatchingPool: !!matchingPool
-      });
-
       return {
         symbol,
         amount,
@@ -161,7 +115,6 @@ const lpPositions = computed(() => {
     .sort((a, b) => b.amount - a.amount); // Sort by amount descending
 });
 
-// Calculate estimated USD value of LP positions
 const totalLpValue = computed(() => {
   let total = 0;
   for (const position of lpPositions.value) {
@@ -174,32 +127,18 @@ const totalLpValue = computed(() => {
       }
     }
   }
-  if (total >= 1_000_000) {
-    return `$${(total / 1_000_000).toFixed(2)}M`;
-  } else if (total >= 1_000) {
-    return `$${(total / 1_000).toFixed(2)}K`;
-  } else {
-    return `$${total.toFixed(2)}`;
-  }
+  return total
 });
 
-// Total LP value for all pools (sum of TVL)
 const totalPoolsLpValue = computed(() => {
   let total = 0;
   for (const pool of pools.value) {
     const tvl = getTvlUsd(pool);
     total += typeof tvl === 'number' ? tvl : parseFloat(String(tvl).replace(/[$,]/g, '')) || 0;
   }
-  if (total >= 1_000_000) {
-    return `$${(total / 1_000_000).toFixed(2)}M`;
-  } else if (total >= 1_000) {
-    return `$${(total / 1_000).toFixed(2)}K`;
-  } else {
-    return `$${total.toFixed(2)}`;
-  }
+  return total
 });
 
-// Calculate total market volume from all pools
 const totalMarketVolume = computed(() => {
   let total = 0;
   for (const pool of pools.value) {
@@ -208,14 +147,7 @@ const totalMarketVolume = computed(() => {
       total += parseFloat(stats.volume24h);
     }
   }
-
-  if (total >= 1_000_000) {
-    return `$${(total / 1_000_000).toFixed(2)}M`;
-  } else if (total >= 1_000) {
-    return `$${(total / 1_000).toFixed(2)}K`;
-  } else {
-    return `$${total.toFixed(2)}`;
-  }
+  return total
 });
 
 // Calculate total trades from all pools
@@ -250,10 +182,8 @@ function getTvlUsd(pool: any, position?: any) {
     tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
   }
   if (pool && position) {
-    console.log(tvl, 'Calculating TVL for position - not implemented yet');
     const tvlUsd = tvl;
     let totalLpSupply = Number(position.pool.rawTotalLpTokens) / Math.pow(10, 18);
-
     if (totalLpSupply > 0) {
       const estimatedValue = (position.amount / totalLpSupply) * tvlUsd;
       tvl = estimatedValue;
@@ -425,7 +355,7 @@ function getPositionValue(position: any) {
             <!-- Your LP Value -->
             <div class="text-center">
               <div class="text-2xl font-bold text-purple-500 mb-1">
-                {{ totalPoolsLpValue }}
+                ${{ $formatNumber(totalPoolsLpValue) }}
               </div>
               <div class="text-gray-500 dark:text-gray-400 text-sm">LP Value</div>
             </div>
@@ -490,7 +420,8 @@ function getPositionValue(position: any) {
                   <div class="text-sm text-gray-600 dark:text-gray-400">{{ lpPositions.length }} active positions</div>
                 </div>
                 <div class="text-right">
-                  <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">{{ totalLpValue }}</div>
+                  <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">${{ $formatNumber(totalLpValue)
+                  }}</div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">Estimated Value</div>
                 </div>
               </div>
