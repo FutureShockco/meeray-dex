@@ -159,22 +159,32 @@ const lpPositions = computed(() => {
 // Calculate estimated USD value of LP positions
 const totalLpValue = computed(() => {
   let total = 0;
-
   for (const position of lpPositions.value) {
     if (position.pool) {
-      // Get pool TVL and total LP supply to estimate LP token value
       const tvlUsd = getTvlUsd(position.pool);
-      console.log(position.pool)
-      // Use totalLpTokens from the pool object (in human units)
       let totalLpSupply = Number(position.pool.rawTotalLpTokens) / Math.pow(10, 18);
-
       if (totalLpSupply > 0) {
         const estimatedValue = (position.amount / totalLpSupply) * tvlUsd;
         total += estimatedValue;
       }
     }
   }
+  if (total >= 1_000_000) {
+    return `$${(total / 1_000_000).toFixed(2)}M`;
+  } else if (total >= 1_000) {
+    return `$${(total / 1_000).toFixed(2)}K`;
+  } else {
+    return `$${total.toFixed(2)}`;
+  }
+});
 
+// Total LP value for all pools (sum of TVL)
+const totalPoolsLpValue = computed(() => {
+  let total = 0;
+  for (const pool of pools.value) {
+    const tvl = getTvlUsd(pool);
+    total += typeof tvl === 'number' ? tvl : parseFloat(String(tvl).replace(/[$,]/g, '')) || 0;
+  }
   if (total >= 1_000_000) {
     return `$${(total / 1_000_000).toFixed(2)}M`;
   } else if (total >= 1_000) {
@@ -410,7 +420,7 @@ function getPositionValue(position: any) {
             <!-- Your LP Value -->
             <div class="text-center">
               <div class="text-2xl font-bold text-purple-500 mb-1">
-                {{ totalLpValue }}
+                {{ totalPoolsLpValue }}
               </div>
               <div class="text-gray-500 dark:text-gray-400 text-sm">LP Value</div>
             </div>
