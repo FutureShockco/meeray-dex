@@ -162,14 +162,16 @@ const totalLpValue = computed(() => {
 
   for (const position of lpPositions.value) {
     if (position.pool) {
-      // Get pool TVL and total supply to estimate LP token value
-      const tvlString = getTvlUsd(position.pool);
-      const tvlUsd = parseFloat(tvlString.replace(/[$,]/g, '')) || 0;
+      // Get pool TVL and total LP supply to estimate LP token value
+      const tvlUsd = getTvlUsd(position.pool);
+      console.log(position.pool)
+      // Use totalLpTokens from the pool object (in human units)
+      let totalLpSupply = Number(position.pool.rawTotalLpTokens) / Math.pow(10, 18);
 
-      // This is a simplified calculation - in reality you'd need the total LP supply
-      // For now, we'll estimate based on a percentage of the pool
-      const estimatedValue = (position.amount / 1000000) * tvlUsd; // Rough estimate
-      total += estimatedValue;
+      if (totalLpSupply > 0) {
+        const estimatedValue = (position.amount / totalLpSupply) * tvlUsd;
+        total += estimatedValue;
+      }
     }
   }
 
@@ -229,14 +231,13 @@ function getTvlUsd(pool: any) {
   const reserve0 = Number(pool.tokenA_reserve) || 0;
   const reserve1 = Number(pool.tokenB_reserve) || 0;
   const tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
-  return tvl > 0 ? `$${tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '--';
+  return tvl > 0 ? tvl : 0;
 }
 
 // Calculate pool APR based on trading volume, fee rate, and TVL
 function calculatePoolApr(pool: any) {
   // Get TVL in USD
-  const tvlString = getTvlUsd(pool);
-  const tvlUsd = parseFloat(tvlString.replace(/[$,]/g, '')) || 0;
+  const tvlUsd = getTvlUsd(pool);
 
   if (tvlUsd <= 0) return null;
 
@@ -332,8 +333,7 @@ function getPriceChangeColorClass(pool: any) {
 function getPositionValue(position: any) {
   if (!position.pool) return '$0.00';
 
-  const tvlString = getTvlUsd(position.pool);
-  const tvlUsd = parseFloat(tvlString.replace(/[$,]/g, '')) || 0;
+  const tvlUsd = getTvlUsd(position.pool);
 
   // Simplified calculation - assumes position.amount is a percentage of total supply
   const estimatedValue = (position.amount / 1000000) * tvlUsd;
@@ -471,12 +471,11 @@ function getPositionValue(position: any) {
                         <div class="font-semibold text-gray-900 dark:text-white">
                           {{ position.tokenA || 'Unknown' }} / {{ position.tokenB || 'Unknown' }}
                         </div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                          <span>LP Token: {{ position.symbol }}</span>
-                          <span v-if="position.feeTier"
-                            class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
-                            {{ (Number(position.feeTier) / 10000).toFixed(2) }}% fee
-                          </span>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                          <span>Token Symbol: {{ position.symbol }}</span>
+                        </div>
+                        <div v-if="position.feeTier" class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+                          {{ (Number(position.feeTier) / 10000).toFixed(2) }}% fees from pool & market
                         </div>
                       </div>
                     </div>
@@ -596,7 +595,7 @@ function getPositionValue(position: any) {
 
                   <td class="px-4 py-4 text-right">
                     <div class="font-semibold text-gray-900 dark:text-white">
-                      {{ getTvlUsd(pool) }}
+                      ${{ $formatNumber(getTvlUsd(pool)) }}
                     </div>
                   </td>
 
