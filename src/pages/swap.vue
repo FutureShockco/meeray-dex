@@ -177,8 +177,8 @@ onMounted(async () => {
     await fetchTradingPairs();
 
     // Load account data if user is authenticated
-    if (auth.state?.username) {
-      await meeray.refreshAccount();
+    if (auth.state.username) {
+      await meeray.loadAccount(auth.state.username);
       console.log('Account refreshed with balances:', meeray.account?.balances);
     }
 

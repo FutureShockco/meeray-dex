@@ -43,9 +43,10 @@ const topVolume = [
 
 const tokensStore = useTokenListStore();
 const auth = useAuthStore();
+const meeray = useMeerayAccountStore();
 const showMintModal = ref(false);
 const mintSymbol = ref('');
-const meeray = useMeerayAccountStore();
+
 
 
 const tokenUsdPriceMap = computed(() => {
