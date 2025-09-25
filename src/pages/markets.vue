@@ -11,8 +11,6 @@ import { useMeerayAccountStore } from '../stores/meerayAccount';
 const mainTabs = [
   { label: 'Markets Overview' },
   { label: 'Trading Data' },
-  { label: 'Opportunity' },
-  { label: 'Token Unlock' },
 ];
 const activeMainTab = ref(0);
 
@@ -22,31 +20,15 @@ const subTabs = [
 ];
 const activeSubTab = ref(1);
 
-
-const hotCoins = [
-  { symbol: 'BNB', change: -0.81, icon: '/icons/bnb.svg' },
-  { symbol: 'BTC', change: -0.89, icon: '/icons/btc.svg' },
-  { symbol: 'ETH', change: -2.86, icon: '/icons/eth.svg' },
-];
-
-const topGainers = [
-  { symbol: 'ALPACA', price: '$0.655', change: 275.57 },
-  { symbol: 'BSW', price: '$0.0489', change: 58.25 },
-  { symbol: 'VOXEL', price: '$0.1205', change: 48.58 },
-];
-const topVolume = [
-  { symbol: 'BTC', change: -0.89, icon: '/icons/btc.svg' },
-  { symbol: 'ETH', change: -2.86, icon: '/icons/eth.svg' },
-  { symbol: 'USDT', change: -5.51, icon: '/icons/usdt.svg' },
-];
-
-
 const tokensStore = useTokenListStore();
 const auth = useAuthStore();
 const meeray = useMeerayAccountStore();
 const showMintModal = ref(false);
 const mintSymbol = ref('');
-
+const hotTokens = computed(() => tokensStore.hotTokens.slice(0, 3));
+const newTokens = computed(() => tokensStore.newTokens.slice(0, 3));
+const topGainers = computed(() => tokensStore.topGainersTokens.slice(0, 3));
+const topVolume = computed(() => tokensStore.topVolumeTokens.slice(0, 3));
 
 
 const tokenUsdPriceMap = computed(() => {
@@ -118,18 +100,18 @@ onMounted(async () => {
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
         <div class="flex items-center justify-between mb-2">
-          <span class="font-semibold text-gray-900 dark:text-white">Hot Coins</span>
+          <span class="font-semibold text-gray-900 dark:text-white">Hot</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="coin in hotCoins" :key="coin.symbol" class="flex items-center justify-between py-1">
+        <div v-for="t in hotTokens" :key="t.symbol" class="flex items-center justify-between py-1">
           <div class="flex items-center space-x-2">
-            <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
-            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
+            <img :src="t.icon" :alt="t.symbol" class="w-5 h-5" />
+            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(coin,
+          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(t,
             tokenUsdPriceMap)) }}
           </div>
-          <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
+          <div :class="t.change < 0 ? 'text-red-500' : 'text-green-500'">{{ t.change }}%</div>
         </div>
       </div>
       <div
@@ -138,42 +120,41 @@ onMounted(async () => {
           <span class="font-semibold text-gray-900 dark:text-white">New Listing</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="token in tokensStore.newTokens.slice(0, 3)" :key="token.symbol"
-          class="flex items-center justify-between py-1">
-          <span class="font-medium text-sm text-gray-900 dark:text-white">{{ token.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap) }}
+        <div v-for="t in newTokens.slice(0, 3)" :key="t.symbol" class="flex items-center justify-between py-1">
+          <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(t, tokenUsdPriceMap) }}
           </div>
-          <div :class="token.change < 0 ? 'text-red-500' : 'text-green-500'">{{ token.change }}%</div>
+          <div :class="t.change < 0 ? 'text-red-500' : 'text-green-500'">{{ t.change }}%</div>
         </div>
       </div>
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
         <div class="flex items-center justify-between mb-2">
-          <span class="font-semibold text-gray-900 dark:text-white">Top Gainer Coin</span>
+          <span class="font-semibold text-gray-900 dark:text-white">Top Gainer</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="coin in topGainers" :key="coin.symbol" class="flex items-center justify-between py-1">
-          <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(coin, tokenUsdPriceMap) }}
+        <div v-for="t in topGainers" :key="t.symbol" class="flex items-center justify-between py-1">
+          <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
+          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(t, tokenUsdPriceMap) }}
           </div>
-          <div :class="coin.change < 0 ? 'text-green-500' : 'text-red-500'">{{ coin.change }}%</div>
+          <div :class="t.change < 0 ? 'text-green-500' : 'text-red-500'">{{ t.change }}%</div>
         </div>
       </div>
       <div
         class="rounded-xl p-4 shadow border flex flex-col bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800">
         <div class="flex items-center justify-between mb-2">
-          <span class="font-semibold text-gray-900 dark:text-white">Top Volume Coin</span>
+          <span class="font-semibold text-gray-900 dark:text-white">Top Volume</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="coin in topVolume" :key="coin.symbol" class="flex items-center justify-between py-1">
+        <div v-for="t in topVolume" :key="t.symbol" class="flex items-center justify-between py-1">
           <div class="flex items-center space-x-2">
-            <img :src="coin.icon" :alt="coin.symbol" class="w-5 h-5" />
-            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ coin.symbol }}</span>
+            <img :src="t.icon" :alt="t.symbol" class="w-5 h-5" />
+            <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(coin,
+          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(t,
             tokenUsdPriceMap)) }}
           </div>
-          <div :class="coin.change < 0 ? 'text-red-500' : 'text-green-500'">{{ coin.change }}%</div>
+          <div :class="t.change < 0 ? 'text-red-500' : 'text-green-500'">{{ t.change }}%</div>
         </div>
       </div>
     </div>

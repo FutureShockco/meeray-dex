@@ -13,8 +13,10 @@ const tokenHelpers = createTokenHelpers();
 const { getUserCount } = useApiService();
 const userCount = ref(0);
 
-const hotCoins = computed(() => tokensStore.tokens.slice(0, 3));
+const hotTokens = computed(() => tokensStore.hotTokens.slice(0, 3));
 const newTokens = computed(() => tokensStore.newTokens.slice(0, 3));
+const topGainers = computed(() => tokensStore.topGainersTokens.slice(0, 3));
+const topVolume = computed(() => tokensStore.topVolumeTokens.slice(0, 3));
 const tokenList = computed(() => tokensStore.tokens);
 const appDescription = 'Discover, trade, and earn with the next generation decentralized exchange on Steem.';
 
@@ -37,16 +39,6 @@ const stats = computed(() => [
   { label: 'Volume (24h)', value: 'NA' },
   { label: 'Pools', value: poolsStore.pools.length },
 ]);
-
-
-const topGainers = computed(() => {
-
-  const t = tokensStore.tokens.filter(t => tokenHelpers.getTokenChange(t) !== null && tokenHelpers.getTokenChange(t).startsWith('+')).sort((a, b) => {
-    return Number(tokenHelpers.getTokenChange(b)) - Number(tokenHelpers.getTokenChange(a));
-  }).slice(0, 3);
-
-  return t;
-});
 
 
 const features = [
@@ -106,7 +98,7 @@ const faqs = [
           <div class="rounded-xl shadow p-6 border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
             <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">Hot List</h3>
             <ul>
-              <li v-for="item in hotCoins" :key="item.symbol" class="py-2 flex justify-between space-x-2">
+              <li v-for="item in hotTokens" :key="item.symbol" class="py-2 flex justify-between space-x-2">
                 <div class="flex items-center space-x-2">
                   <TokenIcon :src="tokenHelpers.getTokenIcon(item) || item.logoUrl" :alt="item.symbol"
                     class="w-5 h-5 mr-2" />

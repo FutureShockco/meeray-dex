@@ -4,7 +4,10 @@ import { useApiService } from '../composables/useApiService';
 
 export const useTokenListStore = defineStore('tokenList', () => {
   const tokens = ref<any[]>([]);
-  const newTokens = ref<any[]>([]); // For new tokens that may be added later
+  const newTokens = ref<any[]>([]);
+  const hotTokens = ref<any[]>([]);
+  const topGainersTokens = ref<any[]>([]);
+  const topVolumeTokens = ref<any[]>([]);
   const loading = ref(false);
   const error = ref('');
 
@@ -32,6 +35,33 @@ export const useTokenListStore = defineStore('tokenList', () => {
     } finally {
       loading.value = false;
     }
+    try {
+      const res = await api.getHotTokens({ limit: 10 });
+      hotTokens.value = Array.isArray(res.data) ? res.data : [];
+    } catch (e: any) {
+      error.value = e?.message || 'Failed to fetch hot tokens';
+      console.error('TokenList: Error fetching hot tokens:', e);
+    } finally {
+      loading.value = false;
+    }
+    try {
+      const res = await api.getTopGainersTokens({ limit: 10 });
+      topGainersTokens.value = Array.isArray(res.data) ? res.data : [];
+    } catch (e: any) {
+      error.value = e?.message || 'Failed to fetch top gainers tokens';
+      console.error('TokenList: Error fetching top gainers tokens:', e);
+    } finally {
+      loading.value = false;
+    }
+    try {
+      const res = await api.getTopVolumeTokens({ limit: 10 });
+      topVolumeTokens.value = Array.isArray(res.data) ? res.data : [];
+    } catch (e: any) {
+      error.value = e?.message || 'Failed to fetch top volume tokens';
+      console.error('TokenList: Error fetching top volume tokens:', e);
+    } finally {
+      loading.value = false;
+    }
   }
 
   function getTokenPrecision(symbol: string): number {
@@ -46,5 +76,5 @@ export const useTokenListStore = defineStore('tokenList', () => {
     return token.symbol;
   }
 
-  return { tokens, newTokens, loading, error, fetchTokens, getTokenPrecision, getTokenIdentifier };
+  return { tokens, hotTokens, topGainersTokens, topVolumeTokens, newTokens, loading, error, fetchTokens, getTokenPrecision, getTokenIdentifier };
 });

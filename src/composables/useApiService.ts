@@ -7,9 +7,9 @@ export interface Account {
   _id?: string;
   id?: string;
   name: string;
-  created: string; // ISO date string
-  tokens?: Record<string, number>; // e.g., { MRY: 1005827 }
-  nfts: Record<string, unknown>; // empty object, or can be defined more specifically later
+  created: string;
+  tokens?: Record<string, number>;
+  nfts: Record<string, unknown>;
   totalVoteWeight?: {
     amount: string;
     rawAmount: string;
@@ -21,7 +21,7 @@ export interface Account {
     rawAmount: string;
   }>;
 }
-// export interface AccountDetails { /* ... */ } // Commented out as Account is more specific
+
 export interface AccountList {
   data: Account[];
   total: number;
@@ -287,6 +287,13 @@ export function useApiService() {
     fetcher(`${API_BASE}/tokens/name/${searchName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
   const getNewTokens = (params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/tokens/new?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
+  const getHotTokens = (params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/tokens/hot?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
+  const getTopGainersTokens = (params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/tokens/top-gainers?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
+  const getTopVolumeTokens = (params: { limit?: number; offset?: number } = {}) =>
+    fetcher(`${API_BASE}/tokens/top-volume?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Token[]; total: number; limit: number; skip: number }>;
+
 
   const getTokenSupply = () => fetcher(`${API_BASE}/supply`) as Promise<TokenSupply>;
   const getTokenHolders = (symbol: string) => fetcher(`${API_BASE}/holders/${symbol}`) as Promise<TokenHolders>;
@@ -412,10 +419,6 @@ export function useApiService() {
   const getPeers = () => fetcher(`${API_BASE}/peers`) as Promise<{ success: boolean, peers: string[] }>;
   const getLeader = () => fetcher(`${API_BASE}/leader`) as Promise<LeaderInfo>;
   const getSchedule = () => fetcher(`${API_BASE}/schedule`) as Promise<Schedule>;
-
-  // --- Mine Endpoint ---
-  const triggerMine = () => fetcher(`${API_BASE}/mine`);
-
   // --- Pool Endpoints ---
 
   // --- Swap Endpoints ---
@@ -517,6 +520,9 @@ export function useApiService() {
     // Token
     getTokens,
     getNewTokens,
+    getHotTokens,
+    getTopGainersTokens,
+    getTopVolumeTokens,
     getTokenDetails,
     getTokensByIssuer,
     searchTokensByName,
@@ -565,8 +571,7 @@ export function useApiService() {
     getPeers,
     getLeader,
     getSchedule,
-    // Mine
-    triggerMine,
+
     // Pools
     getPoolsList,
     getPoolDetailsById,

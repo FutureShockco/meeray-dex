@@ -331,25 +331,7 @@ function getPriceChangeColorClass(pool: any) {
               </div>
             </div>
 
-            <!-- Debug Information -->
-            <div v-if="meeray.account" class="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded text-xs">
-              <div class="font-semibold text-gray-700 dark:text-gray-300 mb-2">Debug Info:</div>
-              <div class="space-y-1 text-gray-600 dark:text-gray-400">
-                <div>Account loaded: {{ !!meeray.account }}</div>
-                <div>Has balances: {{ !!meeray.account?.balances }}</div>
-                <div>Total tokens: {{ Object.keys(meeray.account?.balances || {}).length }}</div>
-                <div>LP tokens found: {{Object.keys(meeray.account?.balances || {}).filter(s =>
-                  s.startsWith('LP_')).length}}</div>
-                <div v-if="Object.keys(meeray.account?.balances || {}).filter(s => s.startsWith('LP_')).length > 0">
-                  LP Tokens: {{Object.keys(meeray.account?.balances || {}).filter(s => s.startsWith('LP_')).join(', ')
-                  }}
-                </div>
-              </div>
 
-            </div>
-            <div v-else class="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded text-xs">
-              <div class="text-yellow-700 dark:text-yellow-300">Account not loaded or user not authenticated</div>
-            </div>
           </div>
           {{ lpPositions.length > 0 ? '' : 'No active positions' }}
 
