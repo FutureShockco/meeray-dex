@@ -15,7 +15,7 @@
         </thead>
         <tbody>
           <tr v-for="trade in trades" :key="trade.time" class="hover:bg-gray-800 transition">
-            <td :class="trade.side === 'buy' ? 'text-green-400' : 'text-red-400'" class="px-2 py-1 font-mono">{{ trade.price }}</td>
+            <td :class="trade.side === 'BUY' ? 'text-green-400' : 'text-red-400'" class="px-2 py-1 font-mono">{{ trade.price }}</td>
             <td class="px-2 py-1 text-white font-mono">{{ trade.amount }}</td>
             <td class="px-2 py-1 text-gray-400">{{ trade.time }}</td>
           </tr>

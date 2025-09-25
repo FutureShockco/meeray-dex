@@ -34,7 +34,7 @@ let refreshInterval: NodeJS.Timeout;
 
 type Tab = 'swap' | 'advanced';
 const tab = ref<Tab>('swap');
-const selectedTab = ref<'orderbook' | 'trades' | 'orders'>('orderbook');
+const selectedTab = ref<'orderbook' | 'trades' | 'orders'>('trades');
 const tradingPairs = ref<any[]>([]);
 const orderBook = ref<{
   pairId?: string;
@@ -240,18 +240,20 @@ const fetchOrderBook = async () => {
       asks: orderbookData.asks.map((ask: any) => ({
         price: ask.price.toFixed(8),
         amount: ask.quantity.toFixed(8),
-        total: ask.total.toFixed(8)
+        total: ask.total.toFixed(8),
+        remaining: ask.remainingQuantity.toFixed(8)
       })),
       bids: orderbookData.bids.map((bid: any) => ({
         price: bid.price.toFixed(8),
         amount: bid.quantity.toFixed(8),
-        total: bid.total.toFixed(8)
+        total: bid.total.toFixed(8),
+        remaining: bid.remainingQuantity.toFixed(8)
       })),
       raw: {
         asks: (response.asks || []).map((ask: any) => ({
           price: ask.rawPrice,
           quantity: ask.rawQuantity,
-          total: ask.rawTotal
+          total: ask.rawTotal,
         })),
         bids: (response.bids || []).map((bid: any) => ({
           price: bid.rawPrice,
@@ -448,17 +450,17 @@ function handleAdvancedClick() {
     <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
       <div class="border-b border-gray-200 dark:border-gray-700">
         <nav class="flex space-x-8 px-4">
-          <button @click="selectedTab = 'orderbook'" :class="['py-4 px-1 border-b-2 font-medium text-sm',
-            selectedTab === 'orderbook'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
-            Order Book
-          </button>
           <button @click="selectedTab = 'trades'" :class="['py-4 px-1 border-b-2 font-medium text-sm',
             selectedTab === 'trades'
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
             Recent Trades
+          </button>
+          <button @click="selectedTab = 'orderbook'" :class="['py-4 px-1 border-b-2 font-medium text-sm',
+            selectedTab === 'orderbook'
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
+            Order Book
           </button>
           <button @click="selectedTab = 'orders'" :class="['py-4 px-1 border-b-2 font-medium text-sm',
             selectedTab === 'orders'
@@ -470,6 +472,42 @@ function handleAdvancedClick() {
       </div>
 
       <div class="p-4">
+        <div v-if="selectedTab === 'trades'">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Recent Trades</h4>
+          <div v-if="recentTrades.length === 0" class="text-center py-8 text-gray-500">
+            No recent trades
+          </div>
+          <div v-else class="space-y-1">
+            <div class="grid grid-cols-6 gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>Price</span>
+              <span>Quantity</span>
+              <span>Total</span>
+              <span>Time</span>
+              <span>Side</span>
+              <span>Source</span>
+            </div>
+            <div v-for="trade in recentTrades" :key="trade.id || trade._id" class="grid grid-cols-6 gap-2 text-xs p-1">
+              <span :class="trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
+                {{ trade.price ? $formatNumber(parseFloat(trade.price), null, '0,0.000') : '--' }} {{ quoteToken }}
+              </span>
+              <span class="text-gray-900 dark:text-white">
+                {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
+              </span>
+              <span class="text-gray-900 dark:text-white">
+                {{ trade.volume ? $formatNumber(parseFloat(trade.total)) : '--' }} {{ quoteToken }}
+              </span>
+              <span class="text-gray-600 dark:text-gray-400">
+                {{ trade.timestamp ? $formatDate(trade.timestamp, 'YYYY-MM-DD HH:mm:ss') : '--' }}
+              </span>
+              <span :class="trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
+                {{ trade.side === 'BUY' ? 'Buy' : 'Sell' }}
+              </span>
+              <span class="max-w-[500px]" :class="trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
+                {{ trade.source === 'pool' ? 'Swap' : 'Market' }}
+              </span>
+            </div>
+          </div>
+        </div>
         <div v-if="selectedTab === 'orderbook'" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -486,7 +524,8 @@ function handleAdvancedClick() {
                   @click="setPriceFromOrderBook(ask.price)"
                   class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
                   <span class="text-red-600">{{ $formatNumber(ask.price) }}</span>
-                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }} {{
+                    $formatNumber(ask.remainingQuantity) }}</span>
                   <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(ask.price * ask.quantity)
                   }}</span>
                 </div>
@@ -514,62 +553,36 @@ function handleAdvancedClick() {
             </div>
           </div>
         </div>
-        <div v-if="selectedTab === 'trades'">
-          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Recent Trades</h4>
-          <div v-if="recentTrades.length === 0" class="text-center py-8 text-gray-500">
-            No recent trades
-          </div>
-          <div v-else class="space-y-1">
-            <div class="grid grid-cols-5 gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <span>Price</span>
-              <span>Quantity</span>
-              <span>Total</span>
-              <span>Time</span>
-              <span>Side</span>
-            </div>
-            <div v-for="trade in recentTrades" :key="trade.id || trade._id" class="grid grid-cols-5 gap-2 text-xs p-1">
-              <span :class="trade.side === 'buy' || trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
-                {{ trade.price ? $formatNumber(parseFloat(trade.price), null, '0,0.000') : '--' }} {{ quoteToken }}
-              </span>
-              <span class="text-gray-900 dark:text-white">
-                {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
-              </span>
-              <span class="text-gray-900 dark:text-white">
-                {{ trade.volume ? $formatNumber(parseFloat(trade.total)) : '--' }} {{ quoteToken }}
-              </span>
-              <span class="text-gray-600 dark:text-gray-400">
-                {{ trade.timestamp ? $formatDate(trade.timestamp, 'YYYY-MM-DD HH:mm:ss') : '--' }}
-              </span>
-              <span :class="trade.side === 'buy' || trade.side === 'BUY' ? 'text-green-600' : 'text-red-600'">
-                {{ trade.side === 'buy' || trade.side === 'BUY' ? 'Buy' : 'Sell' }}
-              </span>
-            </div>
-          </div>
-        </div>
         <div v-if="selectedTab === 'orders'">
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">My Open Orders</h4>
           <div v-if="userOrders.length === 0" class="text-center py-8 text-gray-500">
             No open orders
           </div>
           <div v-else class="space-y-2">
-            <div class="grid grid-cols-6 gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <div class="grid grid-cols-8 gap-2 text-xs text-gray-500 dark:text-gray-400">
               <span>Pair</span>
               <span>Side</span>
               <span>Type</span>
               <span>Price</span>
               <span>Quantity</span>
+              <span>Remaining</span>
+              <span>Filled</span>
               <span>Action</span>
             </div>
             <div v-for="order in userOrders" :key="order.id || order._id"
-              class="grid grid-cols-6 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
+              class="grid grid-cols-8 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
               <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
               }}</span>
-              <span :class="order.side === 'buy' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
+              <span :class="order.side === 'BUY' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
               <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
               <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null,
                 '0,0.000') : 'Market'
               }}</span>
-              <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }}</span>
+              <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }} </span>
+              <span class="text-gray-900 dark:text-white">{{
+                $formatNumber(order.remainingQuantity) }}</span>
+              <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity - order.remainingQuantity)
+              }}</span>
               <button @click="cancelOrder(order.id || order._id)" class="text-red-600 hover:text-red-700 text-xs">
                 Cancel
               </button>

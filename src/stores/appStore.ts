@@ -25,7 +25,7 @@ interface TradeEntry {
   price: string;
   amount: string;
   time: string;
-  side: 'buy' | 'sell';
+  side: 'BUY' | 'SELL';
 }
 interface CandleEntry {
   // Add fields as needed
