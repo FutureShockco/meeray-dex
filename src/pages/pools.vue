@@ -3,13 +3,9 @@ import { ref, onMounted, computed } from 'vue';
 import { useApiService } from '../composables/useApiService';
 import { usePoolsStore } from '../stores/usePoolList';
 import { storeToRefs } from 'pinia';
-import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
-import { useCoinPricesStore } from '../stores/useCoinPrices';
-import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
-import BigNumber from 'bignumber.js';
 import { generatePoolId } from '../utils/idUtils';
 
 const api = useApiService();

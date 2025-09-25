@@ -6,7 +6,6 @@ import PoolVolumeChart from '../components/PoolVolumeChart.vue';
 import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
-import BigNumber from 'bignumber.js';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import { generatePoolId } from '../utils/idUtils';
 
@@ -15,6 +14,8 @@ const api = useApiService();
 const coinPrices = useCoinPricesStore();
 const tokenList = useTokenListStore();
 const tokenHelpers = createTokenHelpers();
+const tokensStore = useTokenListStore();
+
 function getStringParam(val: any): string {
   if (Array.isArray(val)) return val[0] || '';
   return typeof val === 'string' ? val : '';
@@ -27,9 +28,6 @@ const loading = ref(true);
 const eventsLoading = ref(false);
 const eventsError = ref('');
 const error = ref('');
-
-const price0Composable = computed(() => pool.value ? useTokenUsdPrice(pool.value.tokenA_symbol) : null);
-const price1Composable = computed(() => pool.value ? useTokenUsdPrice(pool.value.tokenB_symbol) : null);
 
 onMounted(async () => {
   try {
@@ -89,15 +87,7 @@ async function fetchMarketStats() {
 }
 
 const poolName = computed(() => pool.value ? `${pool.value.tokenA_symbol} / ${pool.value.tokenB_symbol}` : 'Pool not found');
-const tvlUsd = computed(() => {
-  if (!pool.value) return '--';
-  const reserve0 = Number(pool.value.tokenA_reserve) || 0;
-  const reserve1 = Number(pool.value.tokenB_reserve) || 0;
-  const price0 = price0Composable.value || 0;
-  const price1 = price1Composable.value || 0;
-  const tvl = Number(price0) * Number(reserve0) + Number(price1) * Number(reserve1);
-  return tvl > 0 ? '$' + tvl.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '--';
-});
+
 const token0Balance = computed(() => pool.value && pool.value.tokenA_reserve !== undefined ? pool.value.tokenA_reserve : '--');
 const token1Balance = computed(() => pool.value && pool.value.tokenB_reserve !== undefined ? pool.value.tokenB_reserve : '--');
 
@@ -148,45 +138,21 @@ function getEventTypeClass(type: string | undefined): string {
   return classMap[type] || 'text-gray-900 dark:text-white';
 }
 
-function formatUSD(amount: number | string | undefined): string {
-  if (!amount || amount === 0) return '--';
-  try {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return `$${num.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-  } catch {
-    return '--';
-  }
-}
-
-function formatTokenAmount(amount: number | string | undefined, symbol: string | undefined): string {
-  if (!amount || amount === 0 || !symbol) return '--';
-  try {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return `${num.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`;
-  } catch {
-    return '--';
-  }
-}
 
 const tokenUsdPriceMap = computed(() => {
   const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
-  if (pool.value) {
-    if (pool.value.tokenA_symbol && !map[pool.value.tokenA_symbol]) map[pool.value.tokenA_symbol] = useTokenUsdPrice(pool.value.tokenA_symbol);
-    if (pool.value.tokenB_symbol && !map[pool.value.tokenB_symbol]) map[pool.value.tokenB_symbol] = useTokenUsdPrice(pool.value.tokenB_symbol);
+  for (const token of tokensStore.tokens) {
+    if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
   }
   return map;
 });
 
 function getTvlUsd(pool: any) {
   if (!pool) return '--';
-
-  // Try to use market stats TVL first if available
   if (marketStats.value?.tvl) {
     const tvl = parseFloat(marketStats.value.tvl);
     return tvl > 0 ? `$${tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '--';
   }
-
-  // Fallback to calculated TVL
   const price0 = tokenUsdPriceMap.value[pool.tokenA_symbol]?.value || 0;
   const price1 = tokenUsdPriceMap.value[pool.tokenB_symbol]?.value || 0;
   const reserve0 = Number(pool.tokenA_reserve) || 0;
@@ -195,66 +161,17 @@ function getTvlUsd(pool: any) {
   return tvl > 0 ? `$${tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '--';
 }
 
-function formatTokenAmountFromEvent(event: any, tokenType: 'tokenA' | 'tokenB'): string {
-  if (!event?.data || !pool.value) return '--';
-
-  const amountKey = `${tokenType}_amount`;
-  const symbolKey = tokenType === 'tokenA' ? 'tokenA_symbol' : 'tokenB_symbol';
-
-  const rawAmount = event.data[amountKey];
-  const symbol = pool.value[symbolKey];
-
-  if (!rawAmount || !symbol) return '--';
-
-  try {
-    // Get token precision from tokens store
-    const precision = tokenList.getTokenPrecision(symbol);
-
-    // Debug logging
-    console.log(`Formatting ${tokenType}:`, {
-      symbol,
-      rawAmount,
-      precision,
-      tokenFound: tokenList.tokens.find((t: any) => t.symbol === symbol)
-    });
-
-    // Convert raw amount to human-readable
-    const amount = new BigNumber(rawAmount).dividedBy(new BigNumber(10).pow(precision));
-
-    console.log(`Result for ${tokenType}:`, {
-      rawAmount,
-      precision,
-      calculatedAmount: amount.toString(),
-      formattedResult: `${amount.toFormat(6)} ${symbol}`
-    });
-
-    return `${amount.toFormat(6)} ${symbol}`;
-  } catch (error) {
-    console.error('Error formatting token amount:', error);
-    return '--';
-  }
-}
-
-function getPoolPairId(): string {
-  if (!pool.value) return '';
-
-  // Create a pair ID in the format expected by the trading API
-  // Based on the API response: "MRY-STEEM"
-  return generatePoolId(pool.value.tokenA_symbol, pool.value.tokenB_symbol);
-}
 </script>
 
 <template>
   <div class="min-h-screen py-8 px-2 md:px-0 bg-white dark:bg-gray-950">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Main Content -->
       <div class="lg:col-span-2 flex flex-col gap-8">
         <div class="flex items-center justify-between gap-6 mb-6">
           <div class="flex items-center gap-2" v-if="pool">
             <PairIcon :size="12" :src1="tokenHelpers.getTokenIcon({ symbol: pool.tokenA_symbol }) || ''"
               :src2="tokenHelpers.getTokenIcon({ symbol: pool.tokenB_symbol }) || ''" /> <span
               class="font-bold text-2xl text-gray-900 dark:text-white">{{ poolName }}</span>
-
           </div>
           <div class="flex gap-3">
             <router-link v-if="pool"
@@ -262,7 +179,7 @@ function getPoolPairId(): string {
               class="px-4 py-2 rounded bg-primary-400 text-white font-semibold flex items-center justify-center">
               Swap
             </router-link>
-            <router-link v-if="pool" :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: getPoolPairId() } }"
+            <router-link v-if="pool" :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: poolId } }"
               class="px-4 py-2 rounded bg-blue-500 hover:bg-blue-600 text-white font-semibold flex items-center justify-center">
               Trade
             </router-link>
@@ -272,12 +189,9 @@ function getPoolPairId(): string {
             </router-link>
           </div>
         </div>
-        <!-- Volume Chart -->
-
         <div>
           <PoolVolumeChart :selectedPair="poolId" />
         </div>
-        <!-- Transactions Table -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transactions</h2>
           <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto">
@@ -310,22 +224,40 @@ function getPoolPairId(): string {
                     {{ formatEventType(event.type) }}
                   </td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
-                    v-if="event.data.tokenIn_symbol && event.data.tokenOut_symbol">{{ event.data.tokenIn_symbol }} > {{
-                      event.data.tokenOut_symbol }}</td>
+                    v-if="event.action === 'swap' && event.data.tokenIn && event.data.tokenOut">
+                    {{ event.data.tokenIn }} > {{
+                      event.data.tokenOut }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
+                    {{ event.data.poolId }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
 
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ? formatUSD(event.usd
-                    || event.amount) : '--' }}</td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ?
-                    event.data.tokenIn_symbol === pool.tokenA_symbol ? $formatTokenBalance(event.data.amountIn,
-                      event.data.tokenIn_symbol) : $formatTokenBalance(event.data.amountOut, event.data.tokenOut_symbol) :
-                    '--' }}
+                  <td class="px-4 py-2 text-gray-900 dark:text-white"
+                    v-if="event.action === 'swap' && event.data.tokenOut">
+                    ${{ $formatNumber(tokenHelpers.getTokenPrice(event.data.tokenOut, tokenUsdPriceMap) *
+                      Number($formatTokenBalance(event.data.amountOut, event.data.tokenOut))) }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
+                    ${{ $formatNumber(tokenHelpers.getTokenPrice(pool.tokenB_symbol, tokenUsdPriceMap) *
+                      Number($formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol))) }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
+
+                  <td class="px-4 py-2 text-gray-900 dark:text-white"
+                    v-if="event.action === 'swap' && event.data.tokenIn">{{ event.data.tokenIn ?
+                      event.data.tokenIn === pool.tokenA_symbol ? $formatTokenBalance(event.data.amountIn,
+                        event.data.tokenIn) : $formatTokenBalance(event.data.amountOut, event.data.tokenOut) :
+                      '--' }}
                   </td>
-                  <td class="px-4 py-2 text-gray-900 dark:text-white">{{ event.data.tokenIn_symbol ?
-                    event.data.tokenIn_symbol === pool.tokenB_symbol ? $formatTokenBalance(event.data.amountIn,
-                      event.data.tokenIn_symbol) : $formatTokenBalance(event.data.amountOut, event.data.tokenOut_symbol) :
-                    '--' }}
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
+                    {{ $formatTokenBalance(event.data.tokenAAmount, pool.tokenA_symbol) }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white"
+                    v-if="event.action === 'swap' && event.data.tokenIn">{{ event.data.tokenIn ?
+                      event.data.tokenIn === pool.tokenB_symbol ? $formatTokenBalance(event.data.amountIn,
+                        event.data.tokenIn) : $formatTokenBalance(event.data.amountOut, event.data.tokenOut) :
+                      '--' }}
                   </td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
+                    {{ $formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol) }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white">@{{ event.actor || event.wallet || '--' }}</td>
                 </tr>
               </tbody>
@@ -364,7 +296,8 @@ function getPoolPairId(): string {
             <div v-if="marketStats.volume24h" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 dark:text-gray-400">Volume:</span>
               <span class="font-semibold text-gray-900 dark:text-white">
-                {{ parseFloat(marketStats.volume24h).toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ pool.tokenB_symbol }}
+                {{ parseFloat(marketStats.volume24h).toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{
+                  pool.tokenB_symbol }}
               </span>
             </div>
 

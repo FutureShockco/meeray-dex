@@ -50,19 +50,24 @@ export function createTokenHelpers() {
      * Format token price with proper precision
      */
     getTokenPrice(token: any, tokenUsdPriceMap: any): number {
-
-      if (coinPricesStore.prices === undefined) return 0;
-      if (coinPricesStore.prices[token.symbol] !== undefined) {
-        return coinPricesStore.prices[token.symbol];
-      };
-      if (!tokenUsdPriceMap[token.symbol]) return 0;
-
-      const price = tokenUsdPriceMap[token.symbol].value;
-
-      if (price !== undefined && price !== null) {
-        return Number(price);
+      if (!token) return 0;
+      if (!coinPricesStore.prices) return 0;
+      const symbol = typeof token === 'string' ? token : token.symbol;
+      if (!symbol) return 0;
+      const coinPrice = coinPricesStore.prices[symbol];
+      if (coinPrice !== undefined && coinPrice !== null && !isNaN(Number(coinPrice))) {
+        return Number(coinPrice);
       }
-
+      const poolPrice = tokenUsdPriceMap[symbol];
+      if (poolPrice && poolPrice.value !== undefined && poolPrice.value !== null && !isNaN(Number(poolPrice.value))) {
+        return Number(poolPrice.value);
+      }
+      if (typeof token === 'object' && token.price !== undefined && token.price !== null && !isNaN(Number(token.price))) {
+        return Number(token.price);
+      }
+      if (typeof token === 'object' && token.data && token.data.price !== undefined && !isNaN(Number(token.data.price))) {
+        return Number(token.data.price);
+      }
       return 0;
     },
 

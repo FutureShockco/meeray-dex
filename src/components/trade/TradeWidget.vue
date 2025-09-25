@@ -648,8 +648,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex items-center justify-center bg-white dark:bg-gray-950 px-2 pb-8">
-    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-8">
+  <div class="flex items-center justify-center bg-white dark:bg-gray-950 pb-4">
+    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-8">
 
       <!-- Error Message -->
       <div v-if="error"
@@ -835,7 +835,7 @@ onUnmounted(() => {
         <div class="lg:col-span-1">
           <!-- Trading Guide -->
           <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Hybrid Trading Guide</h3>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Trading Guide</h3>
             <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
               <div>
                 <strong class="text-gray-900 dark:text-white">Limit Trades:</strong>
@@ -846,11 +846,6 @@ onUnmounted(() => {
                 <strong class="text-gray-900 dark:text-white">Market Trades:</strong>
                 <p>Execute immediately at the best available price across all liquidity sources (AMM pools + orderbook).
                   May result in partial fills if insufficient liquidity.</p>
-              </div>
-              <div>
-                <strong class="text-gray-900 dark:text-white">Check Recent Trades:</strong>
-                <p>If you don't see your order in "My Orders", check "Recent Trades" - your trade may have executed
-                  immediately.</p>
               </div>
             </div>
           </div>

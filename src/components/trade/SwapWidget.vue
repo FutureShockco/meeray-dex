@@ -291,8 +291,8 @@ function setMaxAmountIn() {
 </script>
 
 <template>
-  <div class="flex items-center justify-center bg-white dark:bg-gray-950 px-2 pb-8">
-    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg p-8">
+  <div class="flex items-center justify-center bg-white dark:bg-gray-950 pb-4">
+    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Swap Tokens</h2>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
@@ -341,7 +341,7 @@ function setMaxAmountIn() {
         <div v-if="previewError" class="text-red-500 text-sm mt-2">{{ previewError }}</div>
 
         <!-- Route Selection -->
-        <div v-if="routeData && !previewLoading" class="mt-4">
+        <div v-if="routeData && !previewLoading">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Available Routes</h3>
 
           <!-- Route Options -->
