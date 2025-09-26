@@ -267,7 +267,7 @@ function getTvlUsd(pool: any) {
       </div>
       <!-- Sidebar -->
       <div class="flex flex-col gap-2">
-
+        <Chart/>
         <MarketStats v-if="poolId" :pairId="poolId" />
         <!-- Stats Card -->
         <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5">

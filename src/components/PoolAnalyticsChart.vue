@@ -199,12 +199,12 @@ function formatTooltipValue(value: number) {
         <g v-for="(point, i) in priceChartData" :key="'p-'+i">
           <rect :x="point.x - 8" :y="Math.min(point.y, i > 0 ? priceChartData[i - 1].y : point.y)" width="16"
             :height="Math.abs(point.y - (i > 0 ? priceChartData[i - 1].y : point.y)) || 2"
-            :fill="point.isUp ? '#10b981' : '#ef4444'" :stroke="point.isUp ? '#065f46' : '#991b1b'" stroke-width="1" rx="2"
+            :fill="point.isUp ? '#16c557b5' : '#c51616b5'" :stroke="point.isUp ? '#065f46' : '#991b1b'" stroke-width="1" rx="2"
             class="transition-all duration-200 cursor-pointer" @mouseenter="showBarTooltip(i, $event)" @mouseleave="hideBarTooltip" @mousemove="updateBarTooltipPosition($event)" />
           <line v-if="i < priceChartData.length - 1" :x1="point.x + 8" :y1="point.y" :x2="priceChartData[i + 1].x - 8" :y2="priceChartData[i + 1].y" :stroke="point.isUp ? '#10b981' : '#ef4444'" stroke-width="2" opacity="0.6" />
         </g>
 
-        <circle v-for="(point, i) in priceChartData" :key="'pt-'+i" :cx="point.x" :cy="point.y" :r="hoveredBarIndex === i ? 6 : 4" :fill="point.isUp ? '#10b981' : '#ef4444'" :stroke="point.isUp ? '#065f46' : '#991b1b'" stroke-width="2"
+  <circle v-for="(point, i) in priceChartData" :key="'pt-'+i" :cx="point.x" :cy="point.y" :r="hoveredBarIndex === i ? 6 : 4" :fill="point.isUp ? '#10b981' : '#ef4444'" :stroke="point.isUp ? '#065f46' : '#991b1b'" stroke-width="2"
           class="transition-all duration-200 cursor-pointer" :class="hoveredBarIndex === i ? 'opacity-100' : 'opacity-70 hover:opacity-100'" @mouseenter="showBarTooltip(i, $event)" @mouseleave="hideBarTooltip" @mousemove="updateBarTooltipPosition($event)" />
       </g>
 
