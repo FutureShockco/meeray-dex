@@ -1,3 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+* {
+  font-family: 'Inter', 'Satoshi', 'Montserrat', 'Segoe UI', Arial, sans-serif;
+}
+
 :root {
   /* Main Colors */
   --nft-bg-dark: #0a0a0f;
@@ -10,10 +16,4 @@
   --nft-accent: #00ff88;
   --nft-red: #ff3860;
   --nft-yellow: #ffdd00;
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-
-* {
-  font-family: 'Inter', 'Satoshi', 'Montserrat', 'Segoe UI', Arial, sans-serif;
 }

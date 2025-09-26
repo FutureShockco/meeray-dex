@@ -47,6 +47,8 @@ const orderBook = ref<{
 }>({ bids: [], asks: [] });
 const recentTrades = ref<any[]>([]);
 const userOrders = ref<any[]>([]);
+const pastOrders = ref<any[]>([]);
+const showingPast = ref<boolean>(false);
 const marketStats = ref<any>({});
 const selectedPair = ref<string>('MRY_TESTS');
 const baseToken = ref<string>('MRY');
@@ -83,7 +85,7 @@ const cancelOrder = async (orderId: string) => {
     await TransactionService.send('custom_json', customJsonOperation, {
       requiredAuth: 'active'
     });
-    await Promise.all([fetchUserOrders(), fetchOrderBook(), meeray.refreshAccount()]);
+    await Promise.all([fetchUserOrders(), fetchPastOrders(), fetchOrderBook(), meeray.refreshAccount()]);
   } catch (e: any) {
     error.value = e?.message || 'Failed to cancel order';
   }
@@ -101,9 +103,10 @@ const handleUrlParameters = () => {
   else if (route.query.useTradeWidget !== undefined && route.query.pairId) {
     tab.value = 'advanced';
     useTradeWidget.value = true;
+    // Apply the pairId from the URL first, then derive base/quote tokens
+    selectedPair.value = (route.query.pairId as string) || selectedPair.value;
     baseToken.value = selectedPair.value.split('_')[0];
     quoteToken.value = selectedPair.value.split('_')[1];
-    selectedPair.value = route.query.pairId as string || selectedPair.value;
     pairId.value = selectedPair.value;
   }
 };
@@ -123,10 +126,20 @@ watch(selectedPair, async (newPairId) => {
           (p.baseAssetSymbol === quoteToken.value && p.quoteAssetSymbol === baseToken.value)
       );
       if (detPair) {
-        router.replace({
-          path: route.path,
-          query: { ...route.query, tokenIn: detPair.baseAssetSymbol, tokenOut: detPair.quoteAssetSymbol }
-        });
+        // If the advanced TradeWidget is active (useTradeWidget), keep the advanced mode
+        // by writing useTradeWidget and pairId to the query. Otherwise update tokenIn/tokenOut
+        // which are used by the Quick Swap view.
+        if (useTradeWidget.value) {
+          router.replace({
+            path: route.path,
+            query: { ...route.query, useTradeWidget: 'true', pairId: detPair._id }
+          });
+        } else {
+          router.replace({
+            path: route.path,
+            query: { ...route.query, tokenIn: detPair.baseAssetSymbol, tokenOut: detPair.quoteAssetSymbol }
+          });
+        }
         marketStats.value = {};
         pairId.value = detPair._id;
         await fetchInformations();
@@ -143,7 +156,7 @@ const fetchInformations = async () => {
       fetchMarketStats()
     ]);
     if (auth.state?.username) {
-      await fetchUserOrders();
+      await Promise.all([fetchUserOrders(), fetchPastOrders()]);
     }
   }
 };
@@ -211,6 +224,41 @@ const fetchUserOrders = async () => {
     console.log('Processed user orders:', userOrders.value);
   } catch (e: any) {
     console.error('Failed to fetch user orders:', e);
+  }
+};
+
+// Fetch past/completed/cancelled orders for the user
+const fetchPastOrders = async () => {
+  if (!auth.state?.username || !baseToken.value || !quoteToken.value) return;
+  try {
+  // request all past orders using dedicated endpoint (no status filter)
+  const response = await api.getUserPastOrders(auth.state.username, 100);
+    const orders = response.orders || response.data || response || [];
+
+    pastOrders.value = orders
+      .map((order: any) => {
+        const pair = tradingPairs.value.find(p => p._id === order.pairId);
+        return {
+          _id: order.id || order._id,
+          id: order.id || order._id,
+          pairId: order.pairId,
+          baseAssetSymbol: pair?.baseAssetSymbol || '',
+          quoteAssetSymbol: pair?.quoteAssetSymbol || '',
+          side: order.side?.toUpperCase() || order.side,
+          type: order.type?.toUpperCase() || order.type,
+          price: parseFloat(order.price || 0),
+          quantity: parseFloat(order.quantity || order.remainingQuantity || 0),
+          filledQuantity: parseFloat(order.filledQuantity || 0),
+          status: order.status,
+          timestamp: order.timestamp || order.createdAt || order.updatedAt,
+          ...order
+        };
+      })
+      .filter((o: any) => o.status && o.status.toString().toLowerCase() !== 'active' && o.status.toString().toLowerCase() !== 'open');
+
+    console.log('Processed past orders:', pastOrders.value);
+  } catch (e: any) {
+    console.error('Failed to fetch past user orders:', e);
   }
 };
 
@@ -404,8 +452,7 @@ function handleAdvancedClick() {
               <span class="text-gray-900 dark:text-white font-mono">
                 {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }}
                 {{ quoteToken }} -
-                ${{ $formatNumber(Number(tokenHelpers.getTokenPrice({ symbol: quoteToken }, tokenUsdPriceMap)) *
-                  Number(marketStats.currentPrice || 0), '$', '0.0000') }}
+                ${{ $formatUsdValue(Number($tokenPrice(quoteToken, true)) * Number(marketStats.currentPrice || 0), '0,0.0000') }}
               </span>
             </div>
             <div class="flex justify-between">
@@ -466,7 +513,7 @@ function handleAdvancedClick() {
             selectedTab === 'orders'
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300']">
-            My Open Orders
+            My Orders
           </button>
         </nav>
       </div>
@@ -491,10 +538,10 @@ function handleAdvancedClick() {
                 {{ trade.price ? $formatNumber(parseFloat(trade.price), null, '0,0.000') : '--' }} {{ quoteToken }}
               </span>
               <span class="text-gray-900 dark:text-white">
-                {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity)) : '--' }} {{ baseToken }}
+                {{ trade.quantity ? $formatNumber(parseFloat(trade.quantity), baseToken) : '--' }} {{ baseToken }}
               </span>
               <span class="text-gray-900 dark:text-white">
-                {{ trade.volume ? $formatNumber(parseFloat(trade.total)) : '--' }} {{ quoteToken }}
+                {{ trade.volume ? $formatNumber(parseFloat(trade.total), null, '0,0.000') : '--' }} {{ quoteToken }}
               </span>
               <span class="text-gray-600 dark:text-gray-400">
                 {{ trade.timestamp ? $formatDate(trade.timestamp, 'YYYY-MM-DD HH:mm:ss') : '--' }}
@@ -523,11 +570,9 @@ function handleAdvancedClick() {
                 <div v-for="ask in orderBook.asks.slice(0, 10)" :key="ask.price"
                   @click="setPriceFromOrderBook(ask.price)"
                   class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
-                  <span class="text-red-600">{{ $formatNumber(ask.price) }}</span>
-                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }} {{
-                    $formatNumber(ask.remainingQuantity) }}</span>
-                  <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(ask.price * ask.quantity)
-                  }}</span>
+                  <span class="text-red-600">{{ $formatNumber(ask.price) }} {{ quoteToken }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(ask.quantity) }} {{ baseToken }} </span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(ask.price * ask.quantity) }} {{ quoteToken }}</span>
                 </div>
               </div>
             </div>
@@ -544,48 +589,99 @@ function handleAdvancedClick() {
                 <div v-for="bid in orderBook.bids.slice(0, 10)" :key="bid.price"
                   @click="setPriceFromOrderBook(bid.price)"
                   class="grid grid-cols-3 gap-2 text-xs cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/20 p-1 rounded">
-                  <span class="text-green-600">{{ $formatNumber(bid.price) }}</span>
-                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(bid.quantity) }}</span>
-                  <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(bid.price * bid.quantity)
-                  }}</span>
+                  <span class="text-green-600">{{ $formatNumber(bid.price) }} {{ quoteToken }}</span>
+                  <span class="text-gray-900 dark:text-white">{{ $formatNumber(bid.quantity) }} {{ baseToken }}</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ $formatNumber(bid.price * bid.quantity) }} {{ quoteToken }}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div v-if="selectedTab === 'orders'">
-          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">My Open Orders</h4>
-          <div v-if="userOrders.length === 0" class="text-center py-8 text-gray-500">
-            No open orders
-          </div>
-          <div v-else class="space-y-2">
-            <div class="grid grid-cols-8 gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <span>Pair</span>
-              <span>Side</span>
-              <span>Type</span>
-              <span>Price</span>
-              <span>Quantity</span>
-              <span>Remaining</span>
-              <span>Filled</span>
-              <span>Action</span>
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Orders</h4>
+            <div class="inline-flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+              <button @click="showingPast = false"
+                :class="['px-3 py-1 text-xs', showingPast ? 'bg-white dark:bg-gray-800 text-gray-500' : 'bg-primary-500 text-white']">Open</button>
+              <button @click="showingPast = true"
+                :class="['px-3 py-1 text-xs', showingPast ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-500']">Past</button>
             </div>
-            <div v-for="order in userOrders" :key="order.id || order._id"
-              class="grid grid-cols-8 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
-              <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
-              }}</span>
-              <span :class="order.side === 'BUY' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
-              <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
-              <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null,
-                '0,0.000') : 'Market'
-              }}</span>
-              <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }} </span>
-              <span class="text-gray-900 dark:text-white">{{
-                $formatNumber(order.remainingQuantity) }}</span>
-              <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity - order.remainingQuantity)
-              }}</span>
-              <button @click="cancelOrder(order.id || order._id)" class="text-red-600 hover:text-red-700 text-xs">
-                Cancel
-              </button>
+          </div>
+
+          <div v-if="!showingPast">
+            <div v-if="userOrders.length === 0" class="text-center py-8 text-gray-500">
+              No open orders
+            </div>
+            <div v-else class="space-y-2">
+              <div class="grid grid-cols-8 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>Pair</span>
+                <span>Side</span>
+                <span>Type</span>
+                <span>Price</span>
+                <span>Quantity</span>
+                <span>Remaining</span>
+                <span>Filled</span>
+                <span>Action</span>
+              </div>
+              <div v-for="order in userOrders" :key="order.id || order._id"
+                class="grid grid-cols-8 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
+                <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
+                }}</span>
+                <span :class="order.side === 'BUY' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
+                <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
+                <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null,
+                  '0,0.000') : 'Market'
+                }}</span>
+                <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }} </span>
+                <span class="text-gray-900 dark:text-white">{{
+                  $formatNumber(order.remainingQuantity) }}</span>
+                <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity - order.remainingQuantity)
+                }}</span>
+                <button @click="cancelOrder(order.id || order._id)" class="text-red-600 hover:text-red-700 text-xs">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-else>
+            <div v-if="pastOrders.length === 0" class="text-center py-8 text-gray-500">
+              No past orders
+            </div>
+            <div v-else class="space-y-2">
+              <div class="grid grid-cols-9 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>Pair</span>
+                <span>Side</span>
+                <span>Type</span>
+                <span>Price</span>
+                <span>Quantity</span>
+                <span>Filled</span>
+                <span>Status</span>
+                <span>Time</span>
+                <span>Action</span>
+              </div>
+              <div v-for="order in pastOrders" :key="order.id || order._id"
+                class="grid grid-cols-9 gap-2 text-xs p-2 border border-gray-200 dark:border-gray-700 rounded">
+                <span class="text-gray-900 dark:text-white">{{ order.baseAssetSymbol }}/{{ order.quoteAssetSymbol
+                }}</span>
+                <span :class="order.side === 'BUY' ? 'text-green-600' : 'text-red-600'">{{ order.side }}</span>
+                <span class="text-gray-900 dark:text-white">{{ order.type }}</span>
+                <span class="text-gray-900 dark:text-white">{{ order.price ? $formatNumber(order.price, null,
+                  '0,0.000') : 'Market'
+                }}</span>
+                <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.quantity) }} </span>
+                <span class="text-gray-900 dark:text-white">{{ $formatNumber(order.filledQuantity || 0) }}</span>
+                <span class="text-gray-900 dark:text-white">{{ order.status || '--' }}</span>
+                <span class="text-gray-600 dark:text-gray-400">{{ order.timestamp ? $formatDate(order.timestamp,
+                  'YYYY-MM-DD HH:mm') : '--' }}</span>
+                <div>
+                  <button v-if="order.status && order.status.toLowerCase() === 'cancelled'" disabled
+                    class="text-gray-500 text-xs">Cancelled</button>
+                  <button v-else-if="order.status && order.status.toLowerCase() === 'filled'" disabled
+                    class="text-gray-500 text-xs">Filled</button>
+                  <button v-else class="text-gray-500 text-xs">--</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

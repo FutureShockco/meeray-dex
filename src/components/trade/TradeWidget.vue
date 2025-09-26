@@ -649,7 +649,8 @@ onUnmounted(() => {
 
 <template>
   <div class="flex items-center justify-center bg-white dark:bg-gray-950 pb-4">
-    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-8">
+    <div
+      class="w-full rounded-2xl bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-8">
 
       <!-- Error Message -->
       <div v-if="error"
@@ -785,7 +786,7 @@ onUnmounted(() => {
                 <div class="flex justify-between text-xs mt-1">
                   <span>Amount Out:</span>
                   <span class="text-gray-900 dark:text-white">{{ hybridQuote.amountOutFormatted }} {{ baseToken
-                    }}</span>
+                  }}</span>
                 </div>
                 <div class="flex justify-between text-xs mt-1">
                   <span>Price Impact:</span>
@@ -798,7 +799,7 @@ onUnmounted(() => {
                     hybridQuote.routes[0].type : '' }}</span>
                 </div>
                 <div v-if="hybridQuote.recommendation" class="text-xs text-gray-500 mt-1">{{ hybridQuote.recommendation
-                  }}</div>
+                }}</div>
               </template>
             </div>
             <div v-if="pricePerToken" class="flex justify-between text-xs mt-1">
@@ -829,32 +830,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-
-
-        <!-- Right Column: Additional Info -->
-        <div class="lg:col-span-1">
-          <!-- Trading Guide -->
-          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Trading Guide</h3>
-            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-              <div>
-                <strong class="text-gray-900 dark:text-white">Limit Trades:</strong>
-                <p>Set a target price. System tries to achieve this price through optimal routing. If no immediate match
-                  is found, may create a standing order in the orderbook.</p>
-              </div>
-              <div>
-                <strong class="text-gray-900 dark:text-white">Market Trades:</strong>
-                <p>Execute immediately at the best available price across all liquidity sources (AMM pools + orderbook).
-                  May result in partial fills if insufficient liquidity.</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Add any custom styles here */
-</style>

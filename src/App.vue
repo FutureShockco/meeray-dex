@@ -17,7 +17,7 @@ const tokenListStore = useTokenListStore();
 const appStore = useAppStore();
 const apiService = useApiService();
 const poolsStore = usePoolsStore();
-const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length);
+const isAppLoading = computed(() => appStore.isAppLoading || tokenListStore.loading || !tokenListStore.tokens.length || coinPrices.loading || poolsStore.loading);
 
 onMounted(() => {
   if (auth.state.username) {

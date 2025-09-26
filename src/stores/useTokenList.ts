@@ -22,8 +22,6 @@ export const useTokenListStore = defineStore('tokenList', () => {
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch tokens';
       console.error('TokenList: Error fetching tokens:', e);
-    } finally {
-      loading.value = false;
     }
 
     try {
@@ -32,8 +30,6 @@ export const useTokenListStore = defineStore('tokenList', () => {
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch tokens';
       console.error('TokenList: Error fetching new tokens:', e);
-    } finally {
-      loading.value = false;
     }
     try {
       const res = await api.getHotTokens({ limit: 10 });
@@ -41,8 +37,6 @@ export const useTokenListStore = defineStore('tokenList', () => {
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch hot tokens';
       console.error('TokenList: Error fetching hot tokens:', e);
-    } finally {
-      loading.value = false;
     }
     try {
       const res = await api.getTopGainersTokens({ limit: 10 });
@@ -50,8 +44,6 @@ export const useTokenListStore = defineStore('tokenList', () => {
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch top gainers tokens';
       console.error('TokenList: Error fetching top gainers tokens:', e);
-    } finally {
-      loading.value = false;
     }
     try {
       const res = await api.getTopVolumeTokens({ limit: 10 });

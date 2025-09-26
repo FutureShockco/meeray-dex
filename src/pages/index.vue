@@ -107,7 +107,7 @@ const faqs = [
                 </div>
                 <div>
                   <span class="text-gray-700 dark:text-gray-200">
-                    {{ tokenHelpers.getTokenPrice(item, tokenUsdPriceMap) }}
+                    {{ $tokenPrice(item.symbol, false) }}
                   </span>
                   <span v-if="item.change" :class="item.change ? 'text-green-500' : 'text-red-500'">
                     {{ item.change }}
@@ -126,8 +126,8 @@ const faqs = [
                   <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
                   <span class="text-gray-500 dark:text-gray-400">{{ item.name }}</span>
                 </div>
-                <div>
-                  <span class="text-gray-700 dark:text-gray-200">{{ tokenHelpers.getTokenPrice(item, tokenUsdPriceMap)
+                  <div>
+                  <span class="text-gray-700 dark:text-gray-200">{{ $tokenPrice(item.symbol, false)
                   }}</span>
                   <span v-if="item.change" :class="item.change ? 'text-green-500' : 'text-red-500'">{{
                     item.change }}</span>
@@ -144,9 +144,8 @@ const faqs = [
                     class="w-5 h-5 mr-2" />
                   <span class="font-semibold mr-1 text-gray-900 dark:text-white">{{ item.symbol }}</span>
                 </div>
-                <div>
-                  <span class="text-gray-700 dark:text-gray-200 mr-2">{{ tokenHelpers.getTokenPrice(item,
-                    tokenUsdPriceMap)
+                  <div>
+                  <span class="text-gray-700 dark:text-gray-200 mr-2">{{ $tokenPrice(item.symbol, false)
                   }}</span>
                   <span :class="tokenHelpers.getTokenChangeClass(item)">{{
                     tokenHelpers.getTokenChange(item) }}</span>

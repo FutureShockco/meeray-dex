@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useMeerayAccountStore } from '../stores/meerayAccount';
@@ -345,6 +345,9 @@ onMounted(async () => {
   loading.value = true;
   try {
 
+  // Always load the account from the meeray account store so publicAccount/account is populated
+  await meeray.loadAccount(username.value);
+
     // Fetch tokens first to ensure they're available for formatting
     if (!tokenList.tokens.length) {
       console.log('Fetching tokens...');
@@ -361,6 +364,21 @@ onMounted(async () => {
   } catch (e: any) {
     error.value = e?.message || 'Failed to load account information';
     console.error('Account loading error:', e);
+  } finally {
+    loading.value = false;
+  }
+});
+
+// When the route username param changes, reload the account from the store
+watch(username, async (newUsername, oldUsername) => {
+  if (!newUsername) return;
+  loading.value = true;
+  try {
+    await meeray.loadAccount(newUsername);
+    // Also refresh Steem account info shown on this page
+    await fetchSteemAccount();
+  } catch (e: any) {
+    console.error('Failed to reload account for username change:', e);
   } finally {
     loading.value = false;
   }
@@ -519,8 +537,7 @@ onMounted(async () => {
                         $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') ?
                           $formatNumber(coinPrices.changes[t.symbol] ?? 0, '0.00') + '%' : '0.00%' }}</td>
                     <td class="py-2 px-2 text-right text-gray-900 dark:text-white">
-                      ${{ $formatUsdValue(Number(tokenHelpers.getTokenPrice(t, tokenUsdPriceMap)) *
-                        Number(t.amount.amount)) }}
+                      ${{ $tokenAmountPrice((t.amount && t.amount.amount) ? t.amount.amount : ((t.amount && t.amount.rawAmount) ? t.amount.rawAmount : (typeof t.amount === 'object' ? (t.amount.amount || t.amount.rawAmount || 0) : t.amount)), t.symbol) }}
                     </td>
                     <td v-if="isOwnAccount" class="py-2 px-2 text-right">
                       <button v-if="t.symbol === 'STEEM' || t.symbol === 'SBD'"

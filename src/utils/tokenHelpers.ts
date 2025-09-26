@@ -102,25 +102,36 @@ export function createTokenHelpers() {
     /**
      * Get token icon path
      */
-    getTokenIcon(token: any): string | false {
-      if (token.symbol === 'MRY') return '/icons/mry.svg';
-      if (token.symbol === 'ECH') return '/icons/mry.svg';
-      if (token.symbol === 'STEEM') return '/icons/steem.svg';
-      if (token.symbol === 'SBD') return '/icons/sbd.svg';
-      if (token.symbol === 'TESTS') return '/icons/steem.svg';
-      if (token.symbol === 'TBD') return '/icons/sbd.svg';
-      if (token.symbol === 'USDT') return '/icons/usdt.svg';
-      if (token.symbol === 'USDC') return '/icons/usdc.svg';
-      if (token.symbol === 'BTC') return '/icons/btc.svg';
-      if (token.symbol === 'ETH') return '/icons/eth.svg';
-      if (token.symbol === 'BNB') return '/icons/bnb.svg';
-      if (token.symbol === 'USD') return '/icons/usd.svg';
-      tokenListStore.tokens.find(t => {
-        if (t.symbol === token.symbol && t.logoUrl) {
-          token.logoUrl = token.logoUrl.replace('http://', 'https://');
-          return token.logoUrl;
-        }
-      })
+    getTokenIcon(token: any): string {
+      const symbol = token.symbol || token;
+      if (symbol === 'MRY') return '/icons/mry.svg';
+      if (symbol === 'ECH') return '/icons/mry.svg';
+      if (symbol === 'STEEM') return '/icons/steem.svg';
+      if (symbol === 'SBD') return '/icons/sbd.svg';
+      if (symbol === 'TESTS') return '/icons/steem.svg';
+      if (symbol === 'TBD') return '/icons/sbd.svg';
+      if (symbol === 'USDT') return '/icons/usdt.svg';
+      if (symbol === 'USDC') return '/icons/usdc.svg';
+      if (symbol === 'BTC') return '/icons/btc.svg';
+      if (symbol === 'ETH') return '/icons/eth.svg';
+      if (symbol === 'BNB') return '/icons/bnb.svg';
+      if (symbol === 'USD') return '/icons/usd.svg';
+      // If the token object already includes a logoUrl, normalize and return it
+      if (typeof token === 'object' && token.logoUrl) {
+        const secure = token.logoUrl.replace(/^http:\/\//i, 'https://');
+        // keep the token object's logoUrl normalized
+        try { token.logoUrl = secure; } catch (e) { /* ignore if immutable */ }
+        return secure;
+      }
+
+      // Look up the token by symbol in the token list and return a secure logo URL if present
+      const found = tokenListStore.tokens.find(t => t.symbol === symbol && t.logoUrl);
+      if (found && found.logoUrl) {
+        const secureUrl = found.logoUrl.replace(/^http:\/\//i, 'https://');
+        // update store entry to use secure URL
+        found.logoUrl = secureUrl;
+        return secureUrl;
+      }
       return '/icons/na.svg';
     },
 

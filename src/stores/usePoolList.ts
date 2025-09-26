@@ -23,14 +23,14 @@ export const usePoolsStore = defineStore('pools', () => {
       loading.value = false;
     }
 
-    try {
-      const res = await api.getPoolsApr();
-      pools.value = Array.isArray(res.data) ? res.data : [];
-    } catch (e: any) {
-      error.value = e?.message || 'Failed to fetch tokens';
-    } finally {
-      loading.value = false;
-    }
+    // try {
+    //   const res = await api.getPoolsApr();
+    //   pools.value = Array.isArray(res.data) ? res.data : [];
+    // } catch (e: any) {
+    //   error.value = e?.message || 'Failed to fetch tokens';
+    // } finally {
+    //   loading.value = false;
+    // }
   }
 
   // Fetch all user positions in one call and map by poolId

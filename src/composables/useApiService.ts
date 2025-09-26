@@ -259,6 +259,11 @@ export function useApiService() {
   const getUserOrders = (userId: string, status: string = 'active', limit: number = 20) =>
     fetcher(`${API_BASE}/market/orders/user/${userId}?status=${status}&limit=${limit}`);
 
+  // 9b. Get User Orders (all / past) - endpoint without status query; returns orders with statuses
+  // like CANCELLED, REJECTED, EXPIRED, FILLED and others depending on server behavior.
+  const getUserPastOrders = (userId: string, limit: number = 100) =>
+    fetcher(`${API_BASE}/market/orders/user/${userId}?limit=${limit}`);
+
   // --- Config Endpoints ---
   const getConfig = () => fetcher(`${API_BASE}/config/current`) as Promise<any>;
 
@@ -554,7 +559,8 @@ export function useApiService() {
     getOrderBook,
     getMarketStats,
     getTradeHistory,
-    getUserOrders,
+  getUserOrders,
+  getUserPastOrders,
     // getOrderBook, getMarketStats, getTradeHistory, getUserOrders are now defined above and exported above
     // (other unchanged)
     // Transaction

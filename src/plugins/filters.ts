@@ -1,10 +1,22 @@
 import numeral from 'numeral';
 import moment from 'moment';
 import BigNumber from 'bignumber.js';
+import { computed } from 'vue';
 import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
 
 import type { App } from 'vue';
+import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
+
+const tokenUsdPriceMap = computed(() => {
+  const tokensStore = useTokenListStore();
+  const map: Record<string, ReturnType<typeof useTokenUsdPrice>> = {};
+  for (const token of tokensStore.tokens) {
+    if (token.symbol && !map[token.symbol]) map[token.symbol] = useTokenUsdPrice(token.symbol);
+  }
+  return map;
+});
+let coinPricesStore = null;
 
 export default {
   install(app: App) {
@@ -20,6 +32,14 @@ export default {
         const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
         precision = token?.precision ?? defaultPrecisions[symbol];
       }
+      const dynamicFormat = `0,0.${'0'.repeat(Math.min(precision, 8))}`;
+      if (precision)
+        try {
+          return numeral(value).format(dynamicFormat);
+        } catch (e) {
+          console.warn('format error:', e);
+          return numeral(value).format(dynamicFormat);
+        }
       if (typeof precision === 'number') {
         try {
           const human = new BigNumber(value).dividedBy(new BigNumber(10).pow(precision));
@@ -30,6 +50,91 @@ export default {
         }
       }
       return numeral(value).format(format);
+    };
+
+    app.config.globalProperties.$tokenPrice = (symbol?: string, isNumber?: boolean) => {
+      if (!coinPricesStore) {
+        coinPricesStore = useCoinPricesStore()
+      }
+      const cgRaw = coinPricesStore?.prices?.[symbol];
+      const poolRaw = tokenUsdPriceMap.value?.[symbol]?.value;
+      const cgNum = cgRaw === undefined || cgRaw === null ? NaN : Number(cgRaw);
+      const poolNum = poolRaw === undefined || poolRaw === null ? NaN : Number(poolRaw);
+      const numericPrice = Number.isFinite(cgNum) ? cgNum : (Number.isFinite(poolNum) ? poolNum : 0);
+      if (isNumber) {
+        return numericPrice;
+      }
+      if (coinPricesStore && coinPricesStore.marketCaps && coinPricesStore.marketCaps[symbol] !== undefined) {
+        return numeral(numericPrice).format('0,0.00');
+      }
+      return numeral(numericPrice).format('0,0.000');
+    };
+
+    app.config.globalProperties.$tokenAmountPrice = (value: string | number, symbol?: string) => {
+      if (!coinPricesStore) {
+        coinPricesStore = useCoinPricesStore()
+      }
+      const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18, LP_TOKEN: 18 };
+      let precision: number | undefined;
+      // If marketCap is available, return amount * implied price from marketCap? No — we want amount * price
+      if (symbol) {
+        const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
+        precision = token?.precision ?? defaultPrecisions[symbol];
+      }
+
+      // Get numeric price (safe) from $tokenPrice
+      const price = app.config.globalProperties.$tokenPrice(symbol, true) as number;
+      const safePrice = Number.isFinite(price) ? price : 0;
+      let amountNum = 0;
+      try {
+        if (typeof value === 'object' && value !== null) {
+          const asAmount = (value as any).amount;
+          const asRaw = (value as any).rawAmount;
+          if (asAmount !== undefined && asAmount !== null) {
+            // Caller already provided parsed/human amount
+            amountNum = Number(asAmount) || 0;
+          } else if (asRaw !== undefined && asRaw !== null) {
+            // Convert raw integer using precision
+            if (precision !== undefined && precision !== null) {
+              amountNum = new BigNumber(asRaw).dividedBy(new BigNumber(10).pow(precision)).toNumber();
+            } else {
+              amountNum = Number(asRaw) || 0;
+            }
+          } else {
+            amountNum = 0;
+          }
+        } else {
+          amountNum = Number(value) || 0;
+        }
+      } catch (e) {
+        console.warn('tokenAmountPrice: parse error', e);
+        amountNum = 0;
+      }
+
+      const total = amountNum * safePrice;
+
+      // Choose formatting: more decimals for very small totals
+      const fmt = Math.abs(total) < 0.01 ? '0,0.00000' : '0,0.00';
+      return numeral(Number(total)).format(fmt);
+    };
+
+    app.config.globalProperties.$tokenMcap = (value: string | number, symbol?: string, isNumber?: boolean) => {
+      if (!coinPricesStore) {
+        coinPricesStore = useCoinPricesStore()
+      }
+      if (coinPricesStore && coinPricesStore.marketCaps && coinPricesStore.marketCaps[symbol] !== undefined) {
+        // If caller wants a number, return numeric market cap
+        if (isNumber) return Number(coinPricesStore.marketCaps[symbol]) || 0;
+        return numeral(coinPricesStore.marketCaps[symbol] || 0).format('0,0.00');
+      }
+
+      // Use numeric price to compute market cap = supply * price (value is supply)
+      const price = app.config.globalProperties.$tokenPrice(symbol, true) as number;
+      const safePrice = Number.isFinite(price) ? price : 0;
+      const supplyNum = Number(value) || 0;
+      const mcap = supplyNum * safePrice;
+      if (isNumber) return mcap;
+      return numeral(mcap).format('0,0.00');
     };
 
     app.config.globalProperties.$formatTokenBalance = (

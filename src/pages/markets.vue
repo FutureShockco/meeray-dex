@@ -103,13 +103,12 @@ onMounted(async () => {
           <span class="font-semibold text-gray-900 dark:text-white">Hot</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="t in hotTokens" :key="t.symbol" class="flex items-center justify-between py-1">
+          <div v-for="t in hotTokens" :key="t.symbol" class="flex items-center justify-between py-1">
           <div class="flex items-center space-x-2">
             <img :src="t.icon" :alt="t.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(t,
-            tokenUsdPriceMap)) }}
+          <div class="text-sm text-gray-900 dark:text-white">${{ $tokenPrice(t.symbol, false) }}
           </div>
           <div :class="t.change < 0 ? 'text-red-500' : 'text-green-500'">{{ t.change }}%</div>
         </div>
@@ -120,9 +119,9 @@ onMounted(async () => {
           <span class="font-semibold text-gray-900 dark:text-white">New Listing</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="t in newTokens.slice(0, 3)" :key="t.symbol" class="flex items-center justify-between py-1">
+  <div v-for="t in newTokens.slice(0, 3)" :key="t.symbol" class="flex items-center justify-between py-1">
           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(t, tokenUsdPriceMap) }}
+          <div class="text-sm text-gray-900 dark:text-white">{{ $tokenPrice(t.symbol, false) }}
           </div>
           <div :class="t.change < 0 ? 'text-red-500' : 'text-green-500'">{{ t.change }}%</div>
         </div>
@@ -133,9 +132,9 @@ onMounted(async () => {
           <span class="font-semibold text-gray-900 dark:text-white">Top Gainer</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="t in topGainers" :key="t.symbol" class="flex items-center justify-between py-1">
+          <div v-for="t in topGainers" :key="t.symbol" class="flex items-center justify-between py-1">
           <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
-          <div class="text-sm text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(t, tokenUsdPriceMap) }}
+          <div class="text-sm text-gray-900 dark:text-white">{{ $tokenPrice(t.symbol, false) }}
           </div>
           <div :class="t.change < 0 ? 'text-green-500' : 'text-red-500'">{{ t.change }}%</div>
         </div>
@@ -146,13 +145,12 @@ onMounted(async () => {
           <span class="font-semibold text-gray-900 dark:text-white">Top Volume</span>
           <span class="text-xs text-primary-400 cursor-pointer">More &gt;</span>
         </div>
-        <div v-for="t in topVolume" :key="t.symbol" class="flex items-center justify-between py-1">
+  <div v-for="t in topVolume" :key="t.symbol" class="flex items-center justify-between py-1">
           <div class="flex items-center space-x-2">
             <img :src="t.icon" :alt="t.symbol" class="w-5 h-5" />
             <span class="font-medium text-sm text-gray-900 dark:text-white">{{ t.symbol }}</span>
           </div>
-          <div class="text-sm text-gray-900 dark:text-white">${{ $formatNumber(tokenHelpers.getTokenPrice(t,
-            tokenUsdPriceMap)) }}
+          <div class="text-sm text-gray-900 dark:text-white">${{ $tokenPrice(t.symbol, false) }}
           </div>
           <div :class="t.change < 0 ? 'text-red-500' : 'text-green-500'">{{ t.change }}%</div>
         </div>
@@ -204,14 +202,13 @@ onMounted(async () => {
                 <span class="text-gray-500 dark:text-gray-400">{{ token.name }}</span>
               </router-link>
             </td>
-            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ tokenHelpers.getTokenPrice(token, tokenUsdPriceMap)
-            }}</td>
+            <td class="px-4 py-2 text-gray-900 dark:text-white">${{ $tokenPrice(token.symbol, false) }}</td>
             <td class="px-4 py-2" :class="tokenHelpers.getTokenChangeClass(token)">
               {{ tokenHelpers.getTokenChange(token) }}
             </td>
-            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.volume }}</td>
+            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.volume || token.volume24h }}</td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">
-              <span>{{ tokenHelpers.getMarketCap(token, tokenUsdPriceMap) }}</span>
+              <span>${{ $tokenMcap(token.currentSupply, token.symbol, false) }}</span>
             </td>
             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ token.issuer || 'native' }}</td>
             <td class="px-4 py-2 flex space-x-2">

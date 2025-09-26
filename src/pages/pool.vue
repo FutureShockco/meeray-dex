@@ -233,11 +233,9 @@ function getTvlUsd(pool: any) {
 
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
                     v-if="event.action === 'swap' && event.data.tokenOut">
-                    ${{ $formatNumber(tokenHelpers.getTokenPrice(event.data.tokenOut, tokenUsdPriceMap) *
-                      Number($formatTokenBalance(event.data.amountOut, event.data.tokenOut))) }}</td>
+                    ${{ $tokenAmountPrice($formatTokenBalance(event.data.amountOut, event.data.tokenOut), event.data.tokenOut) }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
-                    ${{ $formatNumber(tokenHelpers.getTokenPrice(pool.tokenB_symbol, tokenUsdPriceMap) *
-                      Number($formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol))) }}</td>
+                    ${{ $tokenAmountPrice($formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol), pool.tokenB_symbol) }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
 
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
@@ -372,10 +370,3 @@ function getTvlUsd(pool: any) {
   </div>
 </template>
 
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-
-* {
-  font-family: 'Inter', 'Satoshi', 'Montserrat', 'Segoe UI', Arial, sans-serif;
-}
-</style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useTokenListStore } from '../../stores/useTokenList';
 import { useMeerayAccountStore } from '../../stores/meerayAccount';
@@ -62,6 +62,11 @@ const slippage = ref(1); // percent, default 1
 const routeData = ref<any>(null);
 const selectedRouteIndex = ref(0);
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
+let quoteRefreshInterval: ReturnType<typeof setInterval> | null = null;
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+const refreshIntervalSeconds = 10;
+const refreshCountdown = ref<number>(refreshIntervalSeconds);
+const autoRefreshEnabled = ref<boolean>(true);
 let previewRequestId = 0;
 
 const tokenOptions = computed(() => tokensStore.tokens);
@@ -106,18 +111,26 @@ const canPreview = computed(() => {
 });
 const canSwap = computed(() => canPreview.value && minAmountOut.value && !swapLoading.value && !previewLoading.value);
 
-function queuePreview() {
+function queuePreview(silent = false) {
   console.debug('[swap] queuePreview triggered', {
     from: fromToken.value,
     to: toToken.value,
     amountIn: amountIn.value,
+    silent,
   });
-  // reset preview state immediately
-  previewError.value = '';
-  previewOut.value = '';
-  previewPath.value = [];
-  routeData.value = null;
-  selectedRouteIndex.value = 0;
+
+  // reset preview state immediately (but avoid showing errors/loading when silent)
+  if (!silent) previewError.value = '';
+  // preserve existing previewOut/previewPath when silent to avoid flicker; only clear when not silent
+  if (!silent) {
+    previewOut.value = '';
+    previewPath.value = [];
+    routeData.value = null;
+    selectedRouteIndex.value = 0;
+  }
+
+  // reset countdown whenever we manually/auto refresh
+  refreshCountdown.value = refreshIntervalSeconds;
 
   // debounce API calls while the user is typing
   if (previewTimer) clearTimeout(previewTimer);
@@ -132,7 +145,7 @@ function queuePreview() {
       return;
     }
 
-    previewLoading.value = true;
+    if (!silent) previewLoading.value = true;
     const requestId = ++previewRequestId;
     console.debug('[swap] fetching route', {
       requestId,
@@ -140,6 +153,7 @@ function queuePreview() {
       to: toToken.value,
       amount: normalizedAmount,
       slippage: slippage.value,
+      silent,
     });
     try {
       const res = await api.autoSwapRoute(
@@ -150,6 +164,7 @@ function queuePreview() {
       );
       // Ignore stale responses
       if (requestId !== previewRequestId) return;
+      // update routeData and previews but avoid clearing UI when silent to keep it smooth
       routeData.value = res;
 
       // Set default values from best route
@@ -163,16 +178,16 @@ function queuePreview() {
       }
     } catch (e: any) {
       if (requestId !== previewRequestId) return;
-      previewError.value = e?.message || 'Failed to preview swap.';
+      if (!silent) previewError.value = e?.message || 'Failed to preview swap.';
     } finally {
-      if (requestId === previewRequestId) previewLoading.value = false;
+      if (requestId === previewRequestId && !silent) previewLoading.value = false;
     }
   }, 300);
 }
 
-watch(() => fromToken.value, queuePreview, { flush: 'pre' });
-watch(() => toToken.value, queuePreview, { flush: 'pre' });
-watch(() => amountIn.value, queuePreview, { flush: 'pre' });
+watch(() => fromToken.value, () => queuePreview(), { flush: 'pre' });
+watch(() => toToken.value, () => queuePreview(), { flush: 'pre' });
+watch(() => amountIn.value, () => queuePreview(), { flush: 'pre' });
 
 watch([selectedRouteIndex, routeData], () => {
   if (routeData.value && routeData.value.allRoutes && routeData.value.allRoutes[selectedRouteIndex.value]) {
@@ -272,6 +287,44 @@ onMounted(() => {
   if (tokenOut && typeof tokenOut === 'string') {
     toToken.value = tokenOut;
   }
+
+  // Initial preview if the inputs allow it (silent to avoid UI flicker)
+  if (canPreview.value) queuePreview(true);
+
+  // Periodically refresh the quote while the component is mounted
+  // Only run when previewing is possible and auto-refresh is enabled to avoid unnecessary API calls
+  quoteRefreshInterval = setInterval(() => {
+    try {
+      if (autoRefreshEnabled.value && canPreview.value) {
+        queuePreview(true);
+      }
+    } catch (e) {
+      // swallow errors from periodic refresh
+      console.debug('quote refresh error', e);
+    }
+  }, refreshIntervalSeconds * 1000); // refresh every N seconds
+
+  // Countdown timer to show seconds remaining until next auto-refresh
+  refreshCountdown.value = refreshIntervalSeconds;
+  countdownTimer = setInterval(() => {
+    refreshCountdown.value = Math.max(0, refreshCountdown.value - 1);
+    if (refreshCountdown.value === 0) refreshCountdown.value = refreshIntervalSeconds;
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (quoteRefreshInterval) {
+    clearInterval(quoteRefreshInterval);
+    quoteRefreshInterval = null;
+  }
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  if (previewTimer) {
+    clearTimeout(previewTimer);
+    previewTimer = null;
+  }
 });
 
 function switchTokens() {
@@ -292,7 +345,8 @@ function setMaxAmountIn() {
 
 <template>
   <div class="flex items-center justify-center bg-white dark:bg-gray-950 pb-4">
-    <div class="w-full rounded-2xl bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-8">
+    <div
+      class="w-full rounded-2xl bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-8">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Swap Tokens</h2>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
@@ -300,8 +354,12 @@ function setMaxAmountIn() {
             <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">From</label>
             <AppTokenSelect v-model="fromToken" :options="tokenOptions" :filter-duplicates="[toToken]"
               placeholder="Select token" @update:modelValue="onTokenChange('from', $event)" />
-            <div v-if="fromToken" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Balance: {{
-              getBalance(fromToken) }}</div>
+            <div v-if="fromToken" class="mt-1 text-xs text-gray-500 dark:text-gray-300">
+              <div class="flex justify-between items-center">
+                <div class="truncate">Balance: <span class="font-semibold">{{ getBalance(fromToken) }} {{ fromToken }}</span></div>
+                <div class="font-mono text-right">${{ $tokenAmountPrice(getBalance(fromToken), fromToken) }}</div>
+              </div>
+            </div>
           </div>
           <div class="flex justify-center">
             <button @click="switchTokens" :disabled="!fromToken || !toToken || fromToken === toToken"
@@ -319,7 +377,11 @@ function setMaxAmountIn() {
             <label class="block text-gray-700 dark:text-gray-300 font-medium mb-1">To</label>
             <AppTokenSelect v-model="toToken" :options="tokenOptions" :filter-duplicates="[fromToken]"
               placeholder="Select token" @update:modelValue="onTokenChange('to', $event)" />
-            <div v-if="toToken" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Balance: {{ getBalance(toToken) }}
+            <div v-if="toToken" class="mt-1 text-xs text-gray-500 dark:text-gray-300">
+              <div class="flex justify-between items-center">
+                <div class="truncate">Balance: <span class="font-semibold">{{ getBalance(toToken) }} {{ toToken }}</span></div>
+                <div class="font-mono text-right">${{ $tokenAmountPrice(getBalance(toToken), toToken) }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -331,7 +393,7 @@ function setMaxAmountIn() {
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-base"
                 placeholder="Amount to swap" />
               <button type="button" @click="setMaxAmountIn"
-                class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600">Max</button>
+                class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors whitespace-nowrap">Max</button>
             </div>
           </div>
         </div>
@@ -342,7 +404,16 @@ function setMaxAmountIn() {
 
         <!-- Route Selection -->
         <div v-if="routeData && !previewLoading">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Available Routes</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Available Routes</h3>
+            <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3">
+              <div v-if="autoRefreshEnabled" class="text-gray-600 dark:text-gray-300">Auto-refresh in {{ refreshCountdown }}s</div>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" v-model="autoRefreshEnabled" class="form-checkbox h-4 w-4" />
+                <span class="text-xs">Auto</span>
+              </label>
+            </div>
+          </div>
 
           <!-- Route Options -->
           <div class="space-y-3">
