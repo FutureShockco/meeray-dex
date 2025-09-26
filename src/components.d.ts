@@ -24,6 +24,7 @@ declare module 'vue' {
     OrderBook: typeof import('./components/trade/OrderBook.vue')['default']
     OrderForm: typeof import('./components/trade/OrderForm.vue')['default']
     PairIcon: typeof import('./components/PairIcon.vue')['default']
+    PoolAnalyticsCandlesChart: typeof import('./components/PoolAnalyticsCandlesChart.vue')['default']
     PoolAnalyticsChart: typeof import('./components/PoolAnalyticsChart.vue')['default']
     PoolCandlesChart: typeof import('./components/PoolCandlesChart.vue')['default']
     PoolVolumeChart: typeof import('./components/PoolVolumeChart.vue')['default']

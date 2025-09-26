@@ -7,6 +7,7 @@ import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import { generatePoolId } from '../utils/idUtils';
+import { useAuthStore, TransactionService } from 'steem-auth-vue';
 
 const api = useApiService();
 const poolsStore = usePoolsStore();
@@ -16,6 +17,7 @@ const loading = ref(true);
 const error = ref('');
 const tokenHelpers = createTokenHelpers();
 const meeray = useMeerayAccountStore();
+const auth = useAuthStore();
 
 
 onMounted(async () => {
@@ -59,14 +61,21 @@ const lpPositions = computed(() => {
   return lpTokens
     .map(([symbol, balanceData]) => {
       let amount = 0;
+      let rawAmount = '0';
       if (typeof balanceData === 'object' && balanceData !== null) {
         if ('amount' in balanceData) {
           amount = Number((balanceData as any).amount) || 0;
-        } else if ('rawAmount' in balanceData) {
-          amount = Number((balanceData as any).rawAmount) / Math.pow(10, 18) || 0;
         }
       } else {
         amount = Number(balanceData) || 0;
+      }
+      if (typeof balanceData === 'object' && balanceData !== null) {
+        if ('rawAmount' in balanceData) {
+          rawAmount = (balanceData as any).rawAmount || '0';
+        }
+        else {
+          rawAmount = rawAmount;
+        }
       }
       if (amount <= 0) return null;
       const parts = symbol.split('_');
@@ -87,15 +96,19 @@ const lpPositions = computed(() => {
       if (matchingPool && userPositionsByPool.value[matchingPool.id]) {
         userPosition = userPositionsByPool.value[matchingPool.id];
       }
+      console.log(userPosition)
       return {
         symbol,
         amount,
+        rawAmount,
         tokenA,
         tokenB,
         feeTier,
         pool: matchingPool,
         unclaimedFeesA: userPosition?.unclaimedFeesA,
-        unclaimedFeesB: userPosition?.unclaimedFeesB
+        unclaimedFeesB: userPosition?.unclaimedFeesB,
+        feeGrowthEntryA: userPosition?.feeGrowthEntryA,
+        feeGrowthEntryB: userPosition?.feeGrowthEntryB,
       };
     })
     .filter(position => position !== null)
@@ -196,7 +209,7 @@ function calculatePoolApr(pool: any) {
   const tvlUsd = getTvlUsd(pool);
   if (tvlUsd <= 0) return null;
   const volume24h = pool.volume24h || pool.volume || 0;
-  const feeRate = (pool.feeTier || 300) / 1000000; // 300 basis points = 0.003 (0.3%)
+  const feeRate = (pool.feeTier || 300) / 10000; // 300 basis points = 0.3 (0.3%)
   const dailyFees = volume24h * feeRate;
   const apr = (dailyFees * 365) / tvlUsd * 100;
   return isFinite(apr) && apr > 0 ? apr : null;
@@ -257,6 +270,76 @@ function getPriceChangeColorClass(pool: any) {
       : 'text-red-600 dark:text-red-400';
   }
   return 'text-gray-500 dark:text-gray-400';
+}
+
+async function claimFees(poolId: any) {
+  try {
+    const contract = 'pool_claim_fees';
+    const payload = {
+      poolId: poolId,
+    };
+    const customJsonOperation = {
+      required_auths: [auth.state.username],
+      required_posting_auths: [],
+      id: 'sidechain',
+      json: JSON.stringify({
+        contract,
+        payload,
+      }),
+    };
+    const txid = await TransactionService.send('custom_json', customJsonOperation, {
+      requiredAuth: 'active',
+    });
+    console.log(txid);
+  } catch (e: any) {
+    alert(e?.message || 'Failed to claim fees.');
+  }
+}
+
+
+// Modal state for removing liquidity
+const showRemoveModal = ref(false);
+const removeModalPosition = ref<any>(null);
+const removeLpAmount = ref('');
+
+function openRemoveModal(position: any) {
+  removeModalPosition.value = position;
+  removeLpAmount.value = '';
+  showRemoveModal.value = true;
+}
+
+function closeRemoveModal() {
+  showRemoveModal.value = false;
+  removeModalPosition.value = null;
+  removeLpAmount.value = '';
+}
+
+async function removeLiquidity(poolId: any, amount: string) {
+  try {
+    // Convert human input to BigInt string (18 decimals)
+    const amountBigInt = BigInt(Math.floor(Number(amount) * 1e18)).toString();
+    const contract = 'pool_remove_liquidity';
+    const payload = {
+      poolId: poolId,
+      lpTokenAmount: amountBigInt,
+    };
+    const customJsonOperation = {
+      required_auths: [auth.state.username],
+      required_posting_auths: [],
+      id: 'sidechain',
+      json: JSON.stringify({
+        contract,
+        payload,
+      }),
+    };
+    const txid = await TransactionService.send('custom_json', customJsonOperation, {
+      requiredAuth: 'active',
+    });
+    console.log(txid);
+    closeRemoveModal();
+  } catch (e: any) {
+    alert(e?.message || 'Failed to remove liquidity.');
+  }
 }
 
 </script>
@@ -371,15 +454,18 @@ function getPriceChangeColorClass(pool: any) {
                         <div class="text-sm text-gray-500 dark:text-gray-400">
                           <span>Token Symbol: {{ position.symbol }}</span>
                         </div>
-                        <div v-if="position.unclaimedFeesA || position.unclaimedFeesB"
+                        <div
                           class="text-xs text-yellow-700 dark:text-yellow-300 mt-2 mb-2">
-                          <span v-if="position.unclaimedFeesA">Unclaimed Fees: {{
-                            $formatRawNumber(position.unclaimedFeesA, position.tokenA, '0,0.0000') }}
-                            {{ position.tokenA }} - {{ $formatRawNumber(position.unclaimedFeesB,
-                            position.tokenB, '0,0.0000') }} {{ position.tokenB }}</span>
+                          <span>Unclaimed Fees:
+                            {{ $formatRawNumber(((BigInt(position.rawAmount) * (BigInt(position.pool.feeGrowthGlobalA) -
+                              BigInt(position.feeGrowthEntryA))) / 10n ** 18n), 'LP_TOKEN', position.tokenA) }} {{ position.tokenA }}
+
+                            {{ $formatRawNumber(((BigInt(position.rawAmount) * (BigInt(position.pool.feeGrowthGlobalB) -
+                              BigInt(position.feeGrowthEntryB))) / 10n ** 18n), 'LP_TOKEN', position.tokenB) }} {{ position.tokenB }}
+                          </span>
                         </div>
                         <div v-if="position.feeTier" class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
-                          {{ (Number(position.feeTier) / 10000).toFixed(2) }}% fees from pool & market
+                          {{ (Number(position.feeTier) / 1000).toFixed(2) }}% fees from pool & market
                         </div>
                       </div>
                     </div>
@@ -414,7 +500,6 @@ function getPriceChangeColorClass(pool: any) {
                       </div>
                     </div>
                   </div>
-
                   <!-- Action Buttons -->
                   <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                     <router-link v-if="position.pool" :to="{ path: '/pool', query: { poolId: position.pool.id } }"
@@ -426,10 +511,37 @@ function getPriceChangeColorClass(pool: any) {
                       class="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors">
                       Trade Pair
                     </router-link>
-                    <button
+                    <button @click="claimFees(position.pool.id)"
+                      class="px-3 py-2 rounded-md text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
+                      Claim Fees
+                    </button>
+                    <button @click="openRemoveModal(position)"
                       class="px-3 py-2 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                       Remove
                     </button>
+  <!-- Remove Liquidity Modal -->
+  <div v-if="showRemoveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+    <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-6 w-full max-w-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Remove Liquidity</h3>
+        <button @click="closeRemoveModal" class="text-gray-400 hover:text-gray-700 dark:hover:text-white">&times;</button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">LP Amount to Remove</label>
+        <input v-model="removeLpAmount" type="number" min="0" :max="removeModalPosition?.amount || ''" step="any"
+          class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-primary-400 dark:bg-gray-800 dark:text-white" />
+        <div class="text-xs text-gray-500 mt-1">Max: {{ removeModalPosition?.amount || 0 }} {{ removeModalPosition?.symbol }}</div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button @click="closeRemoveModal" class="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">Cancel</button>
+        <button :disabled="!removeLpAmount || Number(removeLpAmount) <= 0 || Number(removeLpAmount) > (removeModalPosition?.amount || 0)"
+          @click="removeLiquidity(removeModalPosition.pool.id, removeLpAmount)"
+          class="px-4 py-2 rounded bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed">
+          Confirm Remove
+        </button>
+      </div>
+    </div>
+  </div>
                   </div>
                 </div>
               </div>
@@ -480,7 +592,7 @@ function getPriceChangeColorClass(pool: any) {
                             {{ pool.name || `${pool.tokenA_symbol || '?'}/${pool.tokenB_symbol || '?'}` }}
                           </div>
                           <div class="text-xs text-gray-500 dark:text-gray-400">
-                            Fee: {{ (pool.feeTier || 300 / 10000).toFixed(2) }}%
+                            Fee: {{ (pool.feeTier || 300 / 1000).toFixed(2) }}%
                           </div>
                         </div>
                       </div>

@@ -107,6 +107,7 @@ function formatEventType(type: string | undefined): string {
 
   // Map event types to user-friendly names
   const typeMap: Record<string, string> = {
+    'defi_fees_claimed': 'Fees Claimed',
     'defi_swap': 'Swap',
     'defi_liquidity_added': 'Add Liquidity',
     'defi_liquidity_removed': 'Remove Liquidity',
@@ -238,6 +239,9 @@ function getTvlUsd(pool: any) {
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
                     ${{ $tokenAmountPrice($formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol),
                       pool.tokenB_symbol) }}</td>
+
+
+
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
 
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
@@ -248,6 +252,9 @@ function getTvlUsd(pool: any) {
                   </td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
                     {{ $formatTokenBalance(event.data.tokenAAmount, pool.tokenA_symbol) }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'fees_claimed'">
+                    {{ $formatRawNumber(event.data.feesClaimedA, 'LP_TOKEN') }}</td>
+
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
                     v-if="event.action === 'swap' && event.data.tokenIn">{{ event.data.tokenIn ?
@@ -257,6 +264,8 @@ function getTvlUsd(pool: any) {
                   </td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
                     {{ $formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol) }}</td>
+                  <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'fees_claimed'">
+                    {{ $formatRawNumber(event.data.feesClaimedB, 'LP_TOKEN') }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white">@{{ event.actor || event.wallet || '--' }}</td>
                 </tr>
@@ -267,7 +276,7 @@ function getTvlUsd(pool: any) {
       </div>
       <!-- Sidebar -->
       <div class="flex flex-col gap-2">
-        <Chart/>
+        <Chart />
         <MarketStats v-if="poolId" :pairId="poolId" />
         <!-- Stats Card -->
         <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5">

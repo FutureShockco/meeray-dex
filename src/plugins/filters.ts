@@ -179,20 +179,27 @@ export default {
       }
     };
 
-    app.config.globalProperties.$formatRawNumber = (value: string | number, symbol: string, format: string = '0,0.00') => {
+    app.config.globalProperties.$formatRawNumber = (value: string | number | bigint, symbol: string, formatSymbol: string) => {
       const token = tokenListStore.tokens.find((t) => t.symbol === symbol);
       const defaultPrecisions: Record<string, number> = { MRY: 8, STEEM: 3, SBD: 3, BTC: 8, ETH: 18, LP_TOKEN: 18 };
-      const precision = token?.precision ?? defaultPrecisions[symbol] ?? 8;
-      // Build format string based on precision, e.g. '0,0.00000000' for 8 decimals
-      const dynamicFormat = `0,0.${'0'.repeat(Math.min(precision, 8))}`;
+      const tokenPrecision = token?.precision ?? defaultPrecisions[symbol] ?? 8;
+      // Step 1: Convert value to human using token precision
+      let human: BigNumber;
       try {
-        const human = new BigNumber(value)
-          .dividedBy(new BigNumber(10).pow(precision));
-        return numeral(human.toFixed(Math.min(precision, 8))).format(dynamicFormat);
+        human = new BigNumber(value).dividedBy(new BigNumber(10).pow(tokenPrecision));
       } catch (e) {
         console.warn('format error:', e);
-        return numeral(value).format(dynamicFormat);
+        return numeral(value).format('0,0.00');
       }
+
+      // Step 2: If formatSymbol is provided and is a known token, use its precision for formatting
+      let formatPrecision = tokenPrecision;
+      if (formatSymbol && formatSymbol !== symbol) {
+        const formatToken = tokenListStore.tokens.find((t) => t.symbol === formatSymbol);
+        formatPrecision = formatToken?.precision ?? defaultPrecisions[formatSymbol] ?? 8;
+      }
+      const dynamicFormat = `0,0.${'0'.repeat(Math.min(formatPrecision, 8))}`;
+      return numeral(human.toFixed(Math.min(formatPrecision, 8))).format(dynamicFormat);
     };
 
     app.config.globalProperties.$formatDate = (value: string | number | Date, format = 'YYYY-MM-DD HH:mm') => {
