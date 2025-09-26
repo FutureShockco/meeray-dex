@@ -190,8 +190,8 @@ async function renderChart() {
                         y: d.o,
                     })),
                     type: 'line',
-                    hidden: false,
-                    borderColor: '#fff',
+                    hidden: true,
+                    borderColor: '#000',
                     borderWidth: 1,
 
                 }
@@ -266,6 +266,7 @@ async function renderChart() {
             down: '#c51616b5',
             unchanged: '#999',
         };
+
         // @ts-ignore
         chart.config.type = type;
         chart.config.data.datasets[1].hidden = false;
