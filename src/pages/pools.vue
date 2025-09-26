@@ -72,7 +72,7 @@ const lpPositions = computed(() => {
       const parts = symbol.split('_');
       let tokenA = '';
       let tokenB = '';
-      let feeTier = '';
+      let feeTier = '300';
       if (parts.length >= 3) {
         tokenA = parts[1];
         tokenB = parts[2];
@@ -480,7 +480,7 @@ function getPriceChangeColorClass(pool: any) {
                             {{ pool.name || `${pool.tokenA_symbol || '?'}/${pool.tokenB_symbol || '?'}` }}
                           </div>
                           <div class="text-xs text-gray-500 dark:text-gray-400">
-                            Fee: {{ (pool.feeTier / 10000).toFixed(2) }}%
+                            Fee: {{ (pool.feeTier || 300 / 10000).toFixed(2) }}%
                           </div>
                         </div>
                       </div>

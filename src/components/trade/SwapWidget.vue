@@ -254,7 +254,7 @@ async function handleSwap() {
 }
 
 function getBalance(symbol: string) {
-  return meeray.account?.balances?.[symbol].amount ?? '--';
+  return meeray.account?.balances?.[symbol]?.amount ?? '--';
 }
 
 const route = useRoute();

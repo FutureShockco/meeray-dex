@@ -62,6 +62,22 @@ export interface MarketSourcesResponse {
   orderbookSources: number;
 }
 
+// Candles / OHLCV
+export interface MarketCandle {
+  // timestamp in milliseconds
+  timestamp: number;
+  open: string;   // price as string in smallest units or decimal string
+  high: string;
+  low: string;
+  close: string;
+  volume: string; // volume in smallest units or decimal string
+}
+export interface MarketCandlesResponse {
+  pairId: string;
+  interval: string; // e.g. "1m", "5m", "1h"
+  candles: MarketCandle[];
+}
+
 export interface TradeQuoteRequest {
   tokenIn: string;
   tokenOut: string;
@@ -242,25 +258,24 @@ const fetcher = typeof globalThis !== 'undefined' && typeof (globalThis as any).
   };
 
 export function useApiService() {
-  // --- DEX Market Endpoints (missing) ---
-  // 6. Get Orderbook
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.meeray.com';
+
   const getOrderBook = (pairId: string, depth: number = 20) =>
     fetcher(`${API_BASE}/market/orderbook/${pairId}?depth=${depth}`);
+  const getMarketStats = (pairId: string, period: 'hour' | 'day' | 'week' | 'month' | 'alltime' = 'day') =>
+    fetcher(`${API_BASE}/market/stats/${pairId}?period=${period}`);
+  const getTradeHistory = (pairId: string, limit: number = 50, period: 'hour' | 'day' | 'week' | 'month' | 'alltime' = 'day') =>
+    fetcher(`${API_BASE}/market/trades/${pairId}?limit=${limit}&period=${period}`);
 
-  // 7. Get Pair Statistics
-  const getMarketStats = (pairId: string) =>
-    fetcher(`${API_BASE}/market/stats/${pairId}`);
+  // 8b. Get OHLCV candles for a pair
+  // Query params: interval (e.g. 1m,5m,1h), since (ms), before (ms)
+  const getCandles = (pairId: string, params: { interval?: string; since?: number; before?: number } = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any as [string, string][]).toString();
+    return fetcher(`${API_BASE}/market/candles/${pairId}${qs ? `?${qs}` : ''}`) as Promise<MarketCandlesResponse>;
+  };
 
-  // 8. Get Recent Trades
-  const getTradeHistory = (pairId: string, limit: number = 50) =>
-    fetcher(`${API_BASE}/market/trades/${pairId}?limit=${limit}`);
-
-  // 9. Get User Orders
   const getUserOrders = (userId: string, status: string = 'active', limit: number = 20) =>
     fetcher(`${API_BASE}/market/orders/user/${userId}?status=${status}&limit=${limit}`);
-
-  // 9b. Get User Orders (all / past) - endpoint without status query; returns orders with statuses
-  // like CANCELLED, REJECTED, EXPIRED, FILLED and others depending on server behavior.
   const getUserPastOrders = (userId: string, limit: number = 100) =>
     fetcher(`${API_BASE}/market/orders/user/${userId}?limit=${limit}`);
 
@@ -317,49 +332,6 @@ export function useApiService() {
     fetcher(`${API_BASE}/pools/positions/pool/${poolId}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: UserLiquidityPosition[]; total: number; limit: number; skip: number }>;
   const getLiquidityPositionDetails = (positionId: string) => fetcher(`${API_BASE}/pools/positions/${positionId}`) as Promise<UserLiquidityPosition>;
   const getUserLiquidityPositionInPool = (userId: string, poolId: string) => fetcher(`${API_BASE}/pools/positions/user/${userId}/pool/${poolId}`) as Promise<UserLiquidityPosition>;
-  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.meeray.com';
-  // --- Trade Quote Endpoint ---
-  /**
-   * Get a trade quote (hybrid AMM + orderbook)
-   * @param tokenIn Symbol of the input token
-   * @param tokenOut Symbol of the output token
-   * @param amountIn Amount of input token (string or number)
-   * @param maxSlippagePercent Max slippage percent (number)
-   * @returns Promise<any> (API response)
-   */
-
-  // --- Farm Endpoints ---
-  // (see below for single set of farm endpoint functions)
-
-  // --- NFT Endpoints ---
-  const getNftCollections = (params: { limit?: number; offset?: number; creator?: string; allowDelegation?: boolean; createdAfter?: string; createdBefore?: string; nameSearch?: string; sortBy?: string; sortDirection?: string } = {}) =>
-    fetcher(`${API_BASE}/nfts/collections?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTCollection[]; total: number; limit: number; skip: number }>;
-  const getNftCollectionDetails = (collectionSymbol: string) => fetcher(`${API_BASE}/nfts/collections/${collectionSymbol}`) as Promise<NFTCollection>;
-  const getNftCollectionsByCreator = (creatorName: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/collections/creator/${creatorName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTCollection[]; total: number; limit: number; skip: number }>;
-
-  // Instances (NFTs)
-  const getNftInstances = (params: { limit?: number; offset?: number; collectionSymbol?: string; owner?: string; createdAfter?: string; createdBefore?: string; metadataKey?: string; metadataValue?: string; sortBy?: string; sortDirection?: string } = {}) =>
-    fetcher(`${API_BASE}/nfts/instances?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTInstance[]; total: number; limit: number; skip: number }>;
-  const getNftInstancesByCollection = (collectionSymbol: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/instances/collection/${collectionSymbol}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTInstance[]; total: number; limit: number; skip: number }>;
-  const getNftInstancesByOwner = (ownerName: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/instances/owner/${ownerName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTInstance[]; total: number; limit: number; skip: number }>;
-  const getNftInstanceDetails = (nftId: string) => fetcher(`${API_BASE}/nfts/instances/id/${nftId}`) as Promise<NFTInstance>;
-  const getNftInstanceHistory = (nftId: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/instances/id/${nftId}/history?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTHistoryEntry[]; total: number; limit: number; skip: number }>;
-  const getNftInstanceDelegations = (nftId: string) => fetcher(`${API_BASE}/nfts/instances/id/${nftId}/delegations`) as Promise<NFTDelegation>;
-  const getNftInstancesDelegatedToUser = (userName: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/instances/delegatedto/${userName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTInstance[]; total: number; limit: number; skip: number }>;
-
-  // Market Listings
-  const getNftMarketListings = (params: { limit?: number; offset?: number; collectionSymbol?: string; seller?: string; priceMin?: number; priceMax?: number; paymentSymbol?: string; sortBy?: string; sortDirection?: string } = {}) =>
-    fetcher(`${API_BASE}/nfts/market/listings?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTMarketListing[]; total: number; limit: number; skip: number }>;
-  const getNftMarketListingForNft = (nftId: string) => fetcher(`${API_BASE}/nfts/market/listings/nft/${nftId}`) as Promise<NFTMarketListing>;
-  const getNftMarketListingsBySeller = (sellerName: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/market/listings/seller/${sellerName}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTMarketListing[]; total: number; limit: number; skip: number }>;
-  const getNftMarketListingsByCollection = (collectionSymbol: string, params: { limit?: number; offset?: number } = {}) =>
-    fetcher(`${API_BASE}/nfts/market/listings/collection/${collectionSymbol}?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: NFTMarketListing[]; total: number; limit: number; skip: number }>;
 
   // --- Market Endpoints ---
   // 1. Get Liquidity Sources
@@ -422,7 +394,6 @@ export function useApiService() {
 
   // --- Node Endpoints ---
   const getPeers = () => fetcher(`${API_BASE}/peers`) as Promise<{ success: boolean, peers: string[] }>;
-  const getLeader = () => fetcher(`${API_BASE}/leader`) as Promise<LeaderInfo>;
   const getSchedule = () => fetcher(`${API_BASE}/schedule`) as Promise<Schedule>;
   // --- Pool Endpoints ---
 
@@ -484,8 +455,6 @@ export function useApiService() {
   const getTradingPairs = (params: { limit?: number; offset?: number; status?: string } = {}) =>
     fetcher(`${API_BASE}/market/pairs?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ pairs: any[]; total: number }>;
 
-  // (removed duplicate getOrderBook, getTradeHistory, getUserOrders, getMarketStats)
-
   // --- Witnesses Endpoints ---
   const getTopWitnesses = (params: { limit?: number; offset?: number } = {}) =>
     fetcher(`${API_BASE}/witnesses?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`) as Promise<{ data: Account[]; total: number; limit: number; skip: number }>;
@@ -514,7 +483,6 @@ export function useApiService() {
 
 
   return {
-    // Config
     getConfig,
     // Account
     getAccountsList,
@@ -535,21 +503,6 @@ export function useApiService() {
     getTokenHolders,
     getTokenDistribution,
     getTokenList,
-    // NFT
-    getNftCollections,
-    getNftCollectionDetails,
-    getNftCollectionsByCreator,
-    getNftInstances,
-    getNftInstancesByCollection,
-    getNftInstancesByOwner,
-    getNftInstanceDetails,
-    getNftInstanceHistory,
-    getNftInstanceDelegations,
-    getNftInstancesDelegatedToUser,
-    getNftMarketListings,
-    getNftMarketListingForNft,
-    getNftMarketListingsBySeller,
-    getNftMarketListingsByCollection,
     // Market
     getMarketSources,
     getTradeQuote,
@@ -557,10 +510,11 @@ export function useApiService() {
     getMarketPairs,
     getMarketPairDetails,
     getOrderBook,
+  getCandles,
     getMarketStats,
     getTradeHistory,
-  getUserOrders,
-  getUserPastOrders,
+    getUserOrders,
+    getUserPastOrders,
     // getOrderBook, getMarketStats, getTradeHistory, getUserOrders are now defined above and exported above
     // (other unchanged)
     // Transaction
@@ -575,7 +529,6 @@ export function useApiService() {
     getBlockTransactions,
     // Node
     getPeers,
-    getLeader,
     getSchedule,
 
     // Pools
@@ -612,8 +565,7 @@ export function useApiService() {
     getVotersForWitness,
     // Market/Trading
     getTradingPairs,
-    // getOrderBook, getTradeHistory, getUserOrders, getMarketStats already defined below
-    // Analytics
+
     getPoolAnalytics,
   };
 }

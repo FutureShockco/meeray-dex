@@ -102,12 +102,7 @@ const baseBalance = computed(() => {
 
   // If balance is an object with both rawAmount and amount, prefer the amount (already formatted)
   if (typeof balance === 'object' && (balance as any).amount) {
-    console.log(`Base balance for ${baseToken.value}:`, {
-      balance,
-      usingAmount: (balance as any).amount,
-      tokenLoaded: tokenList.tokens.length > 0,
-      token: tokenList.tokens.find(t => t.symbol === baseToken.value)
-    });
+
     return String((balance as any).amount);
   }
 
@@ -115,15 +110,9 @@ const baseBalance = computed(() => {
   if (typeof balance === 'object' && (balance as any).rawAmount) {
     const rawAmount = String((balance as any).rawAmount);
     const precision = tokenList.getTokenPrecision(baseToken.value);
-    console.log(`Base balance conversion for ${baseToken.value}:`, {
-      rawAmount,
-      precision,
-      tokenLoaded: tokenList.tokens.length > 0,
-      token: tokenList.tokens.find(t => t.symbol === baseToken.value)
-    });
+
     try {
       const result = new BigNumber(rawAmount).dividedBy(new BigNumber(10).pow(precision)).toString();
-      console.log(`Converted ${rawAmount} with precision ${precision} to ${result}`);
       return result;
     } catch {
       return '0';
@@ -145,12 +134,7 @@ const quoteBalance = computed(() => {
 
   // If balance is an object with both rawAmount and amount, prefer the amount (already formatted)
   if (typeof balance === 'object' && (balance as any).amount) {
-    console.log(`Quote balance for ${quoteToken.value}:`, {
-      balance,
-      usingAmount: (balance as any).amount,
-      tokenLoaded: tokenList.tokens.length > 0,
-      token: tokenList.tokens.find(t => t.symbol === quoteToken.value)
-    });
+
     return String((balance as any).amount);
   }
 
@@ -158,15 +142,9 @@ const quoteBalance = computed(() => {
   if (typeof balance === 'object' && (balance as any).rawAmount) {
     const rawAmount = String((balance as any).rawAmount);
     const precision = tokenList.getTokenPrecision(quoteToken.value);
-    console.log(`Quote balance conversion for ${quoteToken.value}:`, {
-      rawAmount,
-      precision,
-      tokenLoaded: tokenList.tokens.length > 0,
-      token: tokenList.tokens.find(t => t.symbol === quoteToken.value)
-    });
+
     try {
       const result = new BigNumber(rawAmount).dividedBy(new BigNumber(10).pow(precision)).toString();
-      console.log(`Converted ${rawAmount} with precision ${precision} to ${result}`);
       return result;
     } catch {
       return '0';
@@ -263,9 +241,7 @@ watch([orderType, orderSide, quantity, selectedPair], async () => {
 const fetchTradingPairs = async () => {
   try {
     const response = await api.getTradingPairs();
-    console.log('Trading pairs response:', response);
     tradingPairs.value = response.pairs || [];
-    console.log('Trading pairs loaded:', tradingPairs.value);
 
     if (tradingPairs.value.length > 0 && !selectedPair.value) {
       // First priority: Use pairId from URL if provided
@@ -305,40 +281,6 @@ const fetchRecentTrades = async () => {
   }
 };
 
-// Fetch user orders
-const fetchUserOrders = async () => {
-  if (!auth.state?.username || !selectedPair.value) return;
-  try {
-    const response = await api.getUserOrders(auth.state.username);
-    console.log('TradeWidget - User orders response:', response);
-
-    // Handle the actual API response structure
-    const orders = response.orders || response.data || [];
-
-    // Map the API response to match the expected format
-    userOrders.value = orders.map((order: any) => {
-      const pair = tradingPairs.value.find(p => p._id === order.pairId);
-      return {
-        _id: order.id || order._id,
-        id: order.id || order._id,
-        pairId: order.pairId,
-        baseAssetSymbol: pair?.baseAssetSymbol || '',
-        quoteAssetSymbol: pair?.quoteAssetSymbol || '',
-        side: order.side?.toUpperCase() || order.side,
-        type: order.type?.toUpperCase() || order.type,
-        price: parseFloat(order.price || 0),
-        quantity: parseFloat(order.quantity || order.remainingQuantity || 0),
-        filledQuantity: parseFloat(order.filledQuantity || 0),
-        status: order.status,
-        ...order
-      };
-    });
-
-    console.log('TradeWidget - Processed user orders:', userOrders.value);
-  } catch (e: any) {
-    console.error('Failed to fetch user orders:', e);
-  }
-};
 
 // Place order (now using Hybrid Market Trade)
 const placeOrder = async () => {
@@ -518,7 +460,7 @@ const placeOrder = async () => {
     // Clear form and refresh data
     quantity.value = '';
     if (orderType.value === 'LIMIT') price.value = '';
-    await Promise.all([fetchUserOrders(), fetchRecentTrades(), meeray.refreshAccount()]);
+    await Promise.all([fetchRecentTrades(), meeray.refreshAccount()]);
 
   } catch (e: any) {
     error.value = e?.message || 'Failed to place order';
@@ -572,7 +514,6 @@ watch(selectedPair, (newPairId) => {
     quantity.value = '';
     // Refresh data
     fetchRecentTrades();
-    fetchUserOrders();
   }
 });
 

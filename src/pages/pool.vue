@@ -233,9 +233,11 @@ function getTvlUsd(pool: any) {
 
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
                     v-if="event.action === 'swap' && event.data.tokenOut">
-                    ${{ $tokenAmountPrice($formatTokenBalance(event.data.amountOut, event.data.tokenOut), event.data.tokenOut) }}</td>
+                    ${{ $tokenAmountPrice($formatTokenBalance(event.data.amountOut, event.data.tokenOut),
+                      event.data.tokenOut) }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else-if="event.action === 'liquidity_added'">
-                    ${{ $tokenAmountPrice($formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol), pool.tokenB_symbol) }}</td>
+                    ${{ $tokenAmountPrice($formatTokenBalance(event.data.tokenBAmount, pool.tokenB_symbol),
+                      pool.tokenB_symbol) }}</td>
                   <td class="px-4 py-2 text-gray-900 dark:text-white" v-else>--</td>
 
                   <td class="px-4 py-2 text-gray-900 dark:text-white"
@@ -264,11 +266,12 @@ function getTvlUsd(pool: any) {
         </div>
       </div>
       <!-- Sidebar -->
-      <div class="flex flex-col gap-8">
-        <!-- Stats Card -->
-        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 mb-4">
-          <div class="text-gray-500 dark:text-gray-400 text-xs mb-3">Pool Stats</div>
+      <div class="flex flex-col gap-2">
 
+        <MarketStats v-if="poolId" :pairId="poolId" />
+        <!-- Stats Card -->
+        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5">
+          <div class="text-gray-500 dark:text-gray-400 text-xs mb-3">Pool Stats</div>
           <!-- Pool balances -->
           <div v-if="pool" class="mb-3">
 
@@ -369,4 +372,3 @@ function getTvlUsd(pool: any) {
     </div>
   </div>
 </template>
-

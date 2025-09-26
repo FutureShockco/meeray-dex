@@ -9,10 +9,13 @@ import { useAppStore } from '../stores/appStore';
 import SwapWidget from '../components/trade/SwapWidget.vue';
 import TradeWidget from '../components/trade/TradeWidget.vue';
 import PoolVolumeChart from '../components/PoolVolumeChart.vue';
+import MarketStats from '../components/MarketStats.vue';
 import router from '../router';
 import { useTokenUsdPrice } from '../composables/useTokenUsdPrice';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import { generatePoolId } from '../utils/idUtils';
+
+console.log('[swap.vue] module loaded');
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -50,6 +53,25 @@ const userOrders = ref<any[]>([]);
 const pastOrders = ref<any[]>([]);
 const showingPast = ref<boolean>(false);
 const marketStats = ref<any>({});
+// Compute spread amount and percent from highest bid and lowest ask when available
+const spreadAmount = computed(() => {
+  try {
+    const bid = marketStats.value?.highestBid ? parseFloat(marketStats.value.highestBid) : NaN;
+    const ask = marketStats.value?.lowestAsk ? parseFloat(marketStats.value.lowestAsk) : NaN;
+    if (!isFinite(bid) || !isFinite(ask)) return null;
+    return Math.max(0, ask - bid);
+  } catch (e) {
+    return null;
+  }
+});
+
+const spreadPercent = computed(() => {
+  const amount = spreadAmount.value;
+  if (amount == null) return null;
+  const ask = marketStats.value?.lowestAsk ? parseFloat(marketStats.value.lowestAsk) : NaN;
+  if (!isFinite(ask) || ask === 0) return null;
+  return (amount / ask) * 100;
+});
 const selectedPair = ref<string>('MRY_TESTS');
 const baseToken = ref<string>('MRY');
 const quoteToken = ref<string>('TESTS');
@@ -92,7 +114,6 @@ const cancelOrder = async (orderId: string) => {
 };
 
 const handleUrlParameters = () => {
-  console.log('Handling URL parameters:', route.query);
   if (route.query.tokenIn && route.query.tokenOut) {
     tab.value = 'swap';
     selectedPair.value = generatePoolId(route.query.tokenIn, route.query.tokenOut);
@@ -152,8 +173,7 @@ const fetchInformations = async () => {
   if (selectedPair.value) {
     await Promise.all([
       fetchOrderBook(),
-      fetchRecentTrades(),
-      fetchMarketStats()
+      fetchRecentTrades()
     ]);
     if (auth.state?.username) {
       await Promise.all([fetchUserOrders(), fetchPastOrders()]);
@@ -197,7 +217,6 @@ const fetchUserOrders = async () => {
   if (!auth.state?.username || !baseToken.value || !quoteToken.value) return;
   try {
     const response = await api.getUserOrders(auth.state.username, 'active');
-    console.log('User orders response:', response);
 
     // Handle the actual API response structure
     const orders = response.orders || response.data || [];
@@ -221,7 +240,6 @@ const fetchUserOrders = async () => {
       };
     });
 
-    console.log('Processed user orders:', userOrders.value);
   } catch (e: any) {
     console.error('Failed to fetch user orders:', e);
   }
@@ -232,7 +250,7 @@ const fetchPastOrders = async () => {
   if (!auth.state?.username || !baseToken.value || !quoteToken.value) return;
   try {
   // request all past orders using dedicated endpoint (no status filter)
-  const response = await api.getUserPastOrders(auth.state.username, 100);
+  const response = await api.getUserPastOrders(auth.state.username, 20);
     const orders = response.orders || response.data || response || [];
 
     pastOrders.value = orders
@@ -256,7 +274,6 @@ const fetchPastOrders = async () => {
       })
       .filter((o: any) => o.status && o.status.toString().toLowerCase() !== 'active' && o.status.toString().toLowerCase() !== 'open');
 
-    console.log('Processed past orders:', pastOrders.value);
   } catch (e: any) {
     console.error('Failed to fetch past user orders:', e);
   }
@@ -289,13 +306,13 @@ const fetchOrderBook = async () => {
         price: ask.price.toFixed(8),
         amount: ask.quantity.toFixed(8),
         total: ask.total.toFixed(8),
-        remaining: ask.remainingQuantity.toFixed(8)
+        remaining: ask.remainingQuantity ? ask.remainingQuantity.toFixed(8) : '0.00'
       })),
       bids: orderbookData.bids.map((bid: any) => ({
         price: bid.price.toFixed(8),
         amount: bid.quantity.toFixed(8),
         total: bid.total.toFixed(8),
-        remaining: bid.remainingQuantity.toFixed(8)
+        remaining: bid.remainingQuantity ? bid.remainingQuantity.toFixed(8) : '0.00'
       })),
       raw: {
         asks: (response.asks || []).map((ask: any) => ({
@@ -319,9 +336,7 @@ const fetchOrderBook = async () => {
 const fetchTradingPairs = async () => {
   try {
     const response = await api.getTradingPairs();
-    console.log('Trading pairs response:', response);
     tradingPairs.value = response.pairs || [];
-    console.log('Trading pairs loaded:', tradingPairs.value);
 
     if (tradingPairs.value.length > 0 && !selectedPair.value) {
       if (pairId.value) {
@@ -366,17 +381,7 @@ const fetchRecentTrades = async () => {
   }
 };
 
-const fetchMarketStats = async () => {
-  if (!baseToken.value || !quoteToken.value) return;
-  const poolId = generatePoolId(baseToken.value, quoteToken.value);
-  try {
-    const response = await api.getMarketStats(poolId);
-    console.log('Market stats response:', response);
-    marketStats.value = response;
-  } catch (e: any) {
-    console.error('Failed to fetch market stats:', e);
-  }
-};
+
 
 const setPriceFromOrderBook = (orderPrice: string) => {
   price.value = orderPrice;
@@ -443,55 +448,8 @@ function handleAdvancedClick() {
           @update:selected-pair="handlePairChange" />
       </div>
       <div class=" grid-cols-1 lg:grid-cols-1 gap-6">
-        <div v-if="selectedPair"
-          class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Market Stats</h3>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between">
-              <span class="text-gray-500">Current Price:</span>
-              <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.currentPrice ? $formatNumber(parseFloat(marketStats.currentPrice)) : '0.00000000' }}
-                {{ quoteToken }} -
-                ${{ $formatUsdValue(Number($tokenPrice(quoteToken, true)) * Number(marketStats.currentPrice || 0), '0,0.0000') }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">24h Change:</span>
-              <span :class="(marketStats.priceChange24hPercent || 0) >= 0 ? 'text-green-600' : 'text-red-600'"
-                class="font-semibold">
-                {{ marketStats.priceChange24hPercent ? (marketStats.priceChange24hPercent >= 0 ? '+' : '') +
-                  marketStats.priceChange24hPercent.toFixed(2) : '0.00' }}%
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">24h Volume:</span>
-              <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.volume24h ? $formatNumber(parseFloat(marketStats.volume24h)) : '0.00000000' }} {{
-                  quoteToken }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">Highest Bid:</span>
-              <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.highestBid ? $formatNumber(parseFloat(marketStats.highestBid)) + ' ' + quoteToken : '--'
-                }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">Lowest Ask:</span>
-              <span class="text-gray-900 dark:text-white font-mono">
-                {{ marketStats.lowestAsk ? $formatNumber(parseFloat(marketStats.lowestAsk)) + ' ' + quoteToken : '--' }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">24h Trades:</span>
-              <span class="text-gray-900 dark:text-white">
-                {{ marketStats.tradeCount24h || '0' }}
-              </span>
-            </div>
-          </div>
-        </div>
-        <PoolVolumeChart class="mb-4" v-if="selectedPair" :selected-pair="selectedPair" />
+  <MarketStats v-if="selectedPair" :pairId="selectedPair" />
+  <PoolVolumeChart class="mb-4" v-show="selectedPair" :selected-pair="selectedPair" />
       </div>
     </div>
     <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
