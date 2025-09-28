@@ -58,12 +58,12 @@
 }
 
 :root {
-    --steem-auth-primary-color: #1a73e8;
-    --steem-auth-primary-hover: #1557b0;
+    --steem-auth-primary-color: #3b82f6;
+    --steem-auth-primary-hover: #2563eb;
     --steem-auth-secondary-color: #10B981;
-    --steem-auth-background: #FFFFFF;
-    --steem-auth-card-background: #FFFFFF;
-    --steem-auth-border-color: #E2E8F0;
+    --steem-auth-background: #1e293b;
+    --steem-auth-card-background: #0f172a;
+    --steem-auth-border-color: #7091e6;
     --steem-auth-error-color: #d93025;
     --steem-auth-text-color: #FFFFFF;
     --steem-auth-text-primary: #0F172A;
@@ -78,26 +78,10 @@
     --transition: all .15s ease
 }
 
-.dark-theme {
-    --steem-auth-primary-color: #3b82f6;
-    --steem-auth-primary-hover: #2563eb;
-    --steem-auth-secondary-color: #10B981;
-    --steem-auth-background: #1e293b;
-    --steem-auth-card-background: #0f172a;
-    --steem-auth-border-color: #334155;
-    --steem-auth-error-color: #ef4444;
-    --steem-auth-text-color: #FFFFFF;
-    --steem-auth-text-primary: #e2e8f0;
-    --steem-auth-text-secondary: #94a3b8;
-    --steem-auth-shadow: 0 4px 6px rgba(0, 0, 0, .3)
-}
-
 .steem-auth-component {
-    font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Open Sans, Helvetica Neue, sans-serif;
+    font-family: 'Inter', 'Satoshi', 'Montserrat', 'Segoe UI', Arial, sans-serif;
     line-height: 1.5;
     color: var(--steem-auth-text-primary);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale
 }
 
 .steem-auth-button {
@@ -198,6 +182,48 @@
 
 .steem-auth-modal-overlay {
     @apply fixed inset-0 bg-black flex items-center justify-center z-50;
+
+    width: 100vw;
+    height: 100vh;
+}
+
+body.steem-auth-modal-open {
+    overflow: hidden !important;
+}
+
+.steem-auth-accounts-row {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    /* Enable mouse wheel horizontal scroll */
+    /* Fancy scrollbar styles */
+    scrollbar-width: thin;
+    scrollbar-color: var(--steem-auth-primary-color, #6366f1) #232b3e;
+}
+
+.steem-auth-accounts-row::-webkit-scrollbar {
+    height: 8px;
+    background: #232b3e;
+    border-radius: 8px;
+}
+
+.steem-auth-accounts-row::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, var(--steem-auth-primary-color, #6366f1) 0%, #a5b4fc 100%);
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.steem-auth-accounts-row::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #818cf8 0%, #6366f1 100%);
+}
+
+.steem-auth-accounts-row::-webkit-scrollbar-track {
+    background: #232b3e;
+    border-radius: 8px;
 }
 
 .steem-auth-modal-content {
@@ -400,7 +426,6 @@
 .steem-auth-transaction-form textarea {
     min-height: 100px;
     resize: vertical;
-    font-family: monospace;
     width: 100%;
     padding: 8px;
     border: 1px solid var(--steem-auth-border-color);
@@ -456,11 +481,11 @@
 .steem-auth-modal-content,
 .steem-auth-card,
 .steem-auth-transaction-item {
-    background: #23262f !important;
+    background-color: #070a13ff !important;
     color: #fff !important;
-    border-radius: 1rem !important;
+    border-radius: 0.75rem;
     box-shadow: 0 4px 32px rgba(0, 0, 0, 0.25) !important;
-    border: 1px solid #EC4D37 !important;
+    border: 1px solid var(--steem-auth-border-color) !important;
 }
 
 /* Modal overlay */
@@ -471,7 +496,7 @@
 /* Buttons */
 .steem-auth-button,
 .steem-auth-send-button {
-    background: #EC4D37 !important;
+    background: var(--steem-auth-primary-color) !important;
     color: #fff !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
@@ -481,7 +506,7 @@
 
 .steem-auth-button:hover,
 .steem-auth-send-button:hover {
-    background: #b22f1e !important;
+    background: var(--steem-auth-primary-hover) !important;
 }
 
 .steem-auth-button:disabled,
@@ -495,19 +520,26 @@
     color: #fff !important;
 }
 
+.steem-auth-button-danger:hover {
+    background: #f82121 !important;
+    color: #fff !important;
+}
+
 /* Inputs */
 .steem-auth-input,
 .pin-input[data-v-de706b5b] {
     background: #181c23 !important;
-    color: #fff !important;
-    border: 1px solid #EC4D37 !important;
+    color: #cacaca !important;
+    border: 1px solid var(--steem-auth-border-color) !important;
     border-radius: 8px !important;
 }
 
 .steem-auth-input:focus,
 .pin-input[data-v-de706b5b]:focus {
-    border-color: #EC4D37 !important;
-    box-shadow: 0 0 0 2px #EC4D3733 !important;
+    background: var(--steem-auth-text-primary) !important;
+    color: #fff !important;
+    border-color: var(--steem-auth-text-color) !important;
+    box-shadow: 0 0 2px 2px var(--steem-auth-primary-hover) !important;
 }
 
 .steem-auth-input.error,
@@ -517,26 +549,28 @@
 
 /* Account Cards */
 .steem-auth-account-card {
+    min-width: 100px !important;
     background: #23262f !important;
-    border: 1px solid #EC4D37 !important;
+    border: 1px solid var(--steem-auth-border-color) !important;
     border-radius: 12px !important;
     color: #fff !important;
     box-shadow: 0 2px 8px #EC4D3722 !important;
+    overflow: hidden !important;
 }
 
 .steem-auth-account-card:hover {
-    border-color: #EC4D37 !important;
-    box-shadow: 0 4px 16px #EC4D3733 !important;
+    border-color: var(--steem-auth-text-color) !important;
+    box-shadow: 0 0px 10px var(--steem-auth-primary-hover) !important;
 }
 
 .steem-auth-account-avatar {
     background: #181c23 !important;
-    border: 2px solid #EC4D37 !important;
 }
 
 .steem-auth-account-username {
-    color: #EC4D37 !important;
-    font-weight: 700 !important;
+    font-size: small;
+    text-align: center;
+    color: var(--steem-auth-text-color) !important;
 }
 
 /* Dropdowns */
@@ -544,16 +578,22 @@
     position: absolute;
     top: 100%;
     right: 0;
-    min-width: 250px;
-    padding: 20px;
-    background: #23262f !important;
+    min-width: 280px;
+    background: var(--steem-auth-text-primary) !important;
     color: #fff !important;
     border-radius: 8px !important;
-     box-shadow: 0px 10px 12px rgba(0,0,0,0.5);
+    box-shadow: 0px 10px 12px rgba(0, 0, 0, 0.5);
     z-index: 1000;
 }
 
+.steem-auth-dropdown-current {
+    padding: 10px 20px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--steem-auth-border-color) !important;
+}
+
 .steem-auth-dropdown-item {
+    padding: 20px;
     width: 100%;
     padding: 0.5rem 1rem;
     text-align: left;
@@ -565,12 +605,20 @@
 }
 
 .steem-auth-dropdown-item:not(:disabled):hover {
-    background: #EC4D3722 !important;
-    color: #EC4D37 !important;
+    background: #f5f5f5f5 !important;
+    color: #000000 !important;
 }
 
 .steem-auth-dropdown-divider {
-    border-top: 1px solid #EC4D37 !important;
+    border-top: 1px solid var(--steem-auth-border-color) !important;
+}
+
+.steem-auth-accounts-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 10px 0px;
+    border-top: 1px solid var(--steem-auth-border-color) !important;
 }
 
 /* Transaction Status */
@@ -611,7 +659,7 @@
 .steem-auth-label-text,
 .steem-auth-current-account-msg,
 .steem-auth-add-account-heading {
-    color: #EC4D37 !important;
+    color: var(--steem-auth-text-color) !important;
     font-weight: 700 !important;
 }
 
@@ -651,9 +699,6 @@
     color: #fff !important;
 }
 
-.steem-auth-theme-toggle {
-    color: #EC4D37 !important;
-}
 
 .steem-auth-keychain-download a {
     color: #EC4D37 !important;

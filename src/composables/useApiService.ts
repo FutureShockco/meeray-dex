@@ -373,6 +373,7 @@ export function useApiService() {
 
   // --- Events Endpoints ---
   const getEvents = (params: {
+    category?: string;
     type?: string;
     actor?: string;
     transactionId?: string;
