@@ -190,6 +190,14 @@ onMounted(() => {
         <button class="steem-auth-theme-toggle" @click="toggleTheme" type="button">
           {{ isDarkTheme ? '☀️' : '🌙' }}
         </button>
+        <router-link v-if="auth.state.isAuthenticated" :to="`/@${auth.state.username}`"
+          class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          <svg class="w-6 h-6 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" stroke-width="2"
+            viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 8-4 8-4s8 0 8 4" />
+          </svg>
+        </router-link>
         <SteemAuth @modalOpen="handleModalOpen" @modalClose="handleModalClose" appName="future.app"
           callbackURL="http://localhost:3000" steemApi="https://testapi.moecki.online"
           :steemApiOptions="{ addressPrefix: 'MTN', chainId: '1aa939649afcc54c67e01a809967f75b8bee5d928aa6bdf237d0d5d6bfbc5c22' }" />
