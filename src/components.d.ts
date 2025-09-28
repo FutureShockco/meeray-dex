@@ -13,6 +13,7 @@ declare module 'vue' {
     AppNavbar: typeof import('./components/AppNavbar.vue')['default']
     AppTokenSelect: typeof import('./components/AppTokenSelect.vue')['default']
     Chart: typeof import('./components/Chart.vue')['default']
+    CountUp: typeof import('./components/CountUp.vue')['default']
     CreateTokenModal: typeof import('./components/CreateTokenModal.vue')['default']
     DepositModal: typeof import('./components/DepositModal.vue')['default']
     MarketPairs: typeof import('./components/trade/MarketPairs.vue')['default']

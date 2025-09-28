@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watchEffect } from 'vue';
 import AppButton from '../components/AppButton.vue';
 import StakeModal from '../components/StakeModal.vue';
 import { useApiService } from '../composables/useApiService';
 import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import { useAuthStore, TransactionService } from 'steem-auth-vue';
 
 const api = useApiService();
 const tokenList = useTokenListStore();
+const auth = useAuthStore();
+const tx = TransactionService;
 const farms = ref<any[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -16,6 +19,25 @@ const tokenHelpers = createTokenHelpers();
 // Modal state
 const showStakeModal = ref(false);
 const selectedFarm = ref<any>(null);
+
+// User farm positions state
+const userFarmPositions = ref<any[]>([]);
+const userFarmPositionsLoading = ref(false);
+const userFarmPositionsError = ref('');
+
+// Timer for live updates
+const now = ref(Date.now());
+let interval: any = null;
+onMounted(() => {
+  interval = setInterval(() => {
+    now.value = Date.now();
+  }, 500);
+});
+
+// Clean up interval if needed (optional, for SPA navigation)
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => clearInterval(interval));
+}
 
 // Helper function to format token amounts
 const formatTokenAmount = (rawAmount: string, symbol: string) => {
@@ -48,8 +70,8 @@ const getTimeRemaining = (endTime: string) => {
   if (!endTime) return 'N/A';
   try {
     const end = new Date(endTime);
-    const now = new Date();
-    const diff = end.getTime() - now.getTime();
+    const nowDate = new Date(now.value);
+    const diff = end.getTime() - nowDate.getTime();
 
     if (diff <= 0) return 'Ended';
 
@@ -120,15 +142,129 @@ const retryLoadFarms = async () => {
   }
 };
 
+// Fetch user farm positions
+const fetchUserFarmPositions = async () => {
+  if (!auth.state.username) return;
+  userFarmPositionsLoading.value = true;
+  userFarmPositionsError.value = '';
+  try {
+    const res = await api.getFarmPositionsByUser(auth.state.username);
+    userFarmPositions.value = Array.isArray(res.data) ? res.data : [];
+  } catch (err: any) {
+    userFarmPositionsError.value = err?.message || 'Failed to fetch user farm positions';
+    userFarmPositions.value = [];
+  } finally {
+    userFarmPositionsLoading.value = false;
+  }
+};
+
+// Calculate pending rewards for a position
+const calculatePendingRewards = (position: any) => {
+  if (!position?.farmId || !position?.rawStakedAmount) return 0;
+  const farm = farms.value.find((f) => f._id === position.farmId);
+  if (!farm) return 0;
+  const pending = (Number(farm.rawRewardsPerBlock) * Number(position.rawStakedAmount)) / Math.pow(10, 18);
+  return pending - (position.claimedRewards || 0);
+};
+
+// Calculate pending rewards for a user farm position
+function calculateUserPendingRewards(position: any) {
+  // Find the farm info
+  const farm = farms.value.find(f => f.farmId === position.farmId || f._id === position.farmId);
+  if (!farm) return 0;
+
+  // Parse numbers
+  const staked = Number(position.rawStakedAmount || 0);
+  const totalStaked = Number(farm.rawTotalStaked || 1); // avoid div by zero
+  const rewardsPerBlock = Number(farm.rawRewardsPerBlock || 0);
+  const lastHarvest = new Date(position.lastHarvestTime).getTime();
+  const lastUpdated = position.lastUpdatedAt ? new Date(position.lastUpdatedAt).getTime() : lastHarvest;
+  const end = new Date(farm.endTime).getTime();
+  const start = Math.max(lastUpdated, new Date(farm.startTime).getTime());
+  const effectiveNow = Math.min(now.value, end);
+  if (effectiveNow <= start) return 0;
+  // 1 block = 3 seconds
+  const seconds = (effectiveNow - start) / 1000; // use float seconds for smooth decimals
+  const blocks = seconds / 3; // allow fractional blocks for smooth reward growth
+  if (blocks <= 0 || totalStaked === 0) return 0;
+  // User share
+  const userShare = staked / totalStaked;
+  const pending = userShare * rewardsPerBlock * blocks;
+  // Convert to display units (assuming 8 decimals for MRY)
+  return pending / 1e8;
+}
+
+// Helper to get user position for a farm
+const getUserPositionForFarm = (farmId: string) => {
+  return userFarmPositions.value.find(pos => pos.farmId === farmId || pos.farmId === farmId?.toString());
+};
+
+// Helper to get the base pending rewards at lastUpdatedAt
+function getBasePendingRewards(position: any) {
+  // Find the farm info
+  const farm = farms.value.find(f => f.farmId === position.farmId || f._id === position.farmId);
+  if (!farm) return 0;
+  // Parse numbers
+  const staked = Number(position.rawStakedAmount || 0);
+  const totalStaked = Number(farm.rawTotalStaked || 1);
+  const rewardsPerBlock = Number(farm.rawRewardsPerBlock || 0);
+  const lastHarvest = new Date(position.lastHarvestTime).getTime();
+  const lastUpdated = position.lastUpdatedAt ? new Date(position.lastUpdatedAt).getTime() : lastHarvest;
+  const end = new Date(farm.endTime).getTime();
+  const start = Math.max(lastHarvest, new Date(farm.startTime).getTime());
+  const effectiveLastUpdated = Math.min(lastUpdated, end);
+  if (effectiveLastUpdated <= start) return 0;
+  const seconds = Math.floor((effectiveLastUpdated - start) / 1000);
+  const blocks = Math.floor(seconds / 3);
+  if (blocks <= 0 || totalStaked === 0) return 0;
+  const userShare = staked / totalStaked;
+  const pending = userShare * rewardsPerBlock * blocks;
+  return pending / 1e8;
+}
+
+// Track previous pending rewards for each position
+const previousPendingRewards = ref<Record<string, number>>({});
+
+watchEffect(() => {
+  for (const farm of farms.value) {
+    const pos = getUserPositionForFarm(farm.farmId);
+    if (pos) {
+      const key = pos._id || pos.farmId;
+      const current = calculateUserPendingRewards(pos);
+      if (previousPendingRewards.value[key] !== current) {
+        previousPendingRewards.value[key] = current;
+      }
+    }
+  }
+});
+
 onMounted(async () => {
   await retryLoadFarms();
+  await fetchUserFarmPositions();
 });
+
+async function claimFarmRewards(farmId: string) {
+  if (!auth.state.username) return;
+  const contract = 'farm_claim_rewards';
+  const payload = { farmId };
+  const customJsonOperation = {
+    required_auths: [auth.state.username],
+    required_posting_auths: [],
+    id: 'sidechain',
+    json: JSON.stringify({ contract, payload }),
+  };
+  try {
+    await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
+    await fetchUserFarmPositions();
+  } catch (err) {
+    console.error('Failed to claim rewards:', err);
+  }
+}
 </script>
 
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-950 py-10 px-2">
     <div class="max-w-7xl mx-auto">
-      <!-- Header with Create Farm Button -->
       <div class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Farms</h1>
         <router-link to="/createfarm">
@@ -138,7 +274,6 @@ onMounted(async () => {
         </router-link>
       </div>
 
-      <!-- Loading State -->
       <div v-if="loading" class="text-center py-16">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
         <p class="text-gray-600 dark:text-gray-400">Loading farms...</p>
@@ -153,6 +288,7 @@ onMounted(async () => {
           Retry
         </AppButton>
       </div>
+
 
       <!-- Farms Grid -->
       <div v-else-if="farms.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -202,7 +338,8 @@ onMounted(async () => {
             <div class="flex justify-between items-center">
               <span class="text-xs text-gray-500 dark:text-gray-400">Rewards/Block:</span>
               <span class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ formatTokenAmount(farm.rawRewardsPerBlock, farm.rewardToken?.symbol || 'MRY') }}
+                {{ formatTokenAmount(farm.rawRewardsPerBlock, farm.rewardToken?.symbol || 'MRY') }} {{
+                  farm.rewardToken.symbol }}
               </span>
             </div>
 
@@ -210,7 +347,8 @@ onMounted(async () => {
             <div class="flex justify-between items-center">
               <span class="text-xs text-gray-500 dark:text-gray-400">Rewards Left:</span>
               <span class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ formatTokenAmount(farm.rawRewardsRemaining, farm.rewardToken?.symbol || 'MRY') }}
+                {{ formatTokenAmount(farm.rawRewardsRemaining, farm.rewardToken?.symbol || 'MRY') }} {{
+                  farm.rewardToken.symbol }}
               </span>
             </div>
 
@@ -231,7 +369,6 @@ onMounted(async () => {
               </span>
             </div>
 
-            <!-- Start/End Time -->
             <div
               class="text-xs text-gray-500 dark:text-gray-400 text-center pt-2 border-t border-gray-200 dark:border-gray-700">
               <div>Start: {{ formatTime(farm.startTime) }}</div>
@@ -239,7 +376,40 @@ onMounted(async () => {
             </div>
           </div>
 
-          <!-- Action Buttons -->
+          <!-- User Position (if exists) -->
+          <div v-if="getUserPositionForFarm(farm.farmId)"
+            class="mb-4 rounded-lg bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+            <div class="flex flex-col gap-1">
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-primary-600 dark:text-primary-300 font-semibold">Your Staked:</span>
+                <span class="text-sm font-bold text-primary-700 dark:text-primary-200">
+                  {{ formatTokenAmount(getUserPositionForFarm(farm.farmId)?.rawStakedAmount, farm.stakingToken?.symbol
+                    || 'MRY') }}
+                </span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-primary-600 dark:text-primary-300 font-semibold">Your Pending Rewards:</span>
+                <span class="text-sm font-bold text-primary-700 dark:text-primary-200">
+                  {{ calculateUserPendingRewards(getUserPositionForFarm(farm.farmId)).toLocaleString(undefined, {
+                    minimumFractionDigits: tokenList.getTokenPrecision(farm.rewardToken?.symbol || 'MRY'),
+                    maximumFractionDigits: tokenList.getTokenPrecision(farm.rewardToken?.symbol || 'MRY')
+                  }) }}
+                </span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-primary-600 dark:text-primary-300 font-semibold">Last Harvest:</span>
+                <span class="text-xs text-primary-700 dark:text-primary-200">
+                  {{ formatTime(getUserPositionForFarm(farm.farmId)?.lastHarvestTime) }}
+                </span>
+              </div>
+              <AppButton class="btn btn-primary btn-blue mt-3" variant="primary"
+                :disabled="calculateUserPendingRewards(getUserPositionForFarm(farm.farmId)) < 0.000001"
+                @click="claimFarmRewards(farm.farmId)">
+                Claim
+              </AppButton>
+            </div>
+          </div>
+
           <div class="mt-auto space-y-2">
             <AppButton v-if="farm.status === 'active'" class="w-full" variant="primary" size="lg"
               @click="openStakeModal(farm)">
@@ -250,7 +420,6 @@ onMounted(async () => {
               {{ farm.status === 'ended' ? 'Farm Ended' : 'Coming Soon' }}
             </AppButton>
 
-            <!-- Additional Info -->
             <div class="text-xs text-gray-500 dark:text-gray-400 text-center">
               Farm ID: {{ farm._id?.substring(0, 20) }}...
             </div>
