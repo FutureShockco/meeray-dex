@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineEmits, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps<{ show: boolean; symbol?: string; mode?: 'deposit' | 'withdraw' }>();
 const emit = defineEmits(['close', 'deposit', 'withdraw']);

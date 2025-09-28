@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineEmits, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps<{ show: boolean; symbol?: string; username?: string; mode?: 'transfer' | 'mint' | 'burn' }>();
 const emit = defineEmits(['close', 'transfer', 'mint', 'burn']);
