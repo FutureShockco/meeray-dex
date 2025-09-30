@@ -268,7 +268,7 @@ async function renderChart() {
         };
 
         // @ts-ignore
-        chart.config.type = type;
+        //chart.config.type = type;
         chart.config.data.datasets[1].hidden = false;
 
         let lastPrice = null; let lastTradeTs = null; let totalVolume = 0;

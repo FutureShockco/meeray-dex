@@ -1,75 +1,78 @@
+import type { Block } from './block';
+
 export interface FarmCreateData {
   farmId: string;
-  name: string;
-  stakingToken: {
-    symbol: string;
-    issuer: string;
-  };
-  rewardToken: {
-    symbol: string;
-    issuer: string;
-  };
-  startTime: string;          // ISO date string
-  endTime: string;           // ISO date string
-  totalRewards: string | bigint;      // Total rewards to be distributed
-  rewardsPerBlock: string | bigint;   // Rewards distributed per block
-  minStakeAmount?: string | bigint;   // Minimum amount that can be staked
-  maxStakeAmount?: string | bigint;   // Maximum amount that can be staked per user
+  stakingToken: string;
+  rewardToken: string;
+  startBlock: number;
+  totalRewards: string | bigint;
+  rewardsPerBlock: string | bigint;
+  minStakeAmount?: string | bigint;
+  maxStakeAmount?: string | bigint;
 }
 
 export interface FarmStakeData {
-  farmId: string;             // Identifier of the farm
-  staker: string;             // Account staking the LP tokens (sender)
-  lpTokenAmount: number;      // Amount of LP tokens to stake
+  farmId: string;
+  tokenAmount: number;
 }
 
 export interface FarmUnstakeData {
-  farmId: string;             // Identifier of the farm
-  staker: string;             // Account unstaking the LP tokens (sender)
-  lpTokenAmount: number;      // Amount of LP tokens to unstake
-  // withdrawRewards: boolean; // Default true, also claim pending rewards
+  farmId: string;
+  tokenAmount: number;
 }
 
 export interface FarmClaimRewardsData {
-  farmId: string;             // Identifier of the farm
-  staker: string;             // Account claiming rewards (sender)
-}
-
-// Represents a Farm in the cache/database
-export interface FarmData {
-  _id: string;               // Unique farm ID
-  name: string;
-  stakingToken: {
-    symbol: string;
-    issuer: string;
-  };
-  rewardToken: {
-    symbol: string;
-    issuer: string;
-  };
-  startTime: string;         // ISO date string
-  endTime: string;          // ISO date string
-  totalRewards: string | bigint;     // Total rewards to be distributed
-  rewardsPerBlock: string | bigint;  // Rewards distributed per block
-  totalStaked: string | bigint;      // Total amount of staking tokens deposited
-  minStakeAmount: string | bigint;   // Minimum amount that can be staked
-  maxStakeAmount: string | bigint;   // Maximum amount that can be staked per user
-  status: 'active' | 'ended' | 'cancelled';
-  createdAt: string;
-  lastUpdatedAt?: string;
-  // Optional fields for runtime accounting
-  rewardsRemaining?: string | bigint;
-  vaultAccount?: string;
-}
-
-// Represents a user's staking position in a Farm
-export interface UserFarmPositionData {
-  _id: string;              // userId-farmId
-  userId: string;
   farmId: string;
-  stakedAmount: string | bigint;     // Current staked amount
-  pendingRewards: string | bigint;   // Unclaimed rewards
-  lastHarvestTime: string;  // ISO date string of last reward claim
-  createdAt: string;
+}
+
+export interface Farm {
+  _id: string;
+  farmId?: string;
+  stakingToken?: { symbol: string; issuer?: string };
+  rewardToken?: { symbol: string; issuer?: string };
+  startTime?: string;
+  endTime?: string;
+  rewardsPerBlock?: string;
+  totalRewards?: string;
+  rewardsRemaining?: string | null;
+  rewardBalance?: string;
+  totalStaked?: string;
+  minStakeAmount?: string;
+  maxStakeAmount?: string;
+  rawRewardsPerBlock?: string;
+  rawTotalRewards?: string;
+  rawRewardsRemaining?: string | null;
+  rawRewardBalance?: string;
+  rawTotalStaked?: string;
+  rawMinStakeAmount?: string;
+  rawMaxStakeAmount?: string;
+  // bookkeeping
+  /** current block can be a simple block number or a full Block object returned by the node */
+  currentBlock?: number | Block;
+  isExhausted?: boolean;
+  status?: string;
+  createdAt?: string;
+  lastUpdatedAt?: string;
+}
+
+export interface UserFarmPosition {
+  _id: string;
+  userId?: string;
+  farmId?: string;
+  stakedAmount?: string;
+  rewardsEarned?: string;
+  claimedRewards?: string;
+  pendingRewards?: string;
+  rawStakedAmount?: string;
+  rawRewardsEarned?: string;
+  rawClaimedRewards?: string;
+  rawPendingRewards?: string;
+  lastHarvestTime?: string;
+  rawLastHarvestBlock?: number | null;
+  /** optional full block object for the last harvest (if the API returns it) */
+  lastHarvestBlock?: number | Block | null;
+  farmStatus?: string;
+  rawFarmRewardBalance?: string | null;
+  createdAt?: string;
   lastUpdatedAt?: string;
 }

@@ -169,8 +169,7 @@ export interface PoolEvent { /* ... */ }
 export interface PoolRatio { /* ... */ }
 export interface UserLpBalance { /* ... */ }
 export interface SwapPreview { /* ... */ }
-export interface Farm { /* ... */ }
-export interface UserFarmPosition { /* ... */ }
+
 export interface Launchpad { /* ... */ }
 export interface LaunchpadParticipant { /* ... */ }
 export interface LaunchpadClaimable { /* ... */ }
@@ -194,6 +193,23 @@ export interface Token {
   rawTotalSupply?: string; // in smallest units
   createdAt?: string; // ISO date string
   updatedAt?: string; // ISO date string
+}
+
+// Block interface returned by /blocks/latest and related endpoints
+export interface Block {
+  blockNum: number;
+  phash?: string;
+  timestamp: number; // epoch ms
+  steemBlockNum?: number;
+  steemBlockTimestamp?: number;
+  txs?: any[];
+  witness?: string;
+  missedBy?: string;
+  dist?: string;
+  sync?: boolean;
+  signature?: string;
+  hash?: string;
+  id?: string | number;
 }
 
 
@@ -388,7 +404,7 @@ export function useApiService() {
   // --- Block Endpoints ---
   const getBlocks = (params: { limit?: number; offset?: number; hasTransactionType?: number; minTimestamp?: number; maxTimestamp?: number; sortDirection?: string } = {}) =>
     fetcher(`${API_BASE}/blocks?${new URLSearchParams(Object.entries(params).filter(([_, v]) => v !== undefined) as any).toString()}`);
-  const getLatestBlock = () => fetcher(`${API_BASE}/blocks/latest`);
+  const getLatestBlock = () => fetcher(`${API_BASE}/blocks/latest`) as Promise<Block>;
   const getBlockByHeight = (height: number) => fetcher(`${API_BASE}/blocks/height/${height}`);
   const getBlockByHash = (hash: string) => fetcher(`${API_BASE}/blocks/hash/${hash}`);
   const getBlockTransactions = (height: number) => fetcher(`${API_BASE}/blocks/${height}/transactions`);

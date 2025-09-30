@@ -398,6 +398,11 @@ watch(username, async (newUsername, oldUsername) => {
         <div class="text-xs text-gray-500 dark:text-gray-400 flex gap-4">
           <span>VIP Level: <span class="font-medium text-primary-400">{{ user.vip }}</span></span>
         </div>
+        <div class="mt-2">
+          <router-link :to="`/events?sender=${user.username}`">
+            <button class="px-3 py-1 mt-2 rounded bg-primary-400 text-white text-xs">View Events</button>
+          </router-link>
+        </div>
       </div>
     </div>
 

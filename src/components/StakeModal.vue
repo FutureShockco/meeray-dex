@@ -30,9 +30,9 @@ const success = ref('');
 const stakingToken = computed(() => props.farm?.stakingToken);
 const rewardToken = computed(() => props.farm?.rewardToken);
 const userBalance = computed(() => {
-  if (!stakingToken.value?.symbol || !meeray.account?.balances) return '0';
+  if (!stakingToken.value || !meeray.account?.balances) return '0';
 
-  const balance = meeray.account.balances[stakingToken.value.symbol];
+  const balance = meeray.account.balances[stakingToken.value];
   if (!balance) return '0';
 
   // Handle different balance formats
@@ -41,7 +41,7 @@ const userBalance = computed(() => {
   }
 
   if (typeof balance === 'object' && (balance as any).rawAmount) {
-    const precision = tokenList.getTokenPrecision(stakingToken.value.symbol);
+    const precision = tokenList.getTokenPrecision(stakingToken.value);
     try {
       return new BigNumber((balance as any).rawAmount).dividedBy(new BigNumber(10).pow(precision)).toFixed();
     } catch {
@@ -65,15 +65,15 @@ const canStake = computed(() => {
   const userBal = new BigNumber(userBalance.value || '0');
 
   // Convert amount to raw format for comparison using the actual token precision
-  let precision = tokenList.getTokenPrecision(stakingToken.value?.symbol || '');
+  let precision = tokenList.getTokenPrecision(stakingToken.value || '');
 
   // LP tokens always use 18 precision
-  if (stakingToken.value?.symbol && stakingToken.value.symbol.startsWith('LP_')) {
+  if (stakingToken.value && stakingToken.value.startsWith('LP_')) {
     precision = 18;
   }
 
   if (precision === undefined || precision === null) {
-    console.warn('Token precision not found for:', stakingToken.value?.symbol);
+    console.warn('Token precision not found for:', stakingToken.value);
     return false;
   }
 
@@ -91,7 +91,7 @@ const canStake = computed(() => {
     userBalance: userBal.toString(),
     userBalanceRaw: userBalRaw.toString(),
     precision,
-    stakingToken: stakingToken.value?.symbol
+    stakingToken: stakingToken.value
   });
 
   // Check if amount is within valid range
@@ -115,15 +115,15 @@ const maxAmount = computed(() => {
     const userBal = new BigNumber(userBalance.value || '0');
 
     // Convert max stake to human readable format using the actual token precision
-    let precision = tokenList.getTokenPrecision(stakingToken.value?.symbol || '');
+    let precision = tokenList.getTokenPrecision(stakingToken.value || '');
 
     // LP tokens always use 18 precision
-    if (stakingToken.value?.symbol && stakingToken.value.symbol.startsWith('LP_')) {
+    if (stakingToken.value && stakingToken.value.startsWith('LP_')) {
       precision = 18;
     }
 
     if (precision === undefined || precision === null) {
-      console.warn('Token precision not found for max amount calculation:', stakingToken.value?.symbol);
+      console.warn('Token precision not found for max amount calculation:', stakingToken.value);
       return '0';
     }
 
@@ -151,7 +151,7 @@ const formatTokenAmount = (rawAmount: string, symbol: string) => {
     let precision = 8; // Default fallback
 
     if (symbol && tokenList.tokens.length > 0) {
-      const token = tokenList.tokens.find(t => t.symbol === symbol);
+      const token = tokenList.tokens.find(t => t === symbol);
       if (token?.precision !== undefined) {
         precision = token.precision;
       }
@@ -224,10 +224,10 @@ const validateAmount = () => {
 
   // Limit decimal places based on token precision
   if (parts.length === 2) {
-    let precision = tokenList.getTokenPrecision(stakingToken.value?.symbol || '');
+    let precision = tokenList.getTokenPrecision(stakingToken.value || '');
 
     // LP tokens always use 18 precision
-    if (stakingToken.value?.symbol && stakingToken.value.symbol.startsWith('LP_')) {
+    if (stakingToken.value && stakingToken.value.startsWith('LP_')) {
       precision = 18;
     }
 
@@ -277,7 +277,7 @@ const handleStake = async () => {
   success.value = '';
 
   try {
-    const rawAmount = convertToRawAmount(amount.value, stakingToken.value?.symbol || 'LP');
+    const rawAmount = convertToRawAmount(amount.value, stakingToken.value || 'LP');
 
     const customJsonOperation = {
       required_auths: [auth.state.username],
@@ -287,9 +287,7 @@ const handleStake = async () => {
         contract: 'farm_stake',
         payload: {
           farmId: props.farm._id,
-          staker: auth.state.username,
-          lpTokenAmount: rawAmount,
-          lpTokenSymbol: stakingToken.value?.symbol
+          tokenAmount: rawAmount
         }
       })
     };
@@ -372,7 +370,7 @@ watch(() => props.show, (newShow) => {
                 {{ farm.name || 'Farm' }}
               </div>
               <div class="text-sm text-gray-600 dark:text-gray-400">
-                Stake {{ stakingToken?.symbol }} to earn {{ rewardToken?.symbol }}
+                Stake {{ stakingToken }} to earn {{ rewardToken }}
               </div>
             </div>
 
@@ -381,14 +379,14 @@ watch(() => props.show, (newShow) => {
                 <span class="text-gray-500 dark:text-gray-400">Min Stake:</span>
                 <div class="font-semibold text-gray-900 dark:text-white">
                   {{ farm.rawMinStakeAmount === '0' ? 'No minimum' : formatTokenAmount(farm.rawMinStakeAmount,
-                    stakingToken?.symbol || 'LP') }}
+                    stakingToken || 'LP') }}
                 </div>
               </div>
               <div>
                 <span class="text-gray-500 dark:text-gray-400">Max Stake:</span>
                 <div class="font-semibold text-gray-900 dark:text-white">
                   {{ farm.rawMaxStakeAmount === '0' ? 'No limit' : formatTokenAmount(farm.rawMaxStakeAmount,
-                    stakingToken?.symbol || 'LP') }}
+                    stakingToken || 'LP') }}
                 </div>
               </div>
             </div>
@@ -412,15 +410,15 @@ watch(() => props.show, (newShow) => {
 
               <!-- Balance Info -->
               <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Balance: {{ userBalance }} {{ stakingToken?.symbol }}
+                Balance: {{ userBalance }} {{ stakingToken }}
               </div>
 
               <!-- Precision Info -->
               <div class="mt-1 text-xs text-gray-400 dark:text-gray-500">
                 Token precision: {{
-                  stakingToken?.symbol && stakingToken.symbol.startsWith('LP_')
+                  stakingToken && stakingToken.startsWith('LP_')
                     ? 18
-                    : (tokenList.getTokenPrecision(stakingToken?.symbol || '') || 'Unknown')
+                    : (tokenList.getTokenPrecision(stakingToken || '') || 'Unknown')
                 }} decimal places
               </div>
             </div>
@@ -442,18 +440,18 @@ watch(() => props.show, (newShow) => {
               <div>Loading: {{ loading }}</div>
               <div>Raw Min Stake: {{ farm?.rawMinStakeAmount }}</div>
               <div>Raw Max Stake: {{ farm?.rawMaxStakeAmount }}</div>
-              <div>Min Stake (formatted): {{ formatTokenAmount(farm?.rawMinStakeAmount, stakingToken?.symbol || 'LP') }}
+              <div>Min Stake (formatted): {{ formatTokenAmount(farm?.rawMinStakeAmount, stakingToken || 'LP') }}
               </div>
-              <div>Max Stake (formatted): {{ formatTokenAmount(farm?.rawMaxStakeAmount, stakingToken?.symbol || 'LP') }}
+              <div>Max Stake (formatted): {{ formatTokenAmount(farm?.rawMaxStakeAmount, stakingToken || 'LP') }}
               </div>
               <div>Min Stake (direct): {{ farm?.minStakeAmount }}</div>
               <div>Max Stake (direct): {{ farm?.maxStakeAmount }}</div>
               <div>User Balance: {{ userBalance }}</div>
-              <div>Staking Token: {{ stakingToken?.symbol }}</div>
+              <div>Staking Token: {{ stakingToken }}</div>
               <div>Token Precision: {{
-                stakingToken?.symbol && stakingToken.symbol.startsWith('LP_')
+                stakingToken && stakingToken.startsWith('LP_')
                   ? 18
-                  : (tokenList.getTokenPrecision(stakingToken?.symbol || '') || 'Unknown')
+                  : (tokenList.getTokenPrecision(stakingToken || '') || 'Unknown')
               }}</div>
               <div>Max Amount: {{ maxAmount }}</div>
               <div>Farm Status: {{ farm?.status }}</div>

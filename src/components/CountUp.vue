@@ -14,8 +14,23 @@ defineProps({
     type: Number,
     default: 6
   }
+  ,
+  options: {
+    type: Object,
+    default: null
+  }
+  ,
+  formattingFn: {
+    type: Function,
+    default: null
+  }
+  ,
+  startVal: {
+    type: [Number, String],
+    default: 0
+  }
 });
 </script>
 <template>
-  <CountUp :end-val="endVal" :duration="duration" :decimals="decimals" />
+  <CountUp :start-val="startVal" :end-val="endVal" :duration="duration" :decimals="decimals" :options="(options || (formattingFn ? { formattingFn } : undefined))" />
 </template>

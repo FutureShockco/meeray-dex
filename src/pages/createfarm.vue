@@ -6,48 +6,24 @@ import { useMeerayAccountStore } from '../stores/meerayAccount';
 import { useApiService } from '../composables/useApiService';
 import AppButton from '../components/AppButton.vue';
 import AppTokenSelect from '../components/AppTokenSelect.vue';
+import type { FarmCreateData } from '../types/farm';
 
-
-interface FarmCreateData {
-  name: string;
-  stakingToken: {
-    symbol: string;
-    issuer: string;
-  };
-  rewardToken: {
-    symbol: string;
-    issuer: string;
-  };
-  startTime: string;          // ISO date string
-  endTime: string;           // ISO date string
-  totalRewards: string | bigint;      // Total rewards to be distributed
-  rewardsPerBlock: string | bigint;   // Rewards distributed per block
-  minStakeAmount?: string | bigint;   // Minimum amount that can be staked
-  maxStakeAmount?: string | bigint;   // Maximum amount that can be staked per user
-}
 
 const auth = useAuthStore();
 const tokensStore = useTokenListStore();
 const meeray = useMeerayAccountStore();
 const api = useApiService();
 
-// Form data
+// Form data using the FarmCreateData interface
 const formData = ref<FarmCreateData>({
-  name: '',
-  stakingToken: {
-    symbol: '',
-    issuer: ''
-  },
-  rewardToken: {
-    symbol: '',
-    issuer: ''
-  },
-  startTime: '',
-  endTime: '',
+  farmId: '',
+  stakingToken: '',
+  rewardToken: '',
+  startBlock: 0,
   totalRewards: '',
   rewardsPerBlock: '',
-  minStakeAmount: '',
-  maxStakeAmount: ''
+  minStakeAmount: undefined,
+  maxStakeAmount: undefined
 });
 
 // Form state
@@ -57,32 +33,43 @@ const success = ref(false);
 
 // Computed properties
 const tokenOptions = computed(() => tokensStore.tokens);
+// selected reward token metadata (if available in token list)
+const selectedRewardToken = computed(() => {
+  const t = tokensStore.tokens.find((x: any) => x.symbol === formData.value.rewardToken || x.symbol === String(formData.value.rewardToken));
+  return t || null;
+});
+
+// Detect if current user is the issuer of a mintable reward token
+const isRewardIssuerAndMintable = computed(() => {
+  const token = selectedRewardToken.value;
+  if (!token) return false;
+  const issuer = token.issuer ?? token.owner ?? token.creator ?? token.account;
+  const mintable = token.mintable === true || token.isMintable === true;
+  return mintable && issuer && auth?.state?.username && String(issuer) === String(auth.state.username);
+});
+
+const issuerOptIn = ref(false);
 const canSubmit = computed(() => {
   const hasStakingToken = isLpStakingToken.value
-    ? (formData.value.stakingToken.symbol && selectedPool.value)
-    : (formData.value.stakingToken.symbol && formData.value.stakingToken.issuer);
+    ? (formData.value.stakingToken && selectedPool.value)
+    : (formData.value.stakingToken);
 
-  return formData.value.name &&
+  return (
     hasStakingToken &&
-    formData.value.rewardToken.symbol &&
-    formData.value.rewardToken.issuer &&
-    formData.value.startTime &&
-    formData.value.endTime &&
-    formData.value.totalRewards &&
-    formData.value.rewardsPerBlock;
+    formData.value.rewardToken &&
+    formData.value.startBlock &&
+    (formData.value.totalRewards || issuerOptIn.value) &&
+    formData.value.rewardsPerBlock
+  );
 });
 
 // Token selection handlers
 function onStakingTokenChange(symbol: string) {
-  formData.value.stakingToken.symbol = symbol;
-  const token = tokensStore.tokens.find(t => t.symbol === symbol);
-  formData.value.stakingToken.issuer = token?.issuer || '';
+  formData.value.stakingToken = symbol;
 }
 
 function onRewardTokenChange(symbol: string) {
-  formData.value.rewardToken.symbol = symbol;
-  const token = tokensStore.tokens.find(t => t.symbol === symbol);
-  formData.value.rewardToken.issuer = token?.issuer || '';
+  formData.value.rewardToken = symbol;
 }
 
 // LP token handling
@@ -106,9 +93,7 @@ async function fetchAvailablePools() {
 function onPoolSelection(pool: any) {
   selectedPool.value = pool;
   if (pool) {
-    // Create LP token symbol in format LP_TOKENA_TOKENB
-    formData.value.stakingToken.symbol = pool.id;
-    formData.value.stakingToken.issuer = 'pool'; // LP tokens are issued by the pool contract
+    formData.value.stakingToken = pool.id;
   }
 }
 
@@ -117,13 +102,11 @@ function toggleLpStakingToken() {
   isLpStakingToken.value = !isLpStakingToken.value;
   if (isLpStakingToken.value) {
     // Clear regular token selection
-    formData.value.stakingToken.symbol = '';
-    formData.value.stakingToken.issuer = '';
+    formData.value.stakingToken = '';
     selectedPool.value = null;
   } else {
     // Clear LP token selection
-    formData.value.stakingToken.symbol = '';
-    formData.value.stakingToken.issuer = '';
+    formData.value.stakingToken = '';
     selectedPool.value = null;
   }
 }
@@ -131,12 +114,8 @@ function toggleLpStakingToken() {
 
 // Set default times
 function setDefaultTimes() {
-  const now = new Date();
-  const startTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Start tomorrow
-  const endTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // End in 30 days
-
-  formData.value.startTime = startTime.toISOString().slice(0, 16);
-  formData.value.endTime = endTime.toISOString().slice(0, 16);
+  // default startBlock remains 0 until we prefill from the chain
+  formData.value.startBlock = 0;
 }
 
 // Submit form
@@ -148,22 +127,17 @@ async function handleSubmit() {
   success.value = false;
 
   try {
-    // Validate dates
-    const startDate = new Date(formData.value.startTime);
-    const endDate = new Date(formData.value.endTime);
-    const now = new Date();
-
-    if (startDate <= now) {
-      throw new Error('Start time must be in the future');
-    }
-
-    if (endDate <= startDate) {
-      throw new Error('End time must be after start time');
+    // Validate startBlock (must be positive integer)
+    const startBlock = Number(formData.value.startBlock);
+    if (!Number.isFinite(startBlock) || startBlock <= 0) {
+      throw new Error('Start block must be a positive number');
     }
 
     // Validate amounts
     if (Number(formData.value.totalRewards) <= 0) {
-      throw new Error('Total rewards must be greater than 0');
+      if (!issuerOptIn.value) {
+        throw new Error('Total rewards must be greater than 0');
+      }
     }
 
     if (Number(formData.value.rewardsPerBlock) <= 0) {
@@ -179,27 +153,27 @@ async function handleSubmit() {
     }
 
     // Prepare farm data
-    const farmData = {
-      name: formData.value.name,
-      stakingToken: {
-        symbol: formData.value.stakingToken.symbol,
-        issuer: formData.value.stakingToken.issuer
-      },
-      rewardToken: {
-        symbol: formData.value.rewardToken.symbol,
-        issuer: formData.value.rewardToken.issuer
-      },
-      startTime: new Date(formData.value.startTime).toISOString(),
-      endTime: new Date(formData.value.endTime).toISOString(),
-      totalRewards: formData.value.totalRewards,
-      rewardsPerBlock: formData.value.rewardsPerBlock,
+    // Prepare payload matching FarmCreateData (stakingToken/rewardToken are strings)
+    const farmData: FarmCreateData = {
+      farmId: formData.value.farmId || '',
+      stakingToken: String(formData.value.stakingToken),
+      rewardToken: String(formData.value.rewardToken),
+      startBlock: Math.floor(Number(formData.value.startBlock)),
+      totalRewards: String(formData.value.totalRewards),
+      rewardsPerBlock: String(formData.value.rewardsPerBlock),
+      minStakeAmount: formData.value.minStakeAmount ? String(formData.value.minStakeAmount) : undefined,
+      maxStakeAmount: formData.value.maxStakeAmount ? String(formData.value.maxStakeAmount) : undefined
     };
 
-    if (formData.value.minStakeAmount) {
-      (farmData as any).minStakeAmount = formData.value.minStakeAmount;
-    }
-    if (formData.value.maxStakeAmount) {
-      (farmData as any).maxStakeAmount = formData.value.maxStakeAmount;
+    // If issuer opted into auto-minting, don't require totalRewards value and include autoMint flag
+    const txPayload: any = { ...farmData };
+    if (issuerOptIn.value) {
+      // backend expects an `autoMint` flag to mint until maxCap or cancellation
+      txPayload.autoMint = true;
+      // It's okay for totalRewards to be empty in this mode; ensure it's undefined rather than '""'
+      if (!formData.value.totalRewards) {
+        delete txPayload.totalRewards;
+      }
     }
 
     // Send transaction
@@ -209,7 +183,7 @@ async function handleSubmit() {
       id: 'sidechain',
       json: JSON.stringify({
         contract: 'farm_create',
-        payload: farmData
+        payload: txPayload
       })
     };
 
@@ -222,15 +196,14 @@ async function handleSubmit() {
     // Reset form after successful submission
     setTimeout(() => {
       formData.value = {
-        name: '',
-        stakingToken: { symbol: '', issuer: '' },
-        rewardToken: { symbol: '', issuer: '' },
-        startTime: '',
-        endTime: '',
+        farmId: '',
+        stakingToken: '',
+        rewardToken: '',
+        startBlock: 0,
         totalRewards: '',
         rewardsPerBlock: '',
-        minStakeAmount: '',
-        maxStakeAmount: ''
+        minStakeAmount: undefined,
+        maxStakeAmount: undefined
       };
       success.value = false;
     }, 3000);
@@ -250,6 +223,25 @@ onMounted(async () => {
   // Set default values
   setDefaultTimes();
   await fetchAvailablePools(); // Fetch pools on mount
+  // Fill startBlock with latest block number (if available)
+  try {
+    const latest = await api.getLatestBlock();
+    // tolerate multiple shapes (direct number, object with block, or full Block)
+    const anyLatest: any = latest;
+    const blockObj = anyLatest?.block ?? anyLatest;
+    const numCandidate = blockObj?.blockNum ?? blockObj?.number ?? blockObj?.height ?? blockObj?.id ?? blockObj;
+    const n = Number(numCandidate);
+    if (Number.isFinite(n)) {
+      // formData.startBlock is typed as number in FarmCreateData; use any-cast
+      (formData.value as any).startBlock = Math.floor(n);
+      // eslint-disable-next-line no-console
+      console.info('Prefilled startBlock with latest block', (formData.value as any).startBlock);
+    }
+  } catch (err) {
+    // non-fatal
+    // eslint-disable-next-line no-console
+    console.warn('Could not fetch latest block to prefill startBlock', err);
+  }
 });
 </script>
 
@@ -267,17 +259,8 @@ onMounted(async () => {
       <!-- Form -->
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <!-- Farm ID -->
+          <!-- Token & staking selection -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Farm Name
-              </label>
-              <input v-model="formData.name" type="text" required
-                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                placeholder="My Awesome Farm" />
-            </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Staking Token
@@ -289,6 +272,7 @@ onMounted(async () => {
                 </button>
               </div>
             </div>
+            <div></div>
           </div>
 
           <!-- Token Selection -->
@@ -300,11 +284,9 @@ onMounted(async () => {
               </label>
               <!-- Regular Token Selection -->
               <div v-if="!isLpStakingToken">
-                <AppTokenSelect v-model="formData.stakingToken.symbol" :options="tokenOptions"
+                <AppTokenSelect v-model="formData.stakingToken" :options="tokenOptions"
                   placeholder="Select staking token" @update:model-value="onStakingTokenChange" />
-                <div v-if="formData.stakingToken.issuer" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Issuer: {{ formData.stakingToken.issuer }}
-                </div>
+                <!-- issuer not shown; stakingToken is a string symbol or pool id -->
               </div>
 
               <!-- LP Token Selection -->
@@ -317,8 +299,8 @@ onMounted(async () => {
                     {{ pool.tokenA_symbol }}/{{ pool.tokenB_symbol }} ({{ pool.id }})
                   </option>
                 </select>
-                <div v-if="formData.stakingToken.symbol" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  LP Token: {{ formData.stakingToken.symbol }}
+                <div v-if="formData.stakingToken" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  LP Token: {{ formData.stakingToken }}
                 </div>
               </div>
             </div>
@@ -328,30 +310,25 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Reward Token
               </label>
-              <AppTokenSelect v-model="formData.rewardToken.symbol" :options="tokenOptions"
+              <AppTokenSelect v-model="formData.rewardToken" :options="tokenOptions"
                 placeholder="Select reward token" @update:model-value="onRewardTokenChange" />
-              <div v-if="formData.rewardToken.issuer" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Issuer: {{ formData.rewardToken.issuer }}
-              </div>
+              <!-- rewardToken is a string symbol -->
             </div>
           </div>
 
-          <!-- Time Settings -->
+          <!-- Start Block -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Start Time
+                Start Block
               </label>
-              <input v-model="formData.startTime" type="datetime-local" required
-                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+              <input v-model.number="formData.startBlock" type="number" required
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                placeholder="Block number" />
+              <div class="text-xs text-gray-500 mt-1">Prefilled from latest chain block if available</div>
             </div>
-
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                End Time
-              </label>
-              <input v-model="formData.endTime" type="datetime-local" required
-                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+              <!-- empty placeholder to keep layout -->
             </div>
           </div>
 
@@ -361,9 +338,15 @@ onMounted(async () => {
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Total Rewards
               </label>
-              <input v-model="formData.totalRewards" type="number" min="0" step="any" required
+              <input v-model="formData.totalRewards" :disabled="issuerOptIn" type="number" min="0" step="any" :required="!issuerOptIn"
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                 placeholder="1000000" />
+              <div v-if="isRewardIssuerAndMintable" class="mt-2 flex items-start gap-2">
+                <input id="autoMint" type="checkbox" v-model="issuerOptIn" class="mt-1" />
+                <label for="autoMint" class="text-xs text-gray-600 dark:text-gray-300">
+                  Auto-mint rewards (you're the token issuer). If enabled, total rewards can be left empty and the system will mint reward tokens until the configured cap or cancellation.
+                </label>
+              </div>
             </div>
 
             <div>
@@ -434,9 +417,9 @@ onMounted(async () => {
         <div class="text-blue-700 dark:text-blue-300 text-sm space-y-2">
           <p>• Users stake your staking token to earn rewards in the reward token</p>
           <p>• Rewards are distributed per block based on the amount staked</p>
-          <p>• The farm runs from start time to end time</p>
+          <p>• The farm runs from start block until rewards are exhausted/max supply is reached.</p>
           <p>• You can set minimum and maximum stake amounts to control participation</p>
-          <p>• Make sure you have enough reward tokens to distribute the total rewards</p>
+          <p>• If you are not the token issuer, and if the token is not mintable, make sure you have enough reward tokens to tranfer the total rewards into the farm</p>
         </div>
       </div>
     </div>
