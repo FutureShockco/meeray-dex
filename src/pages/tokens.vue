@@ -5,6 +5,7 @@ import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import CreateTokenModal from '../components/CreateTokenModal.vue';
 import { TransactionService, useAuthStore } from 'steem-auth-vue';
+import { useTransactionService } from '../composables/useTransactionService';
 import { maxValue } from '../utils/tokenHelpers';
 import { generatePoolId } from '../utils/idUtils';
 
@@ -12,6 +13,7 @@ const route = useRoute();
 const tokenHelpers = createTokenHelpers();
 const tokensStore = useTokenListStore()
 const auth = useAuthStore();
+const txService = useTransactionService();
 const symbol = computed(() => route.query.symbol as string);
 
 const tokens = computed(() => {
@@ -44,7 +46,10 @@ const createTokenError = ref('');
 async function handleCreateToken(tokenData: { symbol: string; name: string; precision: number; maxSupply: string; initialSupply: string; mintable: boolean; burnable: boolean; description: string; logo: string; website: string }) {
   createTokenError.value = '';
   createTokenLoading.value = true;
+  
   try {
+    if (!auth.state.username) throw new Error('You must be logged in to create a token');
+
     const customJsonOperation = {
       required_auths: [auth.state.username],
       required_posting_auths: [],
@@ -65,10 +70,37 @@ async function handleCreateToken(tokenData: { symbol: string; name: string; prec
         },
       }),
     };
-    await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
-    showCreateToken.value = false;
-    // refresh token list
-    await tokensStore.fetchTokens();
+
+    // Send transaction and get the result
+    const txResult = await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
+    
+    // Extract the transaction ID
+    const txId = txResult?.id || (txResult as any)?.transaction_id || (txResult as any)?.txid;
+    
+    if (txId) {
+      console.log('Transaction broadcast with ID:', txId);
+      
+      // Register transaction - toast is automatically created by the service
+      txService.registerPendingTransaction({
+        id: txId,
+        status: 'PENDING',
+        timestamp: Date.now(),
+        type: 'token_create',
+        steemTxId: txId
+      });
+
+      // Listen for completion to close modal and refresh
+      txService.addEventListener(txId, (status) => {
+        if (status.status === 'COMPLETED') {
+          showCreateToken.value = false;
+          tokensStore.fetchTokens();
+          txService.removeEventListener(txId);
+        } else if (status.status === 'FAILED') {
+          txService.removeEventListener(txId);
+        }
+      });
+    }
+
   } catch (e: any) {
     createTokenError.value = e?.message || 'Failed to create token.';
   } finally {

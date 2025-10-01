@@ -33,6 +33,8 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     StakeModal: typeof import('./components/StakeModal.vue')['default']
     SwapWidget: typeof import('./components/trade/SwapWidget.vue')['default']
+    Toast: typeof import('./components/Toast.vue')['default']
+    ToastContainer: typeof import('./components/ToastContainer.vue')['default']
     TokenIcon: typeof import('./components/TokenIcon.vue')['default']
     TopMovers: typeof import('./components/trade/TopMovers.vue')['default']
     TradeWidget: typeof import('./components/trade/TradeWidget.vue')['default']

@@ -7,10 +7,12 @@ import { useApiService } from '../composables/useApiService';
 import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import { useAuthStore, TransactionService } from 'steem-auth-vue';
+import { useTransactionService } from '../composables/useTransactionService';
 
 const api = useApiService();
 const tokenList = useTokenListStore();
 const auth = useAuthStore();
+const txService = useTransactionService();
 const farms = ref<any[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -652,18 +654,48 @@ onMounted(async () => {
 
 async function claimFarmRewards(farmId: string) {
   if (!auth.state.username) return;
-  const contract = 'farm_claim_rewards';
-  const payload = { farmId };
-  const customJsonOperation = {
-    required_auths: [auth.state.username],
-    required_posting_auths: [],
-    id: 'sidechain',
-    json: JSON.stringify({ contract, payload }),
-  };
+  
   try {
-    await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
-    await fetchUserFarmPositions();
-  } catch (err) {
+    const contract = 'farm_claim_rewards';
+    const payload = { farmId };
+    
+    const customJsonOperation = {
+      required_auths: [auth.state.username],
+      required_posting_auths: [],
+      id: 'sidechain',
+      json: JSON.stringify({ contract, payload }),
+    };
+
+    // Send the transaction and get the result
+    const txResult = await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
+    
+    // Extract the transaction ID
+    const txId = txResult?.id || (txResult as any)?.transaction_id || (txResult as any)?.txid;
+    
+    if (txId) {
+      console.log('Farm claim transaction broadcast with ID:', txId);
+      
+      // Register transaction - toast is automatically created by the service
+      txService.registerPendingTransaction({
+        id: txId,
+        status: 'PENDING',
+        timestamp: Date.now(),
+        type: 'farm_claim_rewards',
+        steemTxId: txId
+      });
+
+      // Listen for completion to refresh farm positions
+      txService.addEventListener(txId, (status) => {
+        if (status.status === 'COMPLETED') {
+          fetchUserFarmPositions();
+          txService.removeEventListener(txId);
+        } else if (status.status === 'FAILED') {
+          txService.removeEventListener(txId);
+        }
+      });
+    }
+
+  } catch (err: any) {
     console.error('Failed to claim rewards:', err);
   }
 }

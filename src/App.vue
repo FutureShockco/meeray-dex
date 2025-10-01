@@ -68,6 +68,9 @@ onMounted(() => {
     </AppNavbar>
     <router-view class="mx-auto mt-16" />
 
+    <!-- Global Toast Notifications -->
+    <ToastContainer />
+
     <footer class="bg-gray-100 border-t mt-auto">
       <div class="mx-auto px-4 py-6">
         <div class="flex flex-col md:flex-row justify-between items-center text-gray-600">
