@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
+import CreateTokenModal from '../components/CreateTokenModal.vue';
+import { TransactionService, useAuthStore } from 'steem-auth-vue';
+import { maxValue } from '../utils/tokenHelpers';
+import { generatePoolId } from '../utils/idUtils';
 
 const route = useRoute();
 const tokenHelpers = createTokenHelpers();
 const tokensStore = useTokenListStore()
+const auth = useAuthStore();
 const symbol = computed(() => route.query.symbol as string);
 
 const tokens = computed(() => {
@@ -31,6 +36,45 @@ const tokenStats = computed(() => {
 onMounted(() => {
   if (!tokensStore.tokens.length) tokensStore.fetchTokens();
 });
+
+const showCreateToken = ref(false);
+const createTokenLoading = ref(false);
+const createTokenError = ref('');
+
+async function handleCreateToken(tokenData: { symbol: string; name: string; precision: number; maxSupply: string; initialSupply: string; mintable: boolean; burnable: boolean; description: string; logo: string; website: string }) {
+  createTokenError.value = '';
+  createTokenLoading.value = true;
+  try {
+    const customJsonOperation = {
+      required_auths: [auth.state.username],
+      required_posting_auths: [],
+      id: 'sidechain',
+      json: JSON.stringify({
+        contract: 'token_create',
+        payload: {
+          symbol: tokenData.symbol,
+          name: tokenData.name,
+          precision: tokenData.precision,
+          maxSupply: tokenData.maxSupply,
+          initialSupply: tokenData.initialSupply,
+          mintable: tokenData.mintable,
+          burnable: tokenData.burnable,
+          description: tokenData.description,
+          logo: tokenData.logo,
+          website: tokenData.website,
+        },
+      }),
+    };
+    await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
+    showCreateToken.value = false;
+    // refresh token list
+    await tokensStore.fetchTokens();
+  } catch (e: any) {
+    createTokenError.value = e?.message || 'Failed to create token.';
+  } finally {
+    createTokenLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -48,7 +92,8 @@ onMounted(() => {
         </div>
 
         <!-- Token Header -->
-        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-8">
+        <div
+          class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-8">
           <div class="flex items-start justify-between mb-6">
             <div class="flex items-center gap-6">
               <div
@@ -108,7 +153,8 @@ onMounted(() => {
         </div>
 
         <!-- Token Actions -->
-        <div class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-8">
+        <div
+          class="rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-x-auto p-8">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <router-link
@@ -165,12 +211,9 @@ onMounted(() => {
             <h2 class="text-3xl font-bold text-gray-900 dark:text-white">All Tokens</h2>
             <div class="flex gap-3">
               <button
-                class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium">
+                class="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium"
+                @click="showCreateToken = true">
                 Create Token
-              </button>
-              <button
-                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
-                Filter
               </button>
             </div>
           </div>
@@ -196,8 +239,9 @@ onMounted(() => {
               <div class="space-y-3">
                 <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <span class="text-sm text-gray-600 dark:text-gray-400">Max Supply</span>
-                  <span class="font-mono font-semibold text-gray-900 dark:text-white">{{
-                    $formatTokenBalance(token.rawMaxSupply, token.symbol) }}</span>
+                  <span class="font-mono font-semibold text-gray-900 dark:text-white">
+                    {{ token.rawMaxSupply === maxValue ? 'Infinite' : $formatTokenBalance(token.rawMaxSupply,
+                    token.symbol) }}</span>
                 </div>
                 <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <span class="text-sm text-gray-600 dark:text-gray-400">Current Supply</span>
@@ -207,14 +251,15 @@ onMounted(() => {
                 <div class="flex justify-between items-center p-3 bg-primary-50 dark:bg-primary-900/30 rounded-lg">
                   <span class="text-sm text-primary-600 dark:text-primary-400">Supply %</span>
                   <span class="font-mono font-semibold text-primary-700 dark:text-primary-300">
-                    {{ token.maxSupply > 0 ? ((token.currentSupply / token.maxSupply) * 100).toFixed(1) : 0 }}%
+                    {{ (Number(BigInt(token.rawCurrentSupply) * 100n / BigInt(token.rawMaxSupply)).toFixed(3)) }}%
                   </span>
                 </div>
               </div>
 
               <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex gap-2">
-                  <router-link :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${token.symbol}_MRY` } }"
+                  <router-link
+                    :to="{ path: '/swap', query: { useTradeWidget: 'true', pairId: `${generatePoolId(token.symbol === 'MRY' ? 'TESTS' : token.symbol, 'MRY')}` } }"
                     class="block">
                     <button
                       class="w-full px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium">
@@ -243,6 +288,11 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Render Create Token Modal -->
+      <CreateTokenModal v-if="showCreateToken" @close="showCreateToken = false" @create="handleCreateToken" />
+      <div v-if="createTokenLoading" class="mt-2 text-primary-400 font-semibold">Creating token...</div>
+      <div v-if="createTokenError" class="mt-2 text-red-500 font-semibold">{{ createTokenError }}</div>
     </div>
   </div>
 </template>

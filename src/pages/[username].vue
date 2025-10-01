@@ -249,6 +249,7 @@ async function handleTransfer(transferData: { to: string; amount: number; symbol
   transferError.value = '';
   transferLoading.value = true;
   try {
+    console.log('Transfer data:', transferData);
     let contract = 'token_transfer';
     const token = tokenList.tokens.find(t => t.symbol === transferData.symbol);
     const precision = token?.precision ?? 8; // Default to 8 if token not found

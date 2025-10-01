@@ -1,5 +1,8 @@
 import { useCoinPricesStore } from '../stores/useCoinPrices';
 import { useTokenListStore } from '../stores/useTokenList';
+
+export const maxValue = '999999999999999999999999999999'; // 30 nines
+
 /**
  * Factory function that creates token helper functions with store access
  * Call this inside your component setup to get the helpers

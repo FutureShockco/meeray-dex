@@ -20,18 +20,13 @@ function openDropdown() { isOpen.value = true; }
 function closeDropdown() { isOpen.value = false; }
 function toggleDropdown() { isOpen.value = !isOpen.value; }
 
-function isActive(item: DropdownItem) {
-  if (!item.href) return false;
-  const path = item.href.startsWith('/') ? item.href : '/' + item.href;
-  return route.path === path || route.path.startsWith(path + '/');
-}
 </script>
 
 <template>
     <div class="relative group" @mouseleave="closeDropdown">
         <button
             class="px-4 py-2 font-semibold flex items-center focus:outline-none"
-            @mouseenter="openDropdown" @click="toggleDropdown" type="button">
+            @mouseenter="openDropdown" @click="$emit('label-click'); toggleDropdown()" type="button">
             {{ props.label }}
             <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M19 9l-7 7-7-7" />

@@ -55,7 +55,7 @@ const menuItems = [
   { label: 'Swap', href: 'swap?tokenIn=MRY&tokenOut=TESTS' },
   { label: 'Pools', href: 'pools' },
   {
-    label: 'Farms', dropdown: true, children: [
+    label: 'Farms', dropdown: true, href: 'farms', children: [
       {
         icon: FarmIcon,
         title: 'Native Farms',
@@ -171,7 +171,17 @@ onMounted(() => {
       <ul class="flex items-stretch h-full space-x-6 pb-[1px]">
         <li v-for="item in menuItems" :key="item.label" class="relative flex items-center h-full">
           <template v-if="item.dropdown && item.children">
-            <NavDropdown :label="item.label" :items="item.children" @select="(child: any) => router.push(child.href)" />
+            <NavDropdown :label="item.label" :items="item.children"
+              @label-click="() => {
+                if (!item || !item.href) return;
+                const target = item.href.startsWith('/') ? item.href : '/' + item.href;
+                router.push(target);
+              }"
+              @select="(child: any) => {
+                if (!child || !child.href) return;
+                const target = child.href.startsWith('/') ? child.href : '/' + child.href;
+                router.push(target);
+              }" />
           </template>
           <template v-else>
             <router-link :to="item.href" :class="[
