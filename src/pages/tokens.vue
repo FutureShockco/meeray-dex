@@ -5,7 +5,6 @@ import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import CreateTokenModal from '../components/CreateTokenModal.vue';
 import { TransactionService, useAuthStore } from 'steem-auth-vue';
-import { useTransactionService } from '../composables/useTransactionService';
 import { maxValue } from '../utils/tokenHelpers';
 import { generatePoolId } from '../utils/idUtils';
 
@@ -13,7 +12,6 @@ const route = useRoute();
 const tokenHelpers = createTokenHelpers();
 const tokensStore = useTokenListStore()
 const auth = useAuthStore();
-const txService = useTransactionService();
 const symbol = computed(() => route.query.symbol as string);
 
 const tokens = computed(() => {
@@ -71,35 +69,16 @@ async function handleCreateToken(tokenData: { symbol: string; name: string; prec
       }),
     };
 
-    // Send transaction and get the result
-    const txResult = await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
+    // Send transaction - automatically tracked with notifications via global hook!
+    await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
     
-    // Extract the transaction ID
-    const txId = txResult?.id || (txResult as any)?.transaction_id || (txResult as any)?.txid;
+    // Close modal and refresh tokens
+    showCreateToken.value = false;
     
-    if (txId) {
-      console.log('Transaction broadcast with ID:', txId);
-      
-      // Register transaction - toast is automatically created by the service
-      txService.registerPendingTransaction({
-        id: txId,
-        status: 'PENDING',
-        timestamp: Date.now(),
-        type: 'token_create',
-        steemTxId: txId
-      });
-
-      // Listen for completion to close modal and refresh
-      txService.addEventListener(txId, (status) => {
-        if (status.status === 'COMPLETED') {
-          showCreateToken.value = false;
-          tokensStore.fetchTokens();
-          txService.removeEventListener(txId);
-        } else if (status.status === 'FAILED') {
-          txService.removeEventListener(txId);
-        }
-      });
-    }
+    // Wait a bit for the transaction to process, then refresh
+    setTimeout(() => {
+      tokensStore.fetchTokens();
+    }, 2000);
 
   } catch (e: any) {
     createTokenError.value = e?.message || 'Failed to create token.';

@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
 import { useTransactionService } from './composables/useTransactionService'
+import { initializeGlobalTransactionTracking } from './setupGlobalTransactionTracking'
 import filters from './plugins/filters';
 
 import './assets/css/tailwind.css';
@@ -20,6 +21,13 @@ app.use(filters)
 // Initialize transaction service (WebSocket/Kafka) once at app startup so we try to connect immediately
 const txService = useTransactionService()
 txService.ensureInitialized()
+
+// Initialize global transaction tracking hook
+// This will automatically track ALL transactions sent via TransactionService
+console.log('🚀 [main.ts] Calling initializeGlobalTransactionTracking...')
+initializeGlobalTransactionTracking()
+console.log('✅ [main.ts] initializeGlobalTransactionTracking completed')
+
 // Expose to window for debugging in non-production environments
 try {
 	// Only attach in dev-like environments to avoid leaking internals in production

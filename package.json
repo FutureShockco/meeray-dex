@@ -22,7 +22,7 @@
     "numeral": "^2.0.6",
     "pinia": "^3.0.3",
     "regenerator-runtime": "^0.14.1",
-    "steem-auth-vue": "^1.0.17",
+    "steem-auth-vue": "^1.0.19",
     "steemlogin": "^1.0.1",
     "vue": "^3.5.18",
     "vue-chartjs": "^5.3.2",
