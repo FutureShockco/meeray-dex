@@ -98,7 +98,7 @@ export const useToast = () => {
             progress: 0,
             link: txId ? {
                 text: 'View TX',
-                url: `https://explorer.meeray.com/tx/${txId}`
+                url: `https://meeray.com/tx/${txId}`
             } : undefined
         })
 

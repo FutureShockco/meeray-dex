@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { useAuthStore } from 'steem-auth-vue'
 import { useToast } from './useToast'
+import { triggerTransactionRefresh } from './useTransactionRefresh'
 
 export interface TransactionStatus {
   id: string
@@ -385,6 +386,9 @@ export const useTransactionService = () => {
       // Console logs
       if (newStatus === 'COMPLETED') {
         console.log(`✅ Transaction ${txId} completed successfully`)
+        
+        // Trigger refresh callbacks for this transaction type
+        triggerTransactionRefresh(currentStatus.type, updatedStatus)
       } else if (newStatus === 'VALIDATION_FAILED') {
         console.warn(`⚠️ Transaction ${txId} validation failed: ${updatedStatus.error}`)
       } else if (newStatus === 'FAILED') {

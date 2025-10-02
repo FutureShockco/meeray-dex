@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useTokenListStore } from '../stores/useTokenList';
 import { createTokenHelpers } from '../utils/tokenHelpers';
 import CreateTokenModal from '../components/CreateTokenModal.vue';
 import { TransactionService, useAuthStore } from 'steem-auth-vue';
 import { maxValue } from '../utils/tokenHelpers';
 import { generatePoolId } from '../utils/idUtils';
+import { useTransactionRefresh } from '../composables/useTransactionRefresh';
 
 const route = useRoute();
 const tokenHelpers = createTokenHelpers();
@@ -32,10 +33,27 @@ const tokenStats = computed(() => {
     { label: 'Active Markets', value: tokens.value.filter(t => t.currentSupply > 0).length.toString(), icon: '📈' },
   ];
 });
+const { onTransactionComplete } = useTransactionRefresh();
+let unregisterRefresh: (() => void) | null = null;
 
 onMounted(() => {
   if (!tokensStore.tokens.length) tokensStore.fetchTokens();
+  
+  // Register refresh callback for token creation transactions
+  unregisterRefresh = onTransactionComplete('token_create', async () => {
+    console.log('[TokensPage] Token created! Refreshing token list...')
+    await tokensStore.fetchTokens()
+    console.log('[TokensPage] Token list refreshed!')
+  })
 });
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (unregisterRefresh) {
+    unregisterRefresh()
+  }
+})
+
 
 const showCreateToken = ref(false);
 const createTokenLoading = ref(false);
@@ -44,7 +62,7 @@ const createTokenError = ref('');
 async function handleCreateToken(tokenData: { symbol: string; name: string; precision: number; maxSupply: string; initialSupply: string; mintable: boolean; burnable: boolean; description: string; logo: string; website: string }) {
   createTokenError.value = '';
   createTokenLoading.value = true;
-  
+
   try {
     if (!auth.state.username) throw new Error('You must be logged in to create a token');
 
@@ -71,10 +89,10 @@ async function handleCreateToken(tokenData: { symbol: string; name: string; prec
 
     // Send transaction - automatically tracked with notifications via global hook!
     await TransactionService.send('custom_json', customJsonOperation, { requiredAuth: 'active' });
-    
+
     // Close modal and refresh tokens
     showCreateToken.value = false;
-    
+
     // Wait a bit for the transaction to process, then refresh
     setTimeout(() => {
       tokensStore.fetchTokens();
@@ -252,7 +270,7 @@ async function handleCreateToken(tokenData: { symbol: string; name: string; prec
                   <span class="text-sm text-gray-600 dark:text-gray-400">Max Supply</span>
                   <span class="font-mono font-semibold text-gray-900 dark:text-white">
                     {{ token.rawMaxSupply === maxValue ? 'Infinite' : $formatTokenBalance(token.rawMaxSupply,
-                    token.symbol) }}</span>
+                      token.symbol) }}</span>
                 </div>
                 <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <span class="text-sm text-gray-600 dark:text-gray-400">Current Supply</span>

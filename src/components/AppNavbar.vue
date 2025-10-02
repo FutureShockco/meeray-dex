@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, h } from 'vue';
+import { ref } from 'vue';
 import { SteemAuth, SteemTransactions, MeerayTransactions, useAuthStore } from 'steem-auth-vue';
 import NavDropdown from './NavDropdown.vue'
 import { useTransactionService } from '../composables/useTransactionService';
@@ -8,7 +8,6 @@ import { useRouter, useRoute } from 'vue-router';
 const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
-const displayDarkModeToggle = ref(false);
 const isDarkTheme = ref(false);
 const toggleTheme = () => { isDarkTheme.value = !isDarkTheme.value; handleThemeChange(isDarkTheme.value); };
 // Example SVG icon as a functional component

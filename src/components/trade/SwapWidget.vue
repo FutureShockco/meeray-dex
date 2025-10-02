@@ -4,6 +4,7 @@ import { useAuthStore, TransactionService } from 'steem-auth-vue';
 import { useTokenListStore } from '../../stores/useTokenList';
 import { useMeerayAccountStore } from '../../stores/meerayAccount';
 import { useApiService } from '../../composables/useApiService';
+import { useTransactionRefresh } from '../../composables/useTransactionRefresh';
 import AppButton from '../AppButton.vue';
 import AppTokenSelect from '../AppTokenSelect.vue';
 import { useRoute } from 'vue-router';
@@ -25,6 +26,7 @@ const tokensStore = useTokenListStore();
 const meeray = useMeerayAccountStore();
 const api = useApiService();
 const appStore = useAppStore();
+const { onTransactionComplete } = useTransactionRefresh();
 
 const fromToken = ref('');
 const toToken = ref('');
@@ -258,6 +260,10 @@ function getBalance(symbol: string) {
 }
 
 const route = useRoute();
+
+// Store cleanup function
+let unregisterRefresh: (() => void) | null = null;
+
 onMounted(() => {
   // Ensure tokens are loaded before interacting
   if (!tokensStore.tokens.length && !tokensStore.loading) {
@@ -266,6 +272,13 @@ onMounted(() => {
       appStore.setAppLoading(false);
     });
   }
+
+  // Register refresh callback for swap transactions
+  unregisterRefresh = onTransactionComplete('swap', async () => {
+    console.log('[SwapWidget] Swap completed! Refreshing balances...')
+    await meeray.refreshAccount()
+    console.log('[SwapWidget] Balances refreshed!')
+  })
 
   // Handle path parameter (for multi-hop routes)
   const qPath = route.query.path;
@@ -313,6 +326,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  // Cleanup intervals
   if (quoteRefreshInterval) {
     clearInterval(quoteRefreshInterval);
     quoteRefreshInterval = null;
@@ -324,6 +338,12 @@ onUnmounted(() => {
   if (previewTimer) {
     clearTimeout(previewTimer);
     previewTimer = null;
+  }
+  
+  // Cleanup transaction refresh callback
+  if (unregisterRefresh) {
+    unregisterRefresh();
+    unregisterRefresh = null;
   }
 });
 
@@ -356,7 +376,8 @@ function setMaxAmountIn() {
               placeholder="Select token" @update:modelValue="onTokenChange('from', $event)" />
             <div v-if="fromToken" class="mt-1 text-xs text-gray-500 dark:text-gray-300">
               <div class="flex justify-between items-center">
-                <div class="truncate">Balance: <span class="font-semibold">{{ getBalance(fromToken) }} {{ fromToken }}</span></div>
+                <div class="truncate">Balance: <span class="font-semibold">{{ getBalance(fromToken) }} {{ fromToken
+                    }}</span></div>
                 <div class="font-mono text-right">${{ $tokenAmountPrice(getBalance(fromToken), fromToken) }}</div>
               </div>
             </div>
@@ -379,7 +400,8 @@ function setMaxAmountIn() {
               placeholder="Select token" @update:modelValue="onTokenChange('to', $event)" />
             <div v-if="toToken" class="mt-1 text-xs text-gray-500 dark:text-gray-300">
               <div class="flex justify-between items-center">
-                <div class="truncate">Balance: <span class="font-semibold">{{ getBalance(toToken) }} {{ toToken }}</span></div>
+                <div class="truncate">Balance: <span class="font-semibold">{{ getBalance(toToken) }} {{ toToken
+                    }}</span></div>
                 <div class="font-mono text-right">${{ $tokenAmountPrice(getBalance(toToken), toToken) }}</div>
               </div>
             </div>
@@ -407,7 +429,8 @@ function setMaxAmountIn() {
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Available Routes</h3>
             <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3">
-              <div v-if="autoRefreshEnabled" class="text-gray-600 dark:text-gray-300">Auto-refresh in {{ refreshCountdown }}s</div>
+              <div v-if="autoRefreshEnabled" class="text-gray-600 dark:text-gray-300">Auto-refresh in {{
+                refreshCountdown }}s</div>
               <label class="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" v-model="autoRefreshEnabled" class="form-checkbox h-4 w-4" />
                 <span class="text-xs">Auto</span>
