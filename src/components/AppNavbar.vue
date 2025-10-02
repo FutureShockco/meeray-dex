@@ -201,11 +201,6 @@ const isKafkaConnected = txService.isConnected;
       </ul>
       <!-- Actions -->
       <div class="flex items-center space-x-3">
-        <!-- Kafka connection indicator -->
-        <div class="flex items-center mr-2" title="Kafka connection status">
-          <span :class="['inline-block w-3 h-3 rounded-full mr-2', isKafkaConnected ? 'bg-green-500' : 'bg-red-500']"></span>
-          <span class="text-sm text-gray-500 dark:text-gray-300">Kafka</span>
-        </div>
         <button class="steem-auth-theme-toggle" @click="toggleTheme" type="button">
           {{ isDarkTheme ? '☀️' : '🌙' }}
         </button>
